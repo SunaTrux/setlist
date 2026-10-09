@@ -242,6 +242,20 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .stock-tools{display:flex; gap:8px; align-items:stretch; margin-bottom:14px;}
 .stock-tools .select-btn{flex:0 0 auto; padding:0 14px;}
 .stock-tools .sort-chip{flex:1 1 0; max-width:none;}
+.bulk-btn{flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:0 14px;}
+.bulk-box{max-width:440px; max-height:86vh; display:flex; flex-direction:column;}
+.bulk-head{font-size:15px; font-weight:700; margin-bottom:4px;}
+.bulk-text{width:100%; padding:10px; margin-bottom:14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; line-height:1.6; font-family:inherit; resize:vertical;}
+.ocr-list{overflow-y:auto; flex:1; min-height:0; margin-bottom:12px; border:1px solid var(--border); border-radius:8px;}
+.ocr-row{display:flex; align-items:center; gap:8px; padding:8px 10px; border-top:1px solid var(--border);}
+.ocr-row:first-child{border-top:none;}
+.ocr-row.is-off .ocr-main, .ocr-row.is-off .ocr-dur{opacity:.45;}
+.ocr-row > input[type=checkbox]{flex-shrink:0; width:20px; height:20px; accent-color:var(--accent);}
+.ocr-main{flex:1; min-width:0;}
+.ocr-name{width:100%; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-family:inherit;}
+.ocr-sub{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:11px; color:var(--muted); margin-top:3px; min-height:14px;}
+.ocr-dur{flex-shrink:0; width:62px; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; text-align:center;}
+.bulk-box .pos-row{margin-bottom:12px;}
 .setlist-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:20px 0 8px;}
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
@@ -271,6 +285,22 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .net-search{display:flex; gap:8px; padding:4px 10px 0;}
 .net-btn{flex:1; text-align:center; padding:9px 6px; font-size:13px; text-decoration:none;}
 .net-note{font-size:11px; color:var(--muted); padding:8px 10px 10px; line-height:1.6;}
+.reg-seg{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:10px;}
+.reg-seg button{flex:1; padding:8px 4px; border:none; background:var(--surface2); color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;}
+.reg-seg button + button{border-left:1px solid var(--border);}
+.reg-seg button.on{background:var(--accent); color:var(--accent-text);}
+.reg-search{width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:15px; font-family:inherit; margin-bottom:8px;}
+.reg-count{font-size:12px; color:var(--muted); padding:2px 2px 6px;}
+.reg-list{border:1px solid var(--border); border-radius:8px; background:var(--surface2); overflow:hidden;}
+.reg-row{display:flex; align-items:center; gap:10px; padding:8px 10px; border-top:1px solid var(--border);}
+.reg-list .reg-row:first-child{border-top:none;}
+.reg-art{width:48px; height:48px; flex-shrink:0; border-radius:6px; overflow:hidden; background:var(--surface); display:flex; align-items:center; justify-content:center; color:var(--muted);}
+.reg-art img{width:100%; height:100%; object-fit:cover; display:block;}
+.reg-main{flex:1; min-width:0;}
+.reg-title{font-size:15px; color:var(--text); overflow-wrap:anywhere; line-height:1.35;}
+.reg-sub{font-size:12px; color:var(--muted); overflow-wrap:anywhere; line-height:1.4; margin-top:2px;}
+.reg-row .btn{flex-shrink:0; padding:6px 12px; font-size:13px;}
+.reg-empty{font-size:13px; color:var(--muted); padding:12px 4px; line-height:1.6;}
 .suggest-who{display:block; font-size:11px; color:var(--muted); margin-top:1px;}
 .detail-edit-link{margin-top:8px; padding:4px 0; font-size:13px; color:var(--accent); font-weight:600;}
 .add-panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-bottom:12px;}
@@ -1022,6 +1052,7 @@ function renderSongs(){
     <button type="button" class="btn" onclick="exitStockSelect()">キャンセル</button>
   </div>` : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-song">+ 曲を登録</button>
+    <button type="button" class="btn bulk-btn" onclick="openBulkText()" aria-label="テキストからまとめて登録" title="テキストからまとめて登録">${TEXT_ICON_SVG}<span>一括</span></button>
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
@@ -1036,7 +1067,7 @@ function renderSongs(){
   const editingInList = songForm && songForm.id && sortSongs(songs, songSort).some(s => s.id===songForm.id && (songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter)));
   if(songForm && !editingInList) html += songFormHtml(songForm);
   if(songs.length===0 && !songForm){
-    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。</div>`;
+    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「一括」からまとめて登録できます。</div>`;
   } else {
     const sortedSongs = sortSongs(songs, songSort);
     const filteredSongs = sortedSongs.filter(s => {
@@ -1185,6 +1216,142 @@ function finishSongEdit(){
   returnToLiveId = null;
   render();
 }
+// ---- テキストからまとめて登録（端末の中だけで完結。通信なし）----
+const bulk = {text:'', items:[]};
+const BULK_JUNK = /^(シャッフル|再生|すべて再生|ライブラリ|ライブラリに追加|ダウンロード|編集|共有|プレイリスト|アルバム|曲|ミュージック|検索|ラジオ|見つける|今すぐ聴く|最近追加した項目|次はこちら|explicit|e|play|shuffle|library|songs?|albums?|playlists?|more|もっと見る|\.{2,}|…)$/i;
+function bulkOverlay(inner){
+  let ov = document.getElementById('bulk-overlay');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'bulk-overlay'; ov.className = 'modal-overlay'; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal-box bulk-box">${inner}</div>`;
+  return ov;
+}
+window.closeBulk = () => { const ov = document.getElementById('bulk-overlay'); if(ov) ov.remove(); };
+window.openBulkText = () => {
+  bulkOverlay(`<div class="bulk-head">テキストからまとめて登録</div>
+    <div class="hint" style="padding:0 0 8px;">曲名を1行に1曲ずつ貼り付けてください。ミュージックアプリなどのスクリーンショットは、写真アプリで文字を長押しするとコピーできます（テキスト認識表示）。「曲名 - アーティスト」「3:45」のような書き方も読み取ります。</div>
+    <textarea id="bulk-text" class="bulk-text" rows="9" placeholder="1. Get Back - The Beatles 3:11&#10;Kansas City&#10;Iko Iko 3:30">${esc(bulk.text)}</textarea>
+    <div class="modal-actions">
+      <button type="button" class="btn" onclick="closeBulk()">キャンセル</button>
+      <button type="button" class="btn btn-accent" onclick="parseBulk()">次へ</button>
+    </div>`);
+  const ta = document.getElementById('bulk-text'); if(ta) ta.focus();
+};
+// 1行ずつ読み取る。番号・記号を外し、時間とアーティストを切り分ける
+// ミュージックアプリの検索結果のように「曲名」の次の行が「曲・アーティスト」になっている形も読む
+const DUR_RE = /[（(]?[0-9０-９]{1,2}[:：][0-5０-５][0-9０-９][)）]?/g;
+const META_SEP = '\\s*[・·•･‧∙]\\s*';
+const SONG_META_RE = new RegExp('^(?:曲|シングル|song|single)' + META_SEP + '(.*)$', 'i');
+const OTHER_META_RE = new RegExp('^(?:アルバム|ミュージックビデオ|ビデオ|プレイリスト|ステーション|ラジオ|アーティスト|album|music video|playlist|station|artist)(?:' + META_SEP + '.*)?$', 'i');
+function cleanTitle(t){
+  let cut = false;
+  // 末尾の「...」「…」は画面で切れた印。切れて閉じていない括弧も落とす
+  if(/(\.{2,}|…+)\s*$/.test(t)){
+    cut = true;
+    t = t.replace(/[\s.…]+$/,'');
+    const open = Math.max(t.lastIndexOf('('), t.lastIndexOf('（'));
+    const close = Math.max(t.lastIndexOf(')'), t.lastIndexOf('）'));
+    if(open > close) t = t.slice(0, open);
+  }
+  // リマスター表記は外す（セットリストでは不要なため）
+  t = t.replace(/\s*[（(\[［][^)）\]］]*remaster[^)）\]］]*[)）\]］]/ig,'').replace(/\s+-\s+[^-]*remaster.*$/i,'');
+  return {title: t.trim(), cut};
+}
+function parseBulkText(text){
+  const lines = String(text||'').split(/\r?\n/).map(l => l.replace(/\s+/g,' ').trim())
+    .filter(l => /[\p{L}\p{N}]/u.test(l));   // 記号だけの行（●・••など）は捨てる
+  const out = [];
+  let appFormat = false;
+  lines.forEach(line => {
+    const norm = line.normalize('NFKC');
+    const songMeta = norm.match(SONG_META_RE);
+    if(songMeta){
+      appFormat = true;
+      const prev = out[out.length-1];
+      if(prev && !prev.meta){ prev.meta = 'song'; if(!prev.artist) prev.artist = songMeta[1].trim(); }
+      return;
+    }
+    if(OTHER_META_RE.test(norm)){
+      appFormat = true;
+      const prev = out[out.length-1];
+      if(prev && !prev.meta) prev.meta = 'other';
+      return;
+    }
+    let t = line, dur = '';
+    const ds = norm.match(/[0-9]{1,2}:[0-5][0-9]/g);
+    if(ds){ dur = ds[ds.length-1]; t = t.replace(DUR_RE,' ').replace(/\s+/g,' ').trim(); }
+    // 時間だけの行は、直前の曲の時間として使う
+    if(!t || !/[\p{L}\p{N}]/u.test(t)){ if(dur && out.length && !out[out.length-1].duration) out[out.length-1].duration = dur; return; }
+    t = t.replace(/^(?:[0-9０-９]{1,3}[.)．、:：]?\s+|[0-9０-９]{1,3}[.)．、]|[①-⑳]\s*|[-・•*●◯○▶►✓✔]\s*)/,'').trim();
+    let artist = '';
+    const sp = t.split(/\s+[-–—\/／]\s+/);
+    if(sp.length >= 2){ t = sp[0].trim(); artist = sp.slice(1).join(' - ').trim(); }
+    const c = cleanTitle(t);
+    if(!c.title) return;
+    out.push({name:c.title, artist, duration:dur, cut:c.cut, meta:'', junk: BULK_JUNK.test(c.title.normalize('NFKC')) || /^\d+$/.test(c.title) || [...c.title].length===1});
+  });
+  // アルバムやプレイリストなど曲でない項目は外す。アプリの画面の形なら「曲・」の付かない行は曲ではなさそうとして扱う
+  return out.filter(x => x.meta !== 'other').map(x => ({...x, junk: x.junk || (appFormat && x.meta !== 'song' && !x.duration)}));
+}
+window.parseBulk = () => {
+  const ta = document.getElementById('bulk-text');
+  bulk.text = ta ? ta.value : bulk.text;
+  const have = new Set(songs.map(x=>normName(x.name)));
+  const seen = new Set();
+  bulk.items = parseBulkText(bulk.text).filter(x => { const n = normName(x.name); if(seen.has(n)) return false; seen.add(n); return true; }).map(x => {
+    const pk = PACK_INDEX.find(p => normName(p.name)===normName(x.name));
+    const exists = have.has(normName(x.name));
+    return {...x, pk, ph: pk ? pk.dur : DEFAULT_SONG_DUR, artist: x.artist || (pk ? pk.who : ''), exists, on: !exists && !x.junk};
+  });
+  renderBulkReview();
+};
+function renderBulkReview(){
+  const items = bulk.items;
+  if(!items.length){
+    bulkOverlay(`<div class="modal-message">曲名が見つかりませんでした。1行に1曲ずつ貼り付けてください。</div>
+      <div class="modal-actions"><button type="button" class="btn" onclick="openBulkText()">戻る</button></div>`);
+    return;
+  }
+  const n = items.filter(x=>x.on).length;
+  bulkOverlay(`<div class="bulk-head">登録する曲を確認（${items.length}行）</div>
+    <div class="hint" style="padding:0 0 8px;">チェックを入れた曲を登録します。曲名と時間は直せます。時間が空の曲は、薄く表示している時間で登録します。</div>
+    <div class="ocr-list">
+      ${items.map((x,k) => `<div class="ocr-row ${x.on?'':'is-off'}">
+        <input type="checkbox" ${x.on?'checked':''} onchange="bulkToggle(${k}, this.checked)" aria-label="登録する">
+        <div class="ocr-main">
+          <input class="ocr-name" value="${esc(x.name)}" onchange="bulkEdit(${k},'name',this.value)" aria-label="曲名">
+          <div class="ocr-sub">${x.artist ? `<span>${esc(x.artist)}</span>` : ''}${x.exists ? '<span class="suggest-used">登録済み</span>' : ''}${x.junk && !x.exists ? '<span class="suggest-used">曲名ではなさそう</span>' : ''}${x.pk ? '<span class="suggest-used">定番曲</span>' : ''}${x.cut ? '<span class="suggest-used">画面で切れていたので短くしました</span>' : ''}</div>
+        </div>
+        <input class="ocr-dur mono" value="${esc(x.duration)}" placeholder="${esc(x.ph)}" inputmode="numeric" onchange="bulkEdit(${k},'duration',this.value)" aria-label="曲時間">
+      </div>`).join('')}
+    </div>
+    ${stockPosSegHtml()}
+    <div class="modal-actions">
+      <button type="button" class="btn" onclick="openBulkText()">戻る</button>
+      <button type="button" class="btn btn-accent" id="bulk-commit" ${n?'':'disabled'} onclick="commitBulk()">${n}曲を登録</button>
+    </div>`);
+}
+window.bulkToggle = (k, on) => {
+  bulk.items[k].on = on;
+  const row = document.querySelectorAll('#bulk-overlay .ocr-row')[k]; if(row) row.classList.toggle('is-off', !on);
+  const n = bulk.items.filter(x=>x.on).length;
+  const b = document.getElementById('bulk-commit'); if(b){ b.textContent = `${n}曲を登録`; b.disabled = !n; }
+};
+window.bulkEdit = (k, field, v) => { bulk.items[k][field] = String(v).trim(); };
+window.commitBulk = () => {
+  const pick = bulk.items.filter(x => x.on && x.name);
+  if(!pick.length) return;
+  const now = Date.now();
+  const add = pick.map((x,k) => {
+    const dur = /^\d{1,2}:\d{2}$/.test(x.duration) ? fmtDur(parseDur(x.duration)) : x.ph;
+    return {id:uid(), name:x.name, bpm:'', key:'', duration:dur, start:'', end:'', url:'', notes: x.artist ? `原曲: ${x.artist}` : '', genre: x.pk ? x.pk.genre : '', updatedAt: now - k};
+  });
+  songs = stockAddPos==='start' ? add.concat(songs) : songs.concat(add);
+  saveSongs();
+  bulk.text = ''; bulk.items = [];
+  closeBulk();
+  render();
+  showToast(`${add.length}曲を曲ストックの${posLabel(stockAddPos)}に登録しました。`);
+};
 window.enterStockSelect = () => { stopMetro(); stockSelectMode = true; stockSelected = new Set(); render(); };
 window.exitStockSelect = () => { stockSelectMode = false; stockSelected = new Set(); render(); };
 window.toggleStockSelect = (id) => { if(stockSelected.has(id)) stockSelected.delete(id); else stockSelected.add(id); render(); };
@@ -1474,13 +1641,7 @@ function renderLiveEdit(){
   } else {
     songAddInner += `<div class="hint" style="padding:0;">曲ストックの曲は全てこのイベントに追加済みです。</div>`;
   }
-  const songRegisterInner = `${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
-      <input id="quick-song-name" placeholder="曲名" enterkeyhint="done" autocomplete="off" oninput="updateQuickSuggest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
-      <select id="quick-song-dur" class="mono" aria-label="曲時間" onchange="this.dataset.touched='1'">${durationSelectHtml(DEFAULT_SONG_DUR)}</select>
-      <button type="button" class="btn btn-accent" onclick="quickAddSong()">追加</button>
-    </div>
-    <div id="quick-song-suggest" class="suggest-list" hidden></div>
-    <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲ストックにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲ストックで編集できます。</div>`;
+  const songRegisterInner = regBodyHtml(live);
 
   // 「曲以外を追加」カードの中身：MC・SEなど
   const otherAddInner = `${posSegHtml('other', otherAddPos)}
@@ -1539,7 +1700,7 @@ function renderLiveEdit(){
 
   html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveAdd()"><div class="fold-head-main"><span class="fold-title">曲を選択</span><span class="fold-sub">曲ストックから</span></div>${foldToggleHtml(liveAddOpen)}</button>
     ${liveAddOpen ? `<div class="fold-body">${songAddInner}</div>` : ''}</div>`;
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲名と時間だけで追加</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
+  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">ネット検索・ライブラリ・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
     ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
   html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
@@ -2241,7 +2402,8 @@ function itunesSearch(term){
   return viaFetch().catch(viaJsonp).then(d => {
     const seen = new Set();
     const list = ((d && d.results) || []).filter(r => r && r.trackName).map(r => ({
-      name: r.trackName, artist: r.artistName || '',
+      name: r.trackName, artist: r.artistName || '', album: r.collectionName || '',
+      art: (r.artworkUrl100 || '').replace('100x100bb', '200x200bb'),
       dur: r.trackTimeMillis ? fmtDur(Math.round(r.trackTimeMillis/1000)) : '',
       url: r.trackViewUrl || '', genre: mapItunesGenre(r.primaryGenreName)
     })).filter(x => { const k = normName(x.name)+'|'+normName(x.artist); if(seen.has(k)) return false; seen.add(k); return true; });
@@ -2311,6 +2473,129 @@ function netSearchHtml(q, title){
     </div>
     <div class="net-note">${title ? '' : 'この画面からは曲の情報を直接取り込めないため、検索ページを開きます。'}見つかったら、曲名と時間を入力してそのまま登録してください。見つからなくても手入力で登録できます。</div>`;
 }
+// ---- 曲を登録：ネット検索 / ライブラリ / 手入力（Apple Musicのカタログを検索して、そのまま追加） ----
+let regTab = 'net';         // 'net' | 'lib' | 'manual'
+let netQ = '';              // 検索欄の文字（タブを切り替えても残す）
+let netLoading = false;
+let netResultsQ = '';       // netResults がどの文字の検索結果か
+let regTimer = null;
+function regBodyHtml(live){
+  const tabs = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
+  const seg = `<div class="reg-seg" role="tablist">${tabs.map(([k,l]) => `<button type="button" class="${regTab===k?'on':''}" onclick="setRegTab('${k}')" role="tab" aria-selected="${regTab===k}">${l}</button>`).join('')}</div>`;
+  if(regTab==='manual'){
+    return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
+      <input id="quick-song-name" placeholder="曲名" enterkeyhint="done" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
+      <select id="quick-song-dur" class="mono" aria-label="曲時間" onchange="this.dataset.touched='1'">${durationSelectHtml(DEFAULT_SONG_DUR)}</select>
+      <button type="button" class="btn btn-accent" onclick="quickAddSong()">追加</button>
+    </div>
+    <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲ストックにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲ストックで編集できます。</div>`;
+  }
+  return `${seg}${posSegHtml('register', registerAddPos)}
+    <input class="reg-search" type="search" placeholder="曲名の頭、またはアーティスト名" value="${esc(netQ)}" autocomplete="off" enterkeyhint="search" oninput="onRegQuery(this.value)" aria-label="曲名の頭、またはアーティスト名">
+    <div id="reg-results">${regResultsHtml(lives.find(l=>l.id===liveEditId) || live)}</div>`;
+}
+window.setRegTab = (t) => {
+  regTab = t;
+  cancelNetSearch();
+  render();
+};
+window.onRegQuery = (q) => {
+  netQ = q;
+  clearTimeout(regTimer);
+  const nq = normName(q);
+  if(regTab !== 'net'){ updateRegResults(); return; }
+  if([...nq].length < 2){
+    netSeq++; netLoading = false; netResults = []; netResultsQ = '';
+    updateRegResults(); return;
+  }
+  const my = ++netSeq;
+  netLoading = true; updateRegResults();
+  regTimer = setTimeout(() => {
+    if(netBlocked){ netLoading = false; updateRegResults(); return; }
+    itunesSearch(q.trim()).then(list => {
+      if(my !== netSeq) return;
+      netResults = list; netResultsQ = q.trim(); netLoading = false;
+      updateRegResults();
+    }).catch(() => {
+      netBlocked = true;
+      if(my !== netSeq) return;
+      netLoading = false; updateRegResults();
+    });
+  }, 400);
+};
+function updateRegResults(){
+  const el = document.getElementById('reg-results');
+  if(el) el.innerHTML = regResultsHtml(lives.find(l=>l.id===liveEditId));
+}
+function regResultsHtml(live){
+  const q = netQ.trim();
+  const nq = normName(q);
+  const setSongIds = new Set(live ? live.setlist.filter(e=>e.type!=='other').map(e=>e.songId) : []);
+  const row = (art, title, sub, btn) => `<div class="reg-row">
+      <div class="reg-art">${art ? `<img src="${esc(art)}" alt="" loading="lazy">` : '<span>♪</span>'}</div>
+      <div class="reg-main"><div class="reg-title">${esc(title)}</div><div class="reg-sub">${esc(sub)}</div></div>
+      ${btn}
+    </div>`;
+  const addBtn = (fn) => `<button type="button" class="btn btn-accent" onclick="${fn}">追加</button>`;
+
+  if(regTab === 'lib'){
+    const stockHits = songs
+      .filter(s => !nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq))
+      .sort((a,b) => nq ? ((normName(b.name).startsWith(nq)) - (normName(a.name).startsWith(nq))) : 0);
+    const packHits = nq ? packSuggestions(nq, 10) : [];
+    if(!stockHits.length && !packHits.length){
+      return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲ストックはまだ空です。'}「ネット検索」か「手入力」から登録できます。</div>`;
+    }
+    let html = '';
+    if(stockHits.length){
+      html += `<div class="reg-list">` + stockHits.map(s => row('', s.name, s.duration || '',
+        setSongIds.has(s.id) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addStockSongToLive('${s.id}')`)
+      )).join('') + `</div>`;
+    }
+    if(packHits.length){
+      html += `<div class="reg-count">定番曲</div><div class="reg-list">` + packHits.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, addBtn(`addPackToLive(${x.idx})`))).join('') + `</div>`;
+    }
+    return html;
+  }
+
+  // ネット検索（Apple Musicのカタログ）
+  if([...nq].length < 2) return `<div class="reg-empty">曲名の頭か、アーティスト名を2文字以上入力すると、Apple Musicから候補が出ます。</div>`;
+  if(netBlocked) return netSearchHtml(q, 'この画面ではカタログ検索を使えません');
+  if(netLoading) return `<div class="reg-empty">Apple Musicのカタログを検索中…</div>`;
+  if(!netResults.length || netResultsQ !== q) return `<div class="reg-empty">Apple Musicのカタログに見つかりませんでした。「手入力」タブで曲名と時間を入れて登録できます。</div>`;
+  const inSetlist = (name) => !!live && live.setlist.some(e => { if(e.type==='other') return false; const s = songs.find(z=>z.id===e.songId); return !!s && normName(s.name)===normName(name); });
+  return `<div class="reg-count">${netResults.length}件。「追加」でこのセトリに入ります。</div>
+    <div class="reg-list">${netResults.map((x,k) => row(x.art, x.name,
+      [x.artist, x.album, x.dur].filter(Boolean).join(' · '),
+      inSetlist(x.name) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addNetResult(${k})`)
+    )).join('')}</div>`;
+}
+// 曲名・時間・出典から、曲ストックとセットリストに追加する（同じ名前の曲があればそれを使う）
+function addSongInfoToLive(info){
+  const live = lives.find(l=>l.id===liveEditId);
+  const name = String(info.name||'').trim();
+  if(!live || !name) return;
+  let song = songs.find(x=>normName(x.name)===normName(name));
+  if(!song){
+    const dur = info.dur ? fmtDur(parseDur(info.dur)) : DEFAULT_SONG_DUR;
+    song = {id:uid(), name, bpm:'120', key:'C', duration: dur, start:'', end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', updatedAt:Date.now()};
+    songs.push(song); saveSongs();
+  }
+  insertEntries(live, [{type:'song', songId:song.id, bpm:song.bpm||'', key:song.key||''}], registerAddPos);
+  live.updatedAt = Date.now();
+  saveLives(); render();
+  showToast(`「${song.name}」を${posLabel(registerAddPos)}に追加しました。`);
+}
+window.addNetResult = (k) => {
+  const x = netResults[k];
+  if(!x) return;
+  addSongInfoToLive({name:x.name, dur:x.dur, url:x.url, notes: x.artist ? `原曲: ${x.artist}` : '', genre:x.genre});
+};
+window.addPackToLive = (idx) => {
+  const p = PACK_INDEX[idx];
+  if(!p) return;
+  addSongInfoToLive({name:p.name, dur:p.dur, notes:`${p.credit}: ${p.who}`, genre:p.genre});
+};
 function packItemHtml(x, handler){
   return `<button type="button" class="suggest-item" onclick="${handler}(${x.idx})">
     <span class="suggest-name">${esc(x.p.name)}<span class="suggest-who">${esc(x.p.who)}</span></span>
