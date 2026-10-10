@@ -2528,20 +2528,19 @@ window.onRegQuery = (q, ctx='live') => {
     netSeq++; netLoading = false; netResults = []; netResultsQ = '';
     updateRegResults(ctx); return;
   }
+  // 入力のたびに Apple Music（iTunes Search API）へすぐ問い合わせる。古い応答は捨てる
   const my = ++netSeq;
   netLoading = true; updateRegResults(ctx);
-  regTimer = setTimeout(() => {
-    if(netBlocked){ netLoading = false; updateRegResults(ctx); return; }
-    itunesSearch(q.trim()).then(list => {
-      if(my !== netSeq) return;
-      netResults = list; netResultsQ = q.trim(); netLoading = false;
-      updateRegResults(ctx);
-    }).catch(() => {
-      netBlocked = true;
-      if(my !== netSeq) return;
-      netLoading = false; updateRegResults(ctx);
-    });
-  }, 400);
+  if(netBlocked){ netLoading = false; updateRegResults(ctx); return; }
+  itunesSearch(q.trim()).then(list => {
+    if(my !== netSeq) return;
+    netResults = list; netResultsQ = q.trim(); netLoading = false;
+    updateRegResults(ctx);
+  }).catch(() => {
+    netBlocked = true;
+    if(my !== netSeq) return;
+    netLoading = false; updateRegResults(ctx);
+  });
 };
 function updateRegResults(ctx='live'){
   const el = document.getElementById(ctx==='stock' ? 'stock-reg-results' : 'reg-results');
