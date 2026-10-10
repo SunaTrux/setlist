@@ -2076,17 +2076,15 @@ function entryEditHtml(live, i){
   const ovS = isOv(e,s,'start'), ovE = isOv(e,s,'end'), ovN = isOv(e,s,'notes');
   const anyOv = ovB||ovK||ovD||ovS||ovE||ovN;
   const reset = f => `<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`;
-  // 開始・終わり：候補から選ぶ。「曲マスタどおり」を選ぶと、このイベントの上書きを外す
+  // 開始・終わり：テキストには今の値（マスタ or 上書き）を常に出す。候補はそこへ入れる近道
   const seHtml = (f, label, opts, ov) => {
-    const cur = ov ? String(e[f]) : '';
-    const isFree = !!cur && !opts.includes(cur);
-    const selVal = isFree ? '__free' : cur;
-    return `<div class="field"><label>${label}</label><div class="ov-field"><select onchange="onOvSelect(${i},'${f}',this.value)">
-        <option value="" ${selVal===''?'selected':''}>曲マスタどおり</option>
+    const val = effVal(e, s, f);
+    const selVal = ov ? (opts.includes(val) ? val : '__free') : '';
+    return `<div class="field"><label>${label}</label><div class="ov-field"><select onchange="setEntryOverride(${i},'${f}',this.value)">
+        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(songVal(s,f))||'未設定'}）</option>
         ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
-        <option value="__free" ${selVal==='__free'?'selected':''}>自由入力</option>
       </select>${ov?reset(f):''}</div>
-      <input id="ov-${f}-free" value="${esc(isFree?cur:'')}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" ${selVal==='__free'?'':'hidden'} style="margin-top:6px;"></div>`;
+      <input value="${esc(val)}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" style="margin-top:6px;"></div>`;
   };
   return `<div class="entry-edit-head"><button type="button" class="btn-ghost" onclick="closeEntryEdit()">← 戻る</button></div>
   <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
@@ -2109,10 +2107,6 @@ function entryEditHtml(live, i){
   </div>
   <div class="settings-btn-row" style="margin-top:8px;"><button type="button" class="btn" onclick="editSongInStock('${s.id}')">曲マスタを編集 ›</button></div>`;
 }
-window.onOvSelect = (i, f, v) => {
-  if(v === '__free'){ const el = document.getElementById(`ov-${f}-free`); if(el){ el.hidden = false; el.focus(); } return; }
-  setEntryOverride(i, f, v);
-};
 window.openEntryEdit = i => { entryEditIdx = i; render(); scrollToTop(); };
 window.closeEntryEdit = () => { entryEditIdx = null; render(); scrollToTop(); };
 window.setEntryOverride = (i, field, value) => {
