@@ -1263,7 +1263,7 @@ function renderSongs(){
   const genreFilterSel = document.getElementById('song-genre-filter');
   if(genreFilterSel) genreFilterSel.onchange = function(){ songGenreFilter = this.value; render(); };
 }
-// 開始方法・終わり方：候補から選ぶ、または「自由入力」で書く
+// 開始方法・終わり方：候補から選ぶ、または「（その他）」で自由に書く
 const SE_START_OPTS = ['ドラムカウントから','ギターリフから','指揮者から'];
 const SE_START_DEFAULT = 'ドラムカウントから';
 const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','ハーフタイム','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
@@ -1285,7 +1285,7 @@ function startEndHtml(id, label, value, opts){
     <select id="${id}-sel" onchange="onStartEndSel('${id}', this.value)">
       <option value="" ${selVal===''?'selected':''}>未設定</option>
       ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
-      <option value="__free" ${selVal==='__free'?'selected':''}>自由入力</option>
+      <option value="__free" ${selVal==='__free'?'selected':''}>（その他）</option>
     </select>
     <input id="${id}" value="${esc(isFree ? value : '')}" placeholder="自由に入力" autocomplete="off" ${selVal==='__free' ? '' : 'hidden'} style="margin-top:6px;"></div>`;
 }
