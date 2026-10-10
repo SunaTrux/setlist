@@ -238,6 +238,7 @@ body.metro-open main{padding-bottom:500px;}
 .metro-actions{display:flex; gap:10px;}
 .metro-actions .btn{flex:1; text-align:center; padding:14px 10px; font-size:16px;}
 .metro-tap{letter-spacing:.1em;}
+.metro-inner button, .metro-inner input{touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;}
 .metro-note{font-size:11px; color:var(--muted); text-align:center; margin-top:10px;}
 .song-toolbar .select-btn{flex:0 0 auto; padding-left:14px; padding-right:14px;}
 .select-row{display:flex; align-items:center; gap:10px; padding:12px; cursor:pointer;}
@@ -941,11 +942,34 @@ window.metroNav = d => {
   const row = document.querySelector(`.setlist-item[data-drag-list="${source}"][data-key="${k}"]`);
   if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ row.scrollIntoView(); } }
 };
+// パネルは開いた時だけ組み立てる。以後は変わった部分だけ書き換える（ボタンを作り直さないので連打できる）
 function renderMetroSheet(){
-  const p0 = metroPanel; if(!p0) return;
-  const s = p0.source==='stock' ? songs.find(x=>x.id===p0.songId) : (metroLive() && metroLive().setlist.includes(p0.entry) ? songs.find(x=>x.id===p0.entry.songId) : null);
+  const p = metroPanel; if(!p) return;
+  const s = p.source==='stock' ? songs.find(x=>x.id===p.songId) : (metroLive() && metroLive().setlist.includes(p.entry) ? songs.find(x=>x.id===p.entry.songId) : null);
   if(!s){ stopMetro(); return; }
+  const e = p.source==='live' ? p.entry : null;
+  const key = e ? effVal(e, s, 'key') : songVal(s, 'key');
+  const seq = metroSeq(); const pos = seq.indexOf(metroCurKey());
+  const prevK = pos > 0 ? seq[pos-1] : undefined;
+  const nextK = pos >= 0 && pos < seq.length-1 ? seq[pos+1] : undefined;
+  const navName = k => { const x = k===undefined ? null : metroSongAt(k); return x ? esc(x.name) : '—'; };
+  const parts = {
+    'metro-title': `${METRO_ICON_SVG}<span>${esc(s.name||'メトロノーム')}</span>${pos>=0 ? `<span class="metro-pos mono">${pos+1}/${seq.length}</span>` : ''}`,
+    'metro-info': `<div class="metro-tags"><span class="mini-label">Key</span><span class="key-label mono">${esc(key)||'—'}</span>${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>${songDetailHtml(s, e)}`,
+    'metro-nav': `<button type="button" onclick="metroNav(-1)" ${prevK===undefined?'disabled':''}>◀ 前の曲<small>${navName(prevK)}</small></button>
+      <button type="button" onclick="metroNav(1)" ${nextK===undefined?'disabled':''}>次の曲 ▶<small>${navName(nextK)}</small></button>`,
+    'metro-note': `テンポ変更は${p.source==='stock'?'曲マスタ':'このイベント'}に保存されます`
+  };
   let el = document.getElementById('metro-sheet');
+  if(el && el.querySelector('.metro-inner')){
+    Object.keys(parts).forEach(id => { const n = document.getElementById(id); if(n && n.innerHTML !== parts[id]) n.innerHTML = parts[id]; });
+    const val = document.getElementById('metro-bpm-val'); if(val && val.textContent !== String(p.bpm)) val.textContent = p.bpm;
+    const sl = document.getElementById('metro-slider'); if(sl && document.activeElement !== sl && String(sl.value) !== String(p.bpm)) sl.value = p.bpm;
+    const pb = document.getElementById('metro-play'); const lbl = metro.playing ? '■ 停止' : '▶ 再生'; if(pb && pb.textContent !== lbl) pb.textContent = lbl;
+    const n = document.getElementById('metro-info'); if(n && el.dataset.song !== String(pos)+s.id){ n.scrollTop = 0; }
+    el.dataset.song = String(pos)+s.id;
+    return;
+  }
   if(!el){
     el = document.createElement('div');
     el.id = 'metro-sheet';
@@ -955,22 +979,13 @@ function renderMetroSheet(){
     document.body.appendChild(el);
     document.body.classList.add('metro-open');
   }
-  const p = metroPanel;
-  const e = p.source==='live' ? p.entry : null;
-  const key = e ? effVal(e, s, 'key') : songVal(s, 'key');
-  const seq = metroSeq(); const pos = seq.indexOf(metroCurKey());
-  const prevK = pos > 0 ? seq[pos-1] : undefined;
-  const nextK = pos >= 0 && pos < seq.length-1 ? seq[pos+1] : undefined;
-  const navName = k => { const x = k===undefined ? null : metroSongAt(k); return x ? esc(x.name) : '—'; };
+  el.dataset.song = String(pos)+s.id;
   el.innerHTML = `<div class="metro-inner">
     <div class="metro-top">
-      <div class="metro-title">${METRO_ICON_SVG}<span>${esc(s.name||'メトロノーム')}</span>${pos>=0 ? `<span class="metro-pos mono">${pos+1}/${seq.length}</span>` : ''}</div>
+      <div class="metro-title" id="metro-title">${parts['metro-title']}</div>
       <button type="button" class="metro-close" onclick="closeMetro()" aria-label="閉じる">×</button>
     </div>
-    <div class="metro-info">
-      <div class="metro-tags"><span class="mini-label">Key</span><span class="key-label mono">${esc(key)||'—'}</span>${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>
-      ${songDetailHtml(s, e)}
-    </div>
+    <div class="metro-info" id="metro-info">${parts['metro-info']}</div>
     <div class="metro-beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
     <div class="metro-bpm-row">
       <button type="button" class="metro-step" onclick="stepMetroBpm(-1)" aria-label="テンポを1下げる">−</button>
@@ -983,11 +998,8 @@ function renderMetroSheet(){
       <button type="button" class="btn metro-tap" onclick="tapMetro()">TAP</button>
       <button type="button" class="btn btn-accent metro-play" id="metro-play" onclick="toggleMetroPlay()">${metro.playing?'■ 停止':'▶ 再生'}</button>
     </div>
-    <div class="metro-nav">
-      <button type="button" onclick="metroNav(-1)" ${prevK===undefined?'disabled':''}>◀ 前の曲<small>${navName(prevK)}</small></button>
-      <button type="button" onclick="metroNav(1)" ${nextK===undefined?'disabled':''}>次の曲 ▶<small>${navName(nextK)}</small></button>
-    </div>
-    <div class="metro-note">テンポ変更は${p.source==='stock'?'曲マスタ':'このイベント'}に保存されます</div>
+    <div class="metro-nav" id="metro-nav">${parts['metro-nav']}</div>
+    <div class="metro-note" id="metro-note">${parts['metro-note']}</div>
   </div>`;
 }
 window.closeMetro = () => { stopMetro(); render(); };
