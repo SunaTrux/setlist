@@ -142,6 +142,10 @@ select.mini-input{width:64px; padding:5px 2px;}
 .setlist-dur{font-size:12px; color:var(--muted);}
 .dur-select{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); background:transparent; border:none; border-bottom:1px dashed var(--border); border-radius:0; padding:0 2px; -webkit-appearance:none; appearance:none; text-align:right; cursor:pointer;}
 .setlist-item.is-other .dur-select{color:var(--muted); font-size:14px;}
+.setlist-item{position:relative;}
+.swipe-bg{position:absolute; top:0; right:0; bottom:0; width:88px; display:flex; background:var(--danger);}
+.swipe-del{flex:1; border:none; background:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
+.swipe-face{position:relative; background:inherit; transition:transform .18s ease; touch-action:pan-y;}
 .dur-label{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); padding:0 2px;}
 .setlist-item.is-other .dur-label{color:var(--muted); font-size:14px;}
 .key-label{font-size:14px; font-weight:600; color:var(--text); min-width:28px; text-align:center;}
@@ -1105,19 +1109,32 @@ function renderSongs(){
         </label>`;
         return;
       }
-      html += `<div class="setlist-item" data-drag-list="stock" data-key="${s.id}">
+      const open = stockExpandedId === s.id;
+      html += `<div class="setlist-item" data-drag-list="stock" data-key="${s.id}" data-swipe="stock">
+        <div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>
+        <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${pos+1}</span>
-          <span class="setlist-name-btn stock-name">${esc(s.name)}</span>
-          <select class="dur-select mono" aria-label="曲時間" onchange="updateStockSong('${s.id}','duration',this.value)">${durationSelectHtml(s.duration)}</select>
+          <button type="button" class="setlist-name-btn" onclick="toggleStockExpand('${s.id}')">${esc(s.name)} <span class="chev">${open?'▾':'▸'}</span></button>
+          <span class="dur-label mono">${esc(s.duration||'')}</span>
           ${canMove ? dragHandleHtml('stock') : ''}
         </div>
         <div class="setlist-row2">
           ${bpmChipHtml(s.bpm, metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id, `openMetro('stock','${s.id}')`)}
           <span class="mini-label">Key</span>
-          <select class="mini-input" onchange="updateStockSong('${s.id}','key',this.value)">${keyOptionsHtml(s.key||'')}</select>
+          <span class="key-label mono">${esc(s.key||'') || '—'}</span>
           <button type="button" class="row-edit" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
+        </div>
+        ${open ? `<div class="detail-panel detail-edit">
+          <div class="field-row">
+            <div class="field"><label>曲時間</label><select class="mono" onchange="updateStockSong('${s.id}','duration',this.value)">${durationSelectHtml(s.duration)}</select></div>
+            <div class="field"><label>キー</label><select onchange="updateStockSong('${s.id}','key',this.value)">${keyOptionsHtml(s.key||'')}</select></div>
+          </div>
+          ${(s.start||s.end) ? `<div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>` : ''}
+          ${s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`}
+          <button type="button" class="btn-ghost detail-edit-link" onclick="editSong('${s.id}')">詳細を編集 ›</button>
+        </div>` : ''}
         </div>
       </div>`;
     });
@@ -1457,7 +1474,7 @@ window.updateStockSong = (id, field, value) => {
   s[field] = value;
   s.updatedAt = Date.now();
   saveSongs();
-  if(field==='duration'){ render(); return; }
+  if(field==='duration' || field==='key'){ render(); return; }
   if(field==='bpm') syncMetroFromRow('stock', id, value);
 };
 window.moveStock = (id, dir) => {
@@ -1730,7 +1747,9 @@ function renderLiveEdit(){
       if(numbered) seq++;
       const numLabel = numbered ? seq : '・';
       const exp = entryExpandedIdx===i;
-      html += `<div class="setlist-item is-other" data-drag-list="live" data-key="${i}">
+      html += `<div class="setlist-item is-other" data-drag-list="live" data-key="${i}" data-swipe="live">
+        <div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>
+        <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${numLabel}</span>
           <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'} <span class="chev">${exp?'▾':'▸'}</span></button>
@@ -1746,6 +1765,7 @@ function renderLiveEdit(){
           <div class="field"><label>名前</label><input value="${esc(entry.label||'')}" placeholder="MC / SE / 挨拶 など" onchange="updateEntry(${i},'label',this.value); render();"></div>
           <div class="field" style="margin-bottom:0;"><label>メモ</label><textarea rows="2" placeholder="進行メモなど" onchange="updateEntry(${i},'notes',this.value)">${esc(entry.notes||'')}</textarea></div>
         </div>`:''}
+        </div>
       </div>`;
       return;
     }
@@ -1755,7 +1775,9 @@ function renderLiveEdit(){
     const bpm = entry.bpm || s.bpm || '';
     const key = entry.key || s.key || '';
     const exp = entryExpandedIdx===i;
-    html += `<div class="setlist-item" data-drag-list="live" data-key="${i}">
+    html += `<div class="setlist-item" data-drag-list="live" data-key="${i}" data-swipe="live">
+      <div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>
+      <div class="swipe-face">
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
         <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${esc(s.name)} <span class="chev">${exp?'▾':'▸'}</span></button>
@@ -1766,6 +1788,7 @@ function renderLiveEdit(){
         ${bpmChipHtml(bpm, metroPanel&&metroPanel.entry===entry, `openMetro('live',${i})`)}
         <span class="mini-label">Key</span>
         <span class="key-label mono">${esc(key) || '—'}</span>
+        <button type="button" class="row-edit" onclick="editSongInStock('${s.id}')" aria-label="詳細を編集" title="詳細を編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
       ${exp ? `<div class="detail-panel detail-edit">
@@ -1777,6 +1800,7 @@ function renderLiveEdit(){
         ${s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`}
         <button type="button" class="btn-ghost detail-edit-link" onclick="editSongInStock('${s.id}')">曲ストックで詳細を編集 ›</button>
       </div>`:''}
+      </div>
     </div>`;
   });
 
@@ -1952,6 +1976,54 @@ window.updateOtherDur = (i, part, value) => {
   saveLives();
   render();  // 合計時間・タイマーをすぐ反映
 };
+window.toggleStockExpand = id => { stockExpandedId = stockExpandedId===id ? null : id; render(); };
+// 行のスワイプ削除（タッチ端末のみ。左にスワイプすると「削除」が出る。PCは✕ボタンを使う）
+const SWIPE_W = 88;
+let swipeState = null;
+let swipeSuppressClick = false;
+function closeSwipes(except){
+  document.querySelectorAll('.setlist-item.swipe-open').forEach(el => {
+    if(el===except) return;
+    el.classList.remove('swipe-open');
+    const f = el.querySelector('.swipe-face'); if(f) f.style.transform = '';
+  });
+}
+document.addEventListener('pointerdown', e => {
+  swipeSuppressClick = false;
+  if(e.pointerType !== 'touch') return;
+  const item = e.target.closest('.setlist-item[data-swipe]');
+  if(!item){ closeSwipes(); return; }
+  if(e.target.closest('.drag-handle, input, select, textarea, .swipe-bg')) return;
+  closeSwipes(item);
+  const face = item.querySelector('.swipe-face');
+  if(!face) return;
+  swipeState = {item, face, id:e.pointerId, x0:e.clientX, y0:e.clientY, locked:null, dx:0, base: item.classList.contains('swipe-open') ? -SWIPE_W : 0};
+});
+document.addEventListener('pointermove', e => {
+  const st = swipeState; if(!st || e.pointerId !== st.id) return;
+  const dx = e.clientX - st.x0, dy = e.clientY - st.y0;
+  if(st.locked === null){
+    if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    st.locked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+  }
+  if(st.locked !== 'x') return;
+  st.dx = Math.min(0, Math.max(-SWIPE_W, st.base + dx));
+  st.face.style.transition = 'none';
+  st.face.style.transform = `translateX(${st.dx}px)`;
+});
+function endSwipe(e){
+  const st = swipeState; if(!st || e.pointerId !== st.id) return;
+  swipeState = null;
+  const open = st.locked === 'x' ? st.dx < -SWIPE_W/2 : (st.locked === 'y' ? st.base !== 0 : false);
+  if(st.locked === 'x') swipeSuppressClick = true;
+  st.face.style.transform = open ? `translateX(-${SWIPE_W}px)` : '';
+  st.item.classList.toggle('swipe-open', open);
+}
+document.addEventListener('pointerup', endSwipe);
+document.addEventListener('pointercancel', endSwipe);
+document.addEventListener('click', e => {
+  if(swipeSuppressClick){ swipeSuppressClick = false; e.stopPropagation(); e.preventDefault(); }
+}, true);
 window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
 window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; render(); scrollToTop(); };
 window.removeLive = () => {
@@ -2492,6 +2564,7 @@ let netQ = '';              // 検索欄の文字（タブを切り替えても�
 let netLoading = false;
 let netResultsQ = '';       // netResults がどの文字の検索結果か
 let regTimer = null;
+let stockExpandedId = null;  // 曲ストックで小窓を開いている曲
 let netSource = '';         // 最後の検索の検索元ごとの件数
 const catalogCache = new Map();
 const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
