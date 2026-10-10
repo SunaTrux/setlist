@@ -395,7 +395,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-normalizeOverrides();
+const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
+try{ normalizeOverrides(); }catch(e){ console.error(e); }  // 片付けに失敗しても起動は止めない
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
@@ -546,7 +547,6 @@ function fmtMinutes(min){
   return h>0 ? `${h}時間${m}分` : `${m}分`;
 }
 // 曲の値は「曲マスタ」が基準。イベント側で変えた項目だけ entry に持つ（上書き）
-const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
 function isOv(e, s, f){
