@@ -1135,8 +1135,9 @@ function renderSongs(){
   const addBtn = document.getElementById('btn-add-song');
   if(addBtn) addBtn.onclick = () => {
     songForm = {id:null, name:'', bpm:'120', key:'C', duration:DEFAULT_SONG_DUR, start:'', end:'', url:'', notes:'', genre:''};
+    stockRegTab = 'net';
+    netQ = ''; netResults = []; netResultsQ = ''; netLoading = false;
     render();
-    document.getElementById('song-name-input')?.focus();
   };
   const quickSort = document.getElementById('song-sort-quick');
   if(quickSort) quickSort.onchange = function(){ songSort = this.value; store.set('setlist_song_sort_v2', songSort); render(); };
@@ -1144,10 +1145,12 @@ function renderSongs(){
   if(genreFilterSel) genreFilterSel.onchange = function(){ songGenreFilter = this.value; render(); };
 }
 function songFormHtml(f){
-  return `
+  // 新しい曲：ネット検索・ライブラリはタブのパネル、手入力は下のフォーム
+  if(!f.id && stockRegTab !== 'manual') return stockRegPanelHtml();
+  const seg = !f.id ? regSegHtml(stockRegTab, 'stock') : '';
+  return `${seg}
   <form class="panel" id="song-form">
-    <div class="field"><label>曲名</label><input id="song-name-input" required value="${esc(f.name)}" autocomplete="off" ${!f.id ? `oninput="updateStockSuggest(this.value)" placeholder="定番曲は2〜3文字で候補が出ます"` : ''}>
-      ${!f.id ? `<div id="stock-song-suggest" class="suggest-list" hidden></div>` : ''}</div>
+    <div class="field"><label>曲名</label><input id="song-name-input" required value="${esc(f.name)}" autocomplete="off"></div>
     <div class="field-row">
       <div class="field">
         <label>BPM</label>
@@ -2473,15 +2476,25 @@ function netSearchHtml(q, title){
     </div>
     <div class="net-note">${title ? '' : 'この画面からは曲の情報を直接取り込めないため、検索ページを開きます。'}見つかったら、曲名と時間を入力してそのまま登録してください。見つからなくても手入力で登録できます。</div>`;
 }
-// ---- 曲を登録：ネット検索 / ライブラリ / 手入力（Apple Musicのカタログを検索して、そのまま追加） ----
-let regTab = 'net';         // 'net' | 'lib' | 'manual'
+// ---- 曲を登録：ネット検索 / ライブラリ / 手入力（イベント画面と曲ストックの両方で使う） ----
+let regTab = 'net';         // イベント画面の「曲を登録」のタブ
+let stockRegTab = 'net';    // 曲ストックの「曲を登録」のタブ
 let netQ = '';              // 検索欄の文字（タブを切り替えても残す）
 let netLoading = false;
 let netResultsQ = '';       // netResults がどの文字の検索結果か
 let regTimer = null;
-function regBodyHtml(live){
-  const tabs = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
-  const seg = `<div class="reg-seg" role="tablist">${tabs.map(([k,l]) => `<button type="button" class="${regTab===k?'on':''}" onclick="setRegTab('${k}')" role="tab" aria-selected="${regTab===k}">${l}</button>`).join('')}</div>`;
+const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
+function regCurrentTab(ctx){ return ctx==='stock' ? stockRegTab : regTab; }
+function regSegHtml(tab, ctx){
+  return `<div class="reg-seg" role="tablist">${REG_TABS.map(([k,l]) => `<button type="button" class="${tab===k?'on':''}" onclick="setRegTab('${k}','${ctx}')" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
+}
+function regSearchHtml(ctx){
+  return `<input class="reg-search" type="search" placeholder="曲名の頭、またはアーティスト名" value="${esc(netQ)}" autocomplete="off" enterkeyhint="search" oninput="onRegQuery(this.value,'${ctx}')" aria-label="曲名の頭、またはアーティスト名">
+    <div id="${ctx==='stock'?'stock-reg-results':'reg-results'}">${regResultsHtml(ctx)}</div>`;
+}
+// イベント画面の「曲を登録」の中身
+function regBodyHtml(){
+  const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
     return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
       <input id="quick-song-name" placeholder="曲名" enterkeyhint="done" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
@@ -2490,66 +2503,89 @@ function regBodyHtml(live){
     </div>
     <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲ストックにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲ストックで編集できます。</div>`;
   }
-  return `${seg}${posSegHtml('register', registerAddPos)}
-    <input class="reg-search" type="search" placeholder="曲名の頭、またはアーティスト名" value="${esc(netQ)}" autocomplete="off" enterkeyhint="search" oninput="onRegQuery(this.value)" aria-label="曲名の頭、またはアーティスト名">
-    <div id="reg-results">${regResultsHtml(lives.find(l=>l.id===liveEditId) || live)}</div>`;
+  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}`;
 }
-window.setRegTab = (t) => {
-  regTab = t;
-  cancelNetSearch();
+// 曲ストックの「曲を登録」（手入力以外のタブ）の中身
+function stockRegPanelHtml(){
+  return `${regSegHtml(stockRegTab, 'stock')}<div class="panel stock-reg-panel">
+      ${stockPosSegHtml()}
+      ${regSearchHtml('stock')}
+    </div>
+    <div class="form-actions"><button type="button" class="btn" id="song-cancel">キャンセル</button></div>`;
+}
+window.setRegTab = (t, ctx='live') => {
+  if(ctx==='stock'){ syncSongFormDom(); stockRegTab = t; }
+  else regTab = t;
+  clearTimeout(regTimer); cancelNetSearch(); netLoading = false;
   render();
 };
-window.onRegQuery = (q) => {
+window.onRegQuery = (q, ctx='live') => {
   netQ = q;
   clearTimeout(regTimer);
   const nq = normName(q);
-  if(regTab !== 'net'){ updateRegResults(); return; }
+  if(regCurrentTab(ctx) !== 'net'){ updateRegResults(ctx); return; }
   if([...nq].length < 2){
     netSeq++; netLoading = false; netResults = []; netResultsQ = '';
-    updateRegResults(); return;
+    updateRegResults(ctx); return;
   }
   const my = ++netSeq;
-  netLoading = true; updateRegResults();
+  netLoading = true; updateRegResults(ctx);
   regTimer = setTimeout(() => {
-    if(netBlocked){ netLoading = false; updateRegResults(); return; }
+    if(netBlocked){ netLoading = false; updateRegResults(ctx); return; }
     itunesSearch(q.trim()).then(list => {
       if(my !== netSeq) return;
       netResults = list; netResultsQ = q.trim(); netLoading = false;
-      updateRegResults();
+      updateRegResults(ctx);
     }).catch(() => {
       netBlocked = true;
       if(my !== netSeq) return;
-      netLoading = false; updateRegResults();
+      netLoading = false; updateRegResults(ctx);
     });
   }, 400);
 };
-function updateRegResults(){
-  const el = document.getElementById('reg-results');
-  if(el) el.innerHTML = regResultsHtml(lives.find(l=>l.id===liveEditId));
+function updateRegResults(ctx='live'){
+  const el = document.getElementById(ctx==='stock' ? 'stock-reg-results' : 'reg-results');
+  if(el) el.innerHTML = regResultsHtml(ctx);
 }
-function regResultsHtml(live){
+// 定番曲の一覧（名前か演奏者で絞り込み）
+function packHitsFor(nq){
+  return PACK_INDEX.map((p, idx) => ({p, idx}))
+    .filter(x => !nq || normName(x.p.name).includes(nq) || normName(x.p.who).includes(nq))
+    .slice(0, 30);
+}
+function regResultsHtml(ctx){
+  const tab = regCurrentTab(ctx);
+  const isStock = ctx === 'stock';
+  const live = isStock ? null : lives.find(l=>l.id===liveEditId);
   const q = netQ.trim();
   const nq = normName(q);
-  const setSongIds = new Set(live ? live.setlist.filter(e=>e.type!=='other').map(e=>e.songId) : []);
   const row = (art, title, sub, btn) => `<div class="reg-row">
       <div class="reg-art">${art ? `<img src="${esc(art)}" alt="" loading="lazy">` : '<span>♪</span>'}</div>
       <div class="reg-main"><div class="reg-title">${esc(title)}</div><div class="reg-sub">${esc(sub)}</div></div>
       ${btn}
     </div>`;
   const addBtn = (fn) => `<button type="button" class="btn btn-accent" onclick="${fn}">追加</button>`;
+  const doneTag = '<span class="suggest-used">登録済み</span>';
+  const inStock = (name) => songs.some(s => normName(s.name) === normName(name));
+  const inSetlist = (name) => !!live && live.setlist.some(e => { if(e.type==='other') return false; const s = songs.find(z=>z.id===e.songId); return !!s && normName(s.name)===normName(name); });
 
-  if(regTab === 'lib'){
+  if(tab === 'lib'){
+    const packHits = packHitsFor(nq);
+    if(isStock){
+      if(!packHits.length) return `<div class="reg-empty">該当する定番曲がありません。「ネット検索」か「手入力」から登録できます。</div>`;
+      return `<div class="reg-count">定番曲から曲ストックに登録します。</div><div class="reg-list">` +
+        packHits.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, inStock(x.p.name) ? doneTag : addBtn(`addPackToStock(${x.idx})`))).join('') + `</div>`;
+    }
     const stockHits = songs
       .filter(s => !nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq))
       .sort((a,b) => nq ? ((normName(b.name).startsWith(nq)) - (normName(a.name).startsWith(nq))) : 0);
-    const packHits = nq ? packSuggestions(nq, 10) : [];
     if(!stockHits.length && !packHits.length){
       return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲ストックはまだ空です。'}「ネット検索」か「手入力」から登録できます。</div>`;
     }
     let html = '';
     if(stockHits.length){
       html += `<div class="reg-list">` + stockHits.map(s => row('', s.name, s.duration || '',
-        setSongIds.has(s.id) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addStockSongToLive('${s.id}')`)
+        inSetlist(s.name) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addStockSongToLive('${s.id}')`)
       )).join('') + `</div>`;
     }
     if(packHits.length){
@@ -2563,12 +2599,28 @@ function regResultsHtml(live){
   if(netBlocked) return netSearchHtml(q, 'この画面ではカタログ検索を使えません');
   if(netLoading) return `<div class="reg-empty">Apple Musicのカタログを検索中…</div>`;
   if(!netResults.length || netResultsQ !== q) return `<div class="reg-empty">Apple Musicのカタログに見つかりませんでした。「手入力」タブで曲名と時間を入れて登録できます。</div>`;
-  const inSetlist = (name) => !!live && live.setlist.some(e => { if(e.type==='other') return false; const s = songs.find(z=>z.id===e.songId); return !!s && normName(s.name)===normName(name); });
-  return `<div class="reg-count">${netResults.length}件。「追加」でこのセトリに入ります。</div>
-    <div class="reg-list">${netResults.map((x,k) => row(x.art, x.name,
-      [x.artist, x.album, x.dur].filter(Boolean).join(' · '),
-      inSetlist(x.name) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addNetResult(${k})`)
-    )).join('')}</div>`;
+  return `<div class="reg-count">${netResults.length}件。「追加」で${isStock ? '曲ストックに登録されます' : 'このセトリに入ります'}。</div>
+    <div class="reg-list">${netResults.map((x,k) => {
+      const done = isStock ? inStock(x.name) : inSetlist(x.name);
+      const fn = isStock ? `addNetResultToStock(${k})` : `addNetResult(${k})`;
+      return row(x.art, x.name, [x.artist, x.album, x.dur].filter(Boolean).join(' · '), done ? (isStock ? doneTag : '<span class="suggest-used">追加済み</span>') : addBtn(fn));
+    }).join('')}</div>`;
+}
+// 曲名・時間・出典から、曲ストックに登録する（同じ名前の曲があればそれを使う）
+function songFromInfo(info){
+  const name = String(info.name||'').trim();
+  const dur = info.dur ? fmtDur(parseDur(info.dur)) : DEFAULT_SONG_DUR;
+  return {id:uid(), name, bpm:'120', key:'C', duration: dur, start:'', end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', updatedAt:Date.now()};
+}
+function registerSongToStock(info){
+  const name = String(info.name||'').trim();
+  if(!name) return;
+  if(songs.some(x => normName(x.name) === normName(name))){ showToast(`「${name}」は曲ストックにすでにあります。`); return; }
+  const f = songFromInfo(info);
+  if(stockAddPos==='start') songs.unshift(f); else songs.push(f);
+  saveSongs();
+  showToast(`「${name}」を曲ストックに登録しました。`);
+  finishSongEdit();
 }
 // 曲名・時間・出典から、曲ストックとセットリストに追加する（同じ名前の曲があればそれを使う）
 function addSongInfoToLive(info){
@@ -2577,8 +2629,7 @@ function addSongInfoToLive(info){
   if(!live || !name) return;
   let song = songs.find(x=>normName(x.name)===normName(name));
   if(!song){
-    const dur = info.dur ? fmtDur(parseDur(info.dur)) : DEFAULT_SONG_DUR;
-    song = {id:uid(), name, bpm:'120', key:'C', duration: dur, start:'', end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', updatedAt:Date.now()};
+    song = songFromInfo(info);
     songs.push(song); saveSongs();
   }
   insertEntries(live, [{type:'song', songId:song.id, bpm:song.bpm||'', key:song.key||''}], registerAddPos);
@@ -2591,11 +2642,36 @@ window.addNetResult = (k) => {
   if(!x) return;
   addSongInfoToLive({name:x.name, dur:x.dur, url:x.url, notes: x.artist ? `原曲: ${x.artist}` : '', genre:x.genre});
 };
+window.addNetResultToStock = (k) => {
+  const x = netResults[k];
+  if(!x) return;
+  registerSongToStock({name:x.name, dur:x.dur, url:x.url, notes: x.artist ? `原曲: ${x.artist}` : '', genre:x.genre});
+};
 window.addPackToLive = (idx) => {
   const p = PACK_INDEX[idx];
   if(!p) return;
   addSongInfoToLive({name:p.name, dur:p.dur, notes:`${p.credit}: ${p.who}`, genre:p.genre});
 };
+window.addPackToStock = (idx) => {
+  const p = PACK_INDEX[idx];
+  if(!p) return;
+  registerSongToStock({name:p.name, dur:p.dur, notes:`${p.credit}: ${p.who}`, genre:p.genre});
+};
+// 曲ストックの登録フォームの入力内容を、タブを切り替える前に保存しておく
+function syncSongFormDom(){
+  const f = songForm;
+  if(!f || f.id || !document.getElementById('song-form')) return;
+  const v = id => (document.getElementById(id)?.value ?? '');
+  f.name = v('song-name-input').trim();
+  f.bpm = v('song-bpm').trim();
+  f.key = v('song-key');
+  f.duration = (v('song-dur-min') || '3') + ':' + String(v('song-dur-sec') || '0').padStart(2,'0');
+  f.start = v('song-start').trim();
+  f.end = v('song-end').trim();
+  f.url = v('song-url').trim();
+  f.notes = v('song-notes').trim();
+  f.genre = v('song-genre');
+}
 function packItemHtml(x, handler){
   return `<button type="button" class="suggest-item" onclick="${handler}(${x.idx})">
     <span class="suggest-name">${esc(x.p.name)}<span class="suggest-who">${esc(x.p.who)}</span></span>
