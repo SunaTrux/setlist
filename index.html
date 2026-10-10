@@ -2483,6 +2483,8 @@ let netQ = '';              // 検索欄の文字（タブを切り替えても�
 let netLoading = false;
 let netResultsQ = '';       // netResults がどの文字の検索結果か
 let regTimer = null;
+let netSource = '';         // 最後の検索の検索元ごとの件数
+const catalogCache = new Map();
 const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
 function regCurrentTab(ctx){ return ctx==='stock' ? stockRegTab : regTab; }
 function regSegHtml(tab, ctx){
@@ -2528,23 +2530,57 @@ window.onRegQuery = (q, ctx='live') => {
     netSeq++; netLoading = false; netResults = []; netResultsQ = '';
     updateRegResults(ctx); return;
   }
-  // 入力のたびに Apple Music（iTunes Search API）へすぐ問い合わせる。古い応答は捨てる
+  // 入力のたびに、公開の音楽カタログ（Apple Music・Deezer）へすぐ問い合わせる。古い応答は捨てる
   const my = ++netSeq;
   netLoading = true; updateRegResults(ctx);
-  if(netBlocked){ netLoading = false; updateRegResults(ctx); return; }
-  itunesSearch(q.trim()).then(list => {
+  catalogSearch(q.trim()).then(res => {
     if(my !== netSeq) return;
-    netResults = list; netResultsQ = q.trim(); netLoading = false;
+    netBlocked = res.allFailed;
+    netResults = res.list; netResultsQ = q.trim(); netSource = res.status; netLoading = false;
     updateRegResults(ctx);
-  }).catch(() => {
-    netBlocked = true;
-    if(my !== netSeq) return;
-    netLoading = false; updateRegResults(ctx);
   });
 };
 function updateRegResults(ctx='live'){
   const el = document.getElementById(ctx==='stock' ? 'stock-reg-results' : 'reg-results');
   if(el) el.innerHTML = regResultsHtml(ctx);
+}
+// Deezer（公開の検索API・JSONP）。アートワーク・アルバム・時間が返る
+function deezerSearch(term){
+  return new Promise((resolve, reject) => {
+    const cb = '__deezer_' + Math.random().toString(36).slice(2);
+    const sc = document.createElement('script');
+    const done = (ok, v) => { clearTimeout(t); try{ delete window[cb]; }catch(e){ window[cb] = undefined; } sc.remove(); ok ? resolve(v) : reject(new Error('deezer')); };
+    const t = setTimeout(() => done(false), 8000);
+    window[cb] = d => done(true, d);
+    sc.onerror = () => done(false);
+    sc.src = `https://api.deezer.com/search?q=${encodeURIComponent(term)}&limit=10&output=jsonp&callback=${cb}`;
+    document.head.appendChild(sc);
+  }).then(d => ((d && d.data) || []).filter(r => r && r.title).map(r => ({
+    name: r.title, artist: (r.artist && r.artist.name) || '', album: (r.album && r.album.title) || '',
+    art: (r.album && (r.album.cover_medium || r.album.cover_small)) || '',
+    dur: r.duration ? fmtDur(r.duration) : '', url: r.link || '', genre: ''
+  })));
+}
+// 2つの検索元をまとめて検索する（片方が失敗しても、もう片方の結果を出す）
+function catalogSearch(term){
+  const key = normName(term);
+  if(catalogCache.has(key)) return Promise.resolve(catalogCache.get(key));
+  return Promise.allSettled([itunesSearch(term), deezerSearch(term)]).then(([a, b]) => {
+    const srcs = [['Apple Music', a], ['Deezer', b]];
+    const status = srcs.map(([n, r]) => r.status === 'fulfilled' ? `${n} ${r.value.length}件` : `${n} 接続できず`).join(' / ');
+    const allFailed = a.status === 'rejected' && b.status === 'rejected';
+    const seen = new Set(); const list = [];
+    for(const [, r] of srcs){
+      if(r.status !== 'fulfilled') continue;
+      for(const x of r.value){
+        const k = normName(x.name) + '|' + normName(x.artist);
+        if(!seen.has(k)){ seen.add(k); list.push(x); }
+      }
+    }
+    const out = {list, status, allFailed};
+    if(!allFailed) catalogCache.set(key, out);
+    return out;
+  });
 }
 // 定番曲の一覧（名前か演奏者で絞り込み）
 function packHitsFor(nq){
@@ -2594,11 +2630,11 @@ function regResultsHtml(ctx){
   }
 
   // ネット検索（Apple Musicのカタログ）
-  if([...nq].length < 2) return `<div class="reg-empty">曲名の頭か、アーティスト名を2文字以上入力すると、Apple Musicから候補が出ます。</div>`;
-  if(netBlocked) return netSearchHtml(q, 'この画面ではカタログ検索を使えません');
-  if(netLoading) return `<div class="reg-empty">Apple Musicのカタログを検索中…</div>`;
-  if(!netResults.length || netResultsQ !== q) return `<div class="reg-empty">Apple Musicのカタログに見つかりませんでした。「手入力」タブで曲名と時間を入れて登録できます。</div>`;
-  return `<div class="reg-count">${netResults.length}件。「追加」で${isStock ? '曲ストックに登録されます' : 'このセトリに入ります'}。</div>
+  if([...nq].length < 2) return `<div class="reg-empty">曲名の頭か、アーティスト名を2文字以上入力すると、公開の音楽カタログから候補が出ます。</div>`;
+  if(netLoading || netResultsQ !== q) return `<div class="reg-empty">検索中…</div>`;
+  if(netBlocked) return netSearchHtml(q, 'この画面ではカタログ検索に接続できません');
+  if(!netResults.length) return `<div class="reg-empty">見つかりませんでした。<div class="reg-note">検索元：${esc(netSource)}</div>別の書き方（曲名だけ、アーティスト名だけ）か、「手入力」で登録できます。</div>`;
+  return `<div class="reg-count">${netResults.length}件（${esc(netSource)}）。「追加」で${isStock ? '曲ストックに登録されます' : 'このセトリに入ります'}。</div>
     <div class="reg-list">${netResults.map((x,k) => {
       const done = isStock ? inStock(x.name) : inSetlist(x.name);
       const fn = isStock ? `addNetResultToStock(${k})` : `addNetResult(${k})`;
