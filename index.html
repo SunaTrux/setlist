@@ -272,7 +272,9 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .row-edit{flex-shrink:0; width:34px; height:34px; padding:0; margin-left:auto; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .stock-name{cursor:default;}
 .stock-tools{display:flex; gap:8px; align-items:stretch; margin-bottom:14px;}
-.stock-tools .select-btn{flex:0 0 auto; padding:0 14px;}
+.stock-tools .select-btn{flex:0 0 auto; min-height:44px; padding:0 22px; font-size:15px; font-weight:700;}
+.select-actions + .select-actions{margin-top:8px;}
+.select-actions .btn.select-del{color:var(--danger); border-color:var(--danger);}
 .stock-tools .sort-chip{flex:1 1 0; max-width:none;}
 .bulk-btn{flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:0 14px;}
 .bulk-box{max-width:440px; max-height:86vh; display:flex; flex-direction:column;}
@@ -415,7 +417,7 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 
 // サンプルデータを新しいIDで生成する（初回起動時と「設定」からの個別読み込みの両方で使う）
 function buildBandSample(){
-  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'C', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'rock', rhythm:'16ビート', orig:'The Meters'};
+  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'C', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'16ビート', orig:'The Meters'};
   const s2={id:uid(), name:'Get Back', bpm:'123', key:'A', duration:'3:15', start:'ギターのカッティングから', end:'最後のコードを伸ばして止める', url:'', notes:'ギターソロは2コーラス', genre:'rock', rhythm:'8ビート', orig:'The Beatles'};
   const s3={id:uid(), name:'Kansas City', bpm:'130', key:'G', duration:'2:40', start:'ドラムのカウント4つ', end:'ブレイクからジャーンで締める', url:'', notes:'12小節ブルース。ソロ回し可', genre:'rock', rhythm:'シャッフル', orig:'Wilbert Harrison'};
   const s4={id:uid(), name:'Iko Iko', bpm:'108', key:'F', duration:'3:30', start:'ドラムのセカンドラインから', end:'リズムだけ残してフェードアウト', url:'', notes:'客席と掛け合い', genre:'rock', rhythm:'シャッフル', orig:'The Dixie Cups'};
@@ -495,6 +497,7 @@ function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','
 
 const GENRE_OPTS = [
   {value:'rock', label:'ロック'},
+  {value:'funk', label:'ファンク'},
   {value:'blues', label:'ブルース'},
   {value:'classic', label:'クラシック'},
   {value:'latin', label:'ラテン'},
@@ -1167,7 +1170,7 @@ function renderSongs(){
     <button type="button" class="btn" onclick="exitStockSelect()">キャンセル</button>
   </div>` : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-song">+ 曲を登録</button>
-    <button type="button" class="btn bulk-btn" onclick="openBulkText()" aria-label="テキストからまとめて登録" title="テキストからまとめて登録">${TEXT_ICON_SVG}<span>一括</span></button>
+    <button type="button" class="btn bulk-btn" onclick="openBulkText()" aria-label="テキストからまとめて登録" title="テキストからまとめて登録">${TEXT_ICON_SVG}<span>一括登録</span></button>
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
@@ -1182,7 +1185,7 @@ function renderSongs(){
   const editingInList = songForm && songForm.id && sortSongs(songs, songSort).some(s => s.id===songForm.id && (songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter)));
   if(songForm && !editingInList) html += songFormHtml(songForm);
   if(songs.length===0 && !songForm){
-    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「一括」からまとめて登録できます。</div>`;
+    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「一括登録」からまとめて登録できます。</div>`;
   } else {
     const sortedSongs = sortSongs(songs, songSort);
     const filteredSongs = sortedSongs.filter(s => {
@@ -1247,6 +1250,10 @@ function renderSongs(){
           <button type="button" class="btn btn-accent" ${n?'':'disabled'} onclick="stockToNewEvent()">新しいイベントに入れる</button>
           <button type="button" class="btn" ${n?'':'disabled'} onclick="stockToExistingEvent()">既存のイベントに追加</button>
         </div>
+        <div class="select-actions">
+          <button type="button" class="btn" ${n?'':'disabled'} onclick="copySelectedStockText()">テキストで書き出し</button>
+          <button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>
+        </div>
       </div>`;
     }
   }
@@ -1266,7 +1273,7 @@ function renderSongs(){
 // 開始方法・終わり方：候補から選ぶ、または「（その他）」で自由に書く
 const SE_START_OPTS = ['ドラムカウントから','ギターリフから','指揮者から'];
 const SE_START_DEFAULT = 'ドラムカウントから';
-const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','ハーフタイム','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
+const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
@@ -1399,7 +1406,6 @@ window.openBulkText = () => {
       <button type="button" class="btn" onclick="closeBulk()">キャンセル</button>
       <button type="button" class="btn btn-accent" onclick="parseBulk()">次へ</button>
     </div>`);
-  const ta = document.getElementById('bulk-text'); if(ta) ta.focus();
 };
 // 1行ずつ読み取る。番号・記号を外し、時間とアーティストを切り分ける
 // ミュージックアプリの検索結果のように「曲名」の次の行が「曲・アーティスト」になっている形も読む
@@ -1623,6 +1629,26 @@ window.moveStock = (id, dir) => {
   if(i<0 || j<0 || j>=songs.length) return;
   [songs[i], songs[j]] = [songs[j], songs[i]];
   saveSongs(); render();
+};
+// 選んだ曲を、画面の並び順で 1. 2. … と番号を振って書き出す
+window.copySelectedStockText = async () => {
+  const list = visibleStockSongs().filter(s => stockSelected.has(s.id));
+  if(!list.length) return;
+  const text = list.map((s,k) => `${k+1}. ${s.name}`).join('\n');
+  if(await copyTextToClipboard(text)) showToast(`${list.length}曲をコピーしました。LINEなどに貼り付けできます。`);
+  else showTextModal(text);
+};
+window.deleteSelectedStock = () => {
+  const ids = new Set(stockSelected); const n = ids.size;
+  if(!n) return;
+  confirmAction(`選んだ${n}曲を削除しますか？\nイベントのセットリストからも削除されます。`, () => {
+    songs = songs.filter(s => !ids.has(s.id));
+    lives.forEach(l => l.setlist = l.setlist.filter(e => e.type==='other' || !ids.has(e.songId)));
+    saveSongs(); saveLives();
+    stockSelectMode = false; stockSelected = new Set();
+    render();
+    showToast(`${n}曲を削除しました。`);
+  }, '削除する');
 };
 window.copyStockText = async () => {
   const list = sortSongs(songs, songSort).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
