@@ -546,6 +546,7 @@ function fmtMinutes(min){
   return h>0 ? `${h}時間${m}分` : `${m}分`;
 }
 // 曲の値は「曲マスタ」が基準。イベント側で変えた項目だけ entry に持つ（上書き）
+const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
 function isOv(e, s, f){
@@ -560,7 +561,7 @@ function normalizeOverrides(){
   lives.forEach(l => (l.setlist||[]).forEach(e => {
     if(e.type==='other') return;
     const s = songs.find(x=>x.id===e.songId); if(!s) return;
-    ['bpm','key','duration'].forEach(f => { if(e[f]!==undefined && !isOv(e,s,f)){ delete e[f]; changed = true; } });
+    OV_FIELDS.forEach(f => { if(e[f]!==undefined && !isOv(e,s,f)){ delete e[f]; changed = true; } });
   }));
   if(changed) saveLives();
 }
@@ -1199,12 +1200,14 @@ const SE_START_OPTS = ['ドラムカウントから','ギターリフから','�
 const SE_START_DEFAULT = 'ドラムカウントから';
 const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','ハーフタイム','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
-function songDetailHtml(s){
+function songDetailHtml(s, e){
+  const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const lines = [];
   if(s.rhythm) lines.push(`<div class="detail-line">リズム：${esc(s.rhythm)}</div>`);
   if(s.orig) lines.push(`<div class="detail-line">原曲：${esc(s.orig)}</div>`);
-  lines.push(`<div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>`);
-  lines.push(s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
+  lines.push(`<div class="detail-line">${esc(v('start')||'—')} → ${esc(v('end')||'—')}</div>`);
+  const notes = v('notes');
+  lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
 }
 const SE_END_OPTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','全員でジャーンと締める','MCへつなげる'];
@@ -1855,8 +1858,7 @@ function renderLiveEdit(){
         <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
-      ${exp ? `<div class="detail-panel">${songDetailHtml(s)}
-      </div>`:''}
+      ${exp ? `<div class="detail-panel">${songDetailHtml(s, entry)}</div>`:''}
       </div>
     </div>`;
   });
@@ -2071,7 +2073,21 @@ function entryEditHtml(live, i){
   if(!s) return null;
   const dur = effVal(e,s,'duration'), key = effVal(e,s,'key'), bpm = effVal(e,s,'bpm');
   const ovB = isOv(e,s,'bpm'), ovK = isOv(e,s,'key'), ovD = isOv(e,s,'duration');
+  const ovS = isOv(e,s,'start'), ovE = isOv(e,s,'end'), ovN = isOv(e,s,'notes');
+  const anyOv = ovB||ovK||ovD||ovS||ovE||ovN;
   const reset = f => `<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`;
+  // 開始・終わり：候補から選ぶ。「曲マスタどおり」を選ぶと、このイベントの上書きを外す
+  const seHtml = (f, label, opts, ov) => {
+    const cur = ov ? String(e[f]) : '';
+    const isFree = !!cur && !opts.includes(cur);
+    const selVal = isFree ? '__free' : cur;
+    return `<div class="field"><label>${label}</label><div class="ov-field"><select onchange="onOvSelect(${i},'${f}',this.value)">
+        <option value="" ${selVal===''?'selected':''}>曲マスタどおり</option>
+        ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
+        <option value="__free" ${selVal==='__free'?'selected':''}>自由入力</option>
+      </select>${ov?reset(f):''}</div>
+      <input id="ov-${f}-free" value="${esc(isFree?cur:'')}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" ${selVal==='__free'?'':'hidden'} style="margin-top:6px;"></div>`;
+  };
   return `<div class="entry-edit-head"><button type="button" class="btn-ghost" onclick="closeEntryEdit()">← 戻る</button></div>
   <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
   <div class="ov-hint">このイベントだけに反映されます</div>
@@ -2081,13 +2097,22 @@ function entryEditHtml(live, i){
       <div class="field"><label>キー</label><div class="ov-field"><select onchange="setEntryOverride(${i},'key',this.value)">${keyOptionsHtml(key)}</select>${ovK?reset('key'):''}</div></div>
       <div class="field"><label>BPM</label><div class="ov-field"><input class="mono" inputmode="numeric" value="${esc(bpm)}" onchange="setEntryOverride(${i},'bpm',this.value)">${ovB?reset('bpm'):''}</div></div>
     </div>
+    <div class="field-row">
+      ${seHtml('start', '開始方法', SE_START_OPTS, ovS)}
+      ${seHtml('end', '終わり方', SE_END_OPTS, ovE)}
+    </div>
+    <div class="field"><label>メモ</label><div class="ov-field"><textarea rows="3" placeholder="このイベントだけの進行メモなど" onchange="setEntryOverride(${i},'notes',this.value)">${esc(effVal(e,s,'notes'))}</textarea>${ovN?reset('notes'):''}</div></div>
     <div class="ov-foot">
-      ${(ovB||ovK||ovD) ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
+      ${anyOv ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
       <span class="ov-master-line">曲マスタ：${esc(normDurStr(songVal(s,'duration')))} · ${esc(songVal(s,'key'))||'—'} · ${esc(songVal(s,'bpm'))} BPM</span>
     </div>
   </div>
   <div class="settings-btn-row" style="margin-top:8px;"><button type="button" class="btn" onclick="editSongInStock('${s.id}')">曲マスタを編集 ›</button></div>`;
 }
+window.onOvSelect = (i, f, v) => {
+  if(v === '__free'){ const el = document.getElementById(`ov-${f}-free`); if(el){ el.hidden = false; el.focus(); } return; }
+  setEntryOverride(i, f, v);
+};
 window.openEntryEdit = i => { entryEditIdx = i; render(); scrollToTop(); };
 window.closeEntryEdit = () => { entryEditIdx = null; render(); scrollToTop(); };
 window.setEntryOverride = (i, field, value) => {
@@ -2109,7 +2134,7 @@ window.resetEntryOverride = (i, field) => {
 window.applyOverridesToMaster = i => {
   const live = lives.find(l=>l.id===liveEditId); const e = live && live.setlist[i]; if(!e) return;
   const s = songs.find(x=>x.id===e.songId); if(!s) return;
-  ['bpm','key','duration'].forEach(f => {
+  OV_FIELDS.forEach(f => {
     if(isOv(e, s, f)){ s[f] = f==='duration' ? normDurStr(e[f]) : String(e[f]); delete e[f]; }
   });
   s.updatedAt = Date.now(); saveSongs();
@@ -2352,7 +2377,7 @@ function parseCSV(text){
 }
 
 const SONG_CSV_HEADERS = ['id','name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','updatedAt'];
-const EVENT_CSV_HEADERS = ['event_id','event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','event_updated_at','entry_type','entry_song_id','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig'];
+const EVENT_CSV_HEADERS = ['event_id','event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','event_updated_at','entry_type','entry_song_id','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end'];
 
 window.exportSongs = async () => {
   const dl = await getDownloads();
@@ -2373,8 +2398,8 @@ function buildEventRows(liveList){
           rows.push({...base, entry_type:'other', entry_song_id:'', entry_label:e.label||'', entry_bpm:'', entry_key:'', entry_duration:e.duration||'', entry_notes:e.notes||'', entry_numbered:e.numbered?'true':'false'});
         } else {
           const s = songs.find(x=>x.id===e.songId);
-          rows.push({...base, entry_type:'song', entry_song_id:e.songId||'', entry_label:'', entry_bpm:e.bpm||'', entry_key:e.key||'', entry_duration:e.duration||'', entry_notes:'', entry_numbered:'',
-            entry_song_name: s?s.name:'', entry_song_duration: s?s.duration:'', entry_song_start: s?s.start:'', entry_song_end: s?s.end:'', entry_song_url: s?s.url:'', entry_song_notes: s?s.notes:'', entry_song_genre: s?s.genre:'', entry_song_rhythm: s?(s.rhythm||''):'', entry_song_orig: s?(s.orig||''):''});
+          rows.push({...base, entry_type:'song', entry_song_id:e.songId||'', entry_label:'', entry_bpm:e.bpm||'', entry_key:e.key||'', entry_duration:e.duration||'', entry_notes:e.notes||'', entry_numbered:'',
+            entry_song_name: s?s.name:'', entry_song_duration: s?s.duration:'', entry_song_start: s?s.start:'', entry_song_end: s?s.end:'', entry_song_url: s?s.url:'', entry_song_notes: s?s.notes:'', entry_song_genre: s?s.genre:'', entry_song_rhythm: s?(s.rhythm||''):'', entry_song_orig: s?(s.orig||''):'', entry_start: e.start||'', entry_end: e.end||''});
         }
       });
     }
@@ -2441,7 +2466,9 @@ window.handleLiveImport = (file) => {
           songs.push({id: songId, name: row.entry_song_name, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_song_duration||'', start: row.entry_song_start||'', end: row.entry_song_end||'', url: row.entry_song_url||'', notes: row.entry_song_notes||'', genre: row.entry_song_genre||'', rhythm: row.entry_song_rhythm||'', orig: row.entry_song_orig||'', updatedAt: Date.now()});
           addedSongs++;
         }
-        groups[id].entries.push({type:'song', songId, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_duration||''});
+        const en = {type:'song', songId, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_duration||''};
+        ['start','end','notes'].forEach(f => { const v = row['entry_'+f]; if(v) en[f] = v; });
+        groups[id].entries.push(en);
       } else if(row.entry_type==='other'){
         groups[id].entries.push({type:'other', id: uid(), label: row.entry_label||'', duration: row.entry_duration||'', notes: row.entry_notes||'', numbered: row.entry_numbered==='true'});
       }
