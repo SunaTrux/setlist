@@ -1428,7 +1428,7 @@ function selectedStockEntries(){
 window.stockToNewEvent = () => {
   const entries = selectedStockEntries();
   if(!entries.length) return;
-  const l = {id:uid(), date:'', venue:'', place:'', artist:'', startTime:'', endTime:'', setlist:entries, updatedAt:Date.now()};
+  const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:'', startTime:'', endTime:'', setlist:entries, updatedAt:Date.now()};
   lives.push(l); saveLives();
   stockSelectMode = false; stockSelected = new Set();
   tab = 'lives'; liveEditId = l.id; entryExpandedIdx = null; justCopiedId = null;
@@ -1590,7 +1590,7 @@ function renderLives(){
   }
   main.innerHTML = html;
   document.getElementById('btn-add-live').onclick = () => {
-    const l = {id:uid(), date:'', venue:'', place:'', artist:'', startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
+    const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:'', startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
     lives.push(l); saveLives(); liveEditId = l.id; entryExpandedIdx = null;
     liveInfoOpen = true; liveAddOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = songs.length===0;
     render();
