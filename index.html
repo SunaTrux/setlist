@@ -142,6 +142,10 @@ select.mini-input{width:64px; padding:5px 2px;}
 .setlist-dur{font-size:12px; color:var(--muted);}
 .dur-select{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); background:transparent; border:none; border-bottom:1px dashed var(--border); border-radius:0; padding:0 2px; -webkit-appearance:none; appearance:none; text-align:right; cursor:pointer;}
 .setlist-item.is-other .dur-select{color:var(--muted); font-size:14px;}
+.dur-label{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); padding:0 2px;}
+.setlist-item.is-other .dur-label{color:var(--muted); font-size:14px;}
+.key-label{font-size:14px; font-weight:600; color:var(--text); min-width:28px; text-align:center;}
+.detail-edit .field:last-child{margin-bottom:0;}
 .setlist-item.is-other .setlist-name-btn{font-size:14px;}
 .num-toggle{padding:6px 10px; border-radius:999px; border:1px solid var(--border); background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer;}
 .num-toggle.on{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
@@ -1715,7 +1719,7 @@ function renderLiveEdit(){
   </div>`;
   html += totalsCardHtml;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
-  html += `<div class="hint">曲時間・BPM・キーはこのイベント限定で編集できます（曲ストックの初期値は変わりません）</div>`;
+  html += `<div class="hint">曲名をタップすると、曲時間・キーをこのイベント限定で編集できます（曲ストックの初期値は変わりません）</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
@@ -1730,14 +1734,15 @@ function renderLiveEdit(){
         <div class="setlist-row1">
           <span class="setlist-num mono">${numLabel}</span>
           <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'} <span class="chev">${exp?'▾':'▸'}</span></button>
-          <select class="dur-select mono" aria-label="時間" onchange="updateEntry(${i},'duration',this.value)">${durationSelectHtml(entry.duration)}</select>
+          <span class="dur-label mono">${esc(entry.duration||'')}</span>
           ${dragHandleHtml('live')}
         </div>
         <div class="setlist-row2">
           <button type="button" class="num-toggle ${numbered?'on':''}" onclick="toggleOtherNumbered(${i})" title="連番に含める"># 連番${numbered?'あり':'なし'}</button>
           <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
         </div>
-        ${exp ? `<div class="detail-panel">
+        ${exp ? `<div class="detail-panel detail-edit">
+          <div class="field"><label>時間</label><select class="mono" onchange="updateEntry(${i},'duration',this.value)">${durationSelectHtml(entry.duration)}</select></div>
           <div class="field"><label>名前</label><input value="${esc(entry.label||'')}" placeholder="MC / SE / 挨拶 など" onchange="updateEntry(${i},'label',this.value); render();"></div>
           <div class="field" style="margin-bottom:0;"><label>メモ</label><textarea rows="2" placeholder="進行メモなど" onchange="updateEntry(${i},'notes',this.value)">${esc(entry.notes||'')}</textarea></div>
         </div>`:''}
@@ -1754,16 +1759,20 @@ function renderLiveEdit(){
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
         <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${esc(s.name)} <span class="chev">${exp?'▾':'▸'}</span></button>
-        <select class="dur-select mono" aria-label="曲時間" onchange="updateEntry(${i},'duration',this.value)">${durationSelectHtml(entry.duration || s.duration)}</select>
+        <span class="dur-label mono">${esc(entry.duration || s.duration || '')}</span>
         ${dragHandleHtml('live')}
       </div>
       <div class="setlist-row2">
         ${bpmChipHtml(bpm, metroPanel&&metroPanel.entry===entry, `openMetro('live',${i})`)}
         <span class="mini-label">Key</span>
-        <select class="mini-input" id="live-key-${i}" onchange="updateEntry(${i},'key',this.value)">${keyOptionsHtml(key)}</select>
+        <span class="key-label mono">${esc(key) || '—'}</span>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
-      ${exp ? `<div class="detail-panel">
+      ${exp ? `<div class="detail-panel detail-edit">
+        <div class="field-row">
+          <div class="field"><label>曲時間</label><select class="mono" onchange="updateEntry(${i},'duration',this.value)">${durationSelectHtml(entry.duration || s.duration)}</select></div>
+          <div class="field"><label>キー</label><select onchange="updateEntry(${i},'key',this.value)">${keyOptionsHtml(key)}</select></div>
+        </div>
         ${(s.start||s.end) ? `<div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>`:''}
         ${s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`}
         <button type="button" class="btn-ghost detail-edit-link" onclick="editSongInStock('${s.id}')">曲ストックで詳細を編集 ›</button>
@@ -1975,7 +1984,7 @@ window.updateEntry = (i, field, value) => {
   live.setlist[i][field] = value;
   live.updatedAt = Date.now();
   saveLives();
-  if(field==='duration'){ render(); return; }
+  if(field==='duration' || field==='key'){ render(); return; }
   // 再生中にBPMを変えたら、新しいテンポで鳴らし直す
   if(field==='bpm') syncMetroFromRow('live', live.setlist[i], value);
 };
