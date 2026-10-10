@@ -650,7 +650,6 @@ let liveEditId = null;
 let songExpandedId = null;
 let entryExpandedIdx = null;
 let liveInfoOpen = false;
-let liveAddOpen = false;
 let justCopiedId = null;
 let liveTotalsOpen = false;
 let liveOtherOpen = false;   // 「曲以外を追加」カード
@@ -1458,7 +1457,7 @@ window.stockToNewEvent = () => {
   lives.push(l); saveLives();
   stockSelectMode = false; stockSelected = new Set();
   tab = 'lives'; liveEditId = l.id; entryExpandedIdx = null; justCopiedId = null;
-  liveInfoOpen = true; liveAddOpen = false; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = false;
+  liveInfoOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = false;
   render(); scrollToTop();
   showToast(`${entries.length}曲で新しいイベントを作りました。イベント名などを入力してください。`);
 };
@@ -1618,7 +1617,7 @@ function renderLives(){
   document.getElementById('btn-add-live').onclick = () => {
     const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:'', startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
     lives.push(l); saveLives(); liveEditId = l.id; entryExpandedIdx = null;
-    liveInfoOpen = true; liveAddOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = songs.length===0;
+    liveInfoOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = true;
     render();
     scrollToTop();
   };
@@ -1627,10 +1626,9 @@ function renderLives(){
 }
 window.openLive = id => {
   entryExpandedIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
-  liveRegisterOpen = songs.length===0;
   const l = lives.find(x=>x.id===id);
+  liveRegisterOpen = !l || l.setlist.length===0;
   liveInfoOpen = false;
-  liveAddOpen = !!l && l.setlist.length===0;
   render();
   scrollToTop();
 };
@@ -1639,7 +1637,6 @@ window.toggleLiveInfo = () => {
   liveInfoOpen = !liveInfoOpen;
   render();
 };
-window.toggleLiveAdd = () => { liveAddOpen = !liveAddOpen; render(); };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
@@ -1658,7 +1655,6 @@ function renderLiveEdit(){
   const songCount = live.setlist.filter(e=>e.type!=='other').length;
   const otherCount = live.setlist.length - songCount;
   const usedIds = live.setlist.filter(e=>e.type!=='other').map(e=>e.songId);
-  const available = songs.filter(s => !usedIds.includes(s.id));
 
   if(timer.liveId !== liveEditId){
     stopTimerInterval();
@@ -1709,21 +1705,6 @@ function renderLiveEdit(){
   html += `</div>
   <div class="section-title">セットリスト作成</div>`;
 
-  // 「曲を追加」カードの中身：曲マスタから選ぶ ＋ その場で曲名と時間だけ追加
-  let songAddInner = '';
-  if(available.length){
-    songAddInner += `${posSegHtml('select', selectAddPos)}<div class="song-picker">
-        ${available.map(s=>`<label class="song-picker-item"><input type="checkbox" class="add-song-checkbox" value="${s.id}"> <span class="song-picker-name">${esc(s.name)}</span><span class="song-picker-dur mono">${esc(s.duration||'')}</span></label>`).join('')}
-      </div>
-      <div class="settings-btn-row" style="margin-top:8px;">
-        <button type="button" class="btn btn-accent" onclick="addSelectedSongs()">選択した曲を追加</button>
-        <button type="button" class="btn" onclick="addAllAvailableSongs()">全曲を追加（${available.length}曲）</button>
-      </div>`;
-  } else if(songs.length===0){
-    songAddInner += `<div class="hint" style="padding:0;">曲マスタはまだ空です。「曲を登録」から追加できます。</div>`;
-  } else {
-    songAddInner += `<div class="hint" style="padding:0;">曲マスタの曲は全てこのイベントに追加済みです。</div>`;
-  }
   const songRegisterInner = regBodyHtml(live);
 
   // 「曲以外を追加」カードの中身：MC・SEなど
@@ -1781,8 +1762,6 @@ function renderLiveEdit(){
   </div>`;
 
 
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveAdd()"><div class="fold-head-main"><span class="fold-title">曲を選択</span><span class="fold-sub">曲マスタから</span></div>${foldToggleHtml(liveAddOpen)}</button>
-    ${liveAddOpen ? `<div class="fold-body">${songAddInner}</div>` : ''}</div>`;
   html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">ネット検索・ライブラリ・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
     ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
   html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
@@ -1885,16 +1864,6 @@ function renderLiveEdit(){
   main.innerHTML = html;
   if(timer.running && !timer.intervalId){ timer.intervalId = setInterval(tickTimer, 1000); }
 }
-window.addSelectedSongs = () => {
-  const live = lives.find(l=>l.id===liveEditId);
-  const checked = Array.from(document.querySelectorAll('.add-song-checkbox:checked')).map(cb=>cb.value);
-  if(checked.length===0) return;
-  const items = checked.map(id => songs.find(x=>x.id===id)).filter(Boolean).map(s => ({type:'song', songId:s.id}));
-  insertEntries(live, items, selectAddPos);
-  live.updatedAt = Date.now();
-  saveLives(); render();
-  showToast(`${items.length}曲を${posLabel(selectAddPos)}に追加しました。`);
-};
 // 曲名の予測：曲マスタから、入力した文字を含む曲を候補に出す（全角・半角や大文字・小文字の違いは無視）
 function normName(t){ return String(t||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim(); }
 window.updateQuickSuggest = (q) => {
@@ -2001,16 +1970,6 @@ window.quickAddSong = () => {
   showToast(msg.replace('追加しました', `${posLabel(registerAddPos)}に追加しました`));
   const again = document.getElementById('quick-song-name');
   if(again) again.focus();
-};
-window.addAllAvailableSongs = () => {
-  const live = lives.find(l=>l.id===liveEditId);
-  const usedIds = live.setlist.filter(e=>e.type!=='other').map(e=>e.songId);
-  const avail = songs.filter(s=>!usedIds.includes(s.id));
-  if(avail.length===0) return;
-  insertEntries(live, avail.map(s => ({type:'song', songId:s.id})), selectAddPos);
-  live.updatedAt = Date.now();
-  saveLives(); render();
-  showToast(`${avail.length}曲を${posLabel(selectAddPos)}に追加しました。`);
 };
 window.clearSetlist = () => {
   const live = lives.find(l=>l.id===liveEditId);
@@ -2233,7 +2192,6 @@ window.copyLive = () => {
   entryExpandedIdx = null;
   liveEditId = copy.id;
   liveInfoOpen = true;   // 新規イベントと同じく、イベント情報を開いた状態で表示
-  liveAddOpen = copy.setlist.length===0;
   justCopiedId = copy.id;
   liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = false;
   render();
