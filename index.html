@@ -1271,7 +1271,6 @@ const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','ハーフタ�
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const lines = [];
-  if(s.orig) lines.push(`<div class="detail-line">原曲：${esc(s.orig)}</div>`);
   lines.push(`<div class="detail-line">${esc(v('start')||'—')} → ${esc(v('end')||'—')}</div>`);
   const notes = v('notes');
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
@@ -2140,7 +2139,7 @@ function entryEditHtml(live, i){
     const val = effVal(e, s, f);
     const selVal = ov ? (opts.includes(val) ? val : '__free') : '';
     return `<div class="field"><label>${label}</label><div class="ov-field"><select onchange="setEntryOverride(${i},'${f}',this.value)">
-        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(songVal(s,f))||'未設定'}）</option>
+        <option value="" ${selVal===''?'selected':''}>曲マスタどおり</option>
         ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
       </select>${ov?reset(f):''}</div>
       <input value="${esc(val)}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" style="margin-top:6px;"></div>`;
@@ -2154,10 +2153,8 @@ function entryEditHtml(live, i){
       <div class="field"><label>キー</label><div class="ov-field"><select onchange="setEntryOverride(${i},'key',this.value)">${keyOptionsHtml(key)}</select>${ovK?reset('key'):''}</div></div>
       <div class="field"><label>BPM</label><div class="ov-field"><input class="mono" inputmode="numeric" value="${esc(bpm)}" onchange="setEntryOverride(${i},'bpm',this.value)">${ovB?reset('bpm'):''}</div></div>
     </div>
-    <div class="field-row">
-      ${seHtml('start', '開始方法', SE_START_OPTS, ovS)}
-      ${seHtml('end', '終わり方', SE_END_OPTS, ovE)}
-    </div>
+    ${seHtml('start', '開始方法', SE_START_OPTS, ovS)}
+    ${seHtml('end', '終わり方', SE_END_OPTS, ovE)}
     <div class="field"><label>メモ</label><div class="ov-field"><textarea rows="3" placeholder="このイベントだけの進行メモなど" onchange="setEntryOverride(${i},'notes',this.value)">${esc(effVal(e,s,'notes'))}</textarea>${ovN?reset('notes'):''}</div></div>
     <div class="ov-foot">
       ${anyOv ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
