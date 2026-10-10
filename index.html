@@ -1099,6 +1099,7 @@ function renderSongs(){
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
+    <button type="button" class="show-toggle ${showDetails?'on':''}" onclick="toggleShowDetails()" aria-pressed="${showDetails}">小窓を開く <span class="switch"><span></span></span></button>
     <label class="sort-chip" title="ジャンルで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンルで絞り込み">
       <option value="all" ${songGenreFilter==='all'?'selected':''}>全ジャンル</option>
       <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
@@ -1144,7 +1145,7 @@ function renderSongs(){
         </label>`;
         return;
       }
-      const open = stockExpandedId === s.id;
+      const open = showDetails ? !stockCollapsed.has(s.id) : stockExpandedId === s.id;
       html += `<div class="setlist-item" data-drag-list="stock" data-key="${s.id}" data-swipe="stock">
         <div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>
         <div class="swipe-face">
@@ -1652,7 +1653,7 @@ window.toggleLiveInfo = () => {
 };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
-window.toggleShowDetails = () => { showDetails = !showDetails; store.set('setlist_show_details', showDetails); entryCollapsed.clear(); entryExpandedIdx = null; render(); };
+window.toggleShowDetails = () => { showDetails = !showDetails; store.set('setlist_show_details', showDetails); entryCollapsed.clear(); stockCollapsed.clear(); entryExpandedIdx = null; render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
@@ -1855,7 +1856,6 @@ function renderLiveEdit(){
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
       ${exp ? `<div class="detail-panel">${songDetailHtml(s)}
-        <button type="button" class="btn-ghost detail-edit-link" onclick="editSongInStock('${s.id}')">曲マスタを編集 ›</button>
       </div>`:''}
       </div>
     </div>`;
@@ -2013,7 +2013,11 @@ window.updateOtherDur = (i, part, value) => {
   saveLives();
   render();  // 合計時間・タイマーをすぐ反映
 };
-window.toggleStockExpand = id => { stockExpandedId = stockExpandedId===id ? null : id; render(); };
+window.toggleStockExpand = id => {
+  if(showDetails){ if(stockCollapsed.has(id)) stockCollapsed.delete(id); else stockCollapsed.add(id); }
+  else stockExpandedId = stockExpandedId===id ? null : id;
+  render();
+};
 // 行のスワイプ削除（タッチ端末のみ。左にスワイプすると「削除」が出る。PCは✕ボタンを使う）
 const SWIPE_W = 88;
 let swipeState = null;
@@ -2656,6 +2660,7 @@ let netQ = '';              // 検索欄の文字（タブを切り替えても�
 let netLoading = false;
 let netResultsQ = '';       // netResults がどの文字の検索結果か
 let regTimer = null;
+let stockCollapsed = new Set();  // 小窓を一括で開いている時に、タップで閉じた曲（曲マスタ）
 let stockExpandedId = null;  // 曲マスタで小窓を開いている曲
 let netSource = '';         // 最後の検索の検索元ごとの件数
 const catalogCache = new Map();
