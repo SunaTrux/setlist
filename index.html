@@ -210,7 +210,17 @@ select.mini-input{width:64px; padding:5px 2px;}
 .metro-inner{pointer-events:auto; width:100%; max-width:520px; background:var(--surface); border:1px solid var(--border); border-bottom:none; border-radius:16px 16px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,.25); padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px)); animation:sheetUp .2s ease-out;}
 @keyframes sheetUp{from{transform:translateY(100%);} to{transform:none;}}
 @media (prefers-reduced-motion: reduce){ .metro-inner{animation:none;} }
-body.metro-open main{padding-bottom:320px;}
+body.metro-open main{padding-bottom:500px;}
+.metro-pos{flex-shrink:0; font-size:12px; font-weight:600; color:var(--muted);}
+.metro-info{margin:10px 0 0; padding:10px 12px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); max-height:140px; overflow-y:auto;}
+.metro-info .detail-line{margin-bottom:4px;}
+.metro-tags{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px;}
+.metro-nav{display:flex; gap:10px; margin-top:10px;}
+.metro-nav button{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 10px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;}
+.metro-nav button small{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:500; color:var(--muted);}
+.metro-nav button:disabled{opacity:.4; cursor:default;}
+.setlist-item.metro-current{box-shadow:0 0 0 2px var(--accent);}
+.setlist-item{scroll-margin-top:110px;}
 .metro-top{display:flex; align-items:center; justify-content:space-between; gap:8px;}
 .metro-title{display:flex; align-items:center; gap:8px; min-width:0; font-size:15px; font-weight:700;}
 .metro-title span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -658,8 +668,6 @@ let liveTotalsOpen = false;
 let liveOtherOpen = false;   // 「曲以外を追加」カード
 let liveRegisterOpen = false; // 「曲を登録」カード
 let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加位置：'start' or 'end'
-let showDetails = store.get('setlist_show_details', false);  // セットリストの小窓を一括で開くか（初期値は閉じ）
-let entryCollapsed = new Set();  // 小窓を一括で開いている時に、タップで閉じた曲
 let showOthers = store.get('setlist_show_others', true);  // セットリストに曲以外（MC・SEなど）を表示するか
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','end'); // 「曲を登録」の追加位置
@@ -902,7 +910,41 @@ window.openMetro = (source, key) => {
   renderMetroSheet();
   render();
 };
+// 並び順（画面の表示順）での曲のキー一覧。イベントは曲だけ（MC・SEなどは飛ばす）
+function stockOrderIds(){
+  return sortSongs(songs, songSort).filter(s => songGenreFilter==='all' ? true : songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter).map(s => s.id);
+}
+function metroLive(){ return metroPanel && metroPanel.source==='live' ? lives.find(l=>l.id===metroPanel.liveId) : null; }
+function metroSeq(){
+  const p = metroPanel; if(!p) return [];
+  if(p.source==='stock') return stockOrderIds();
+  const live = metroLive(); if(!live) return [];
+  return live.setlist.map((e,i) => e.type==='other' ? null : i).filter(i => i!==null);
+}
+function metroCurKey(){
+  const p = metroPanel; if(!p) return null;
+  if(p.source==='stock') return p.songId;
+  const live = metroLive(); return live ? live.setlist.indexOf(p.entry) : -1;
+}
+function metroSongAt(k){
+  if(!metroPanel) return null;
+  if(metroPanel.source==='stock') return songs.find(x=>x.id===k) || null;
+  const live = metroLive(); const e = live && live.setlist[k];
+  return e ? songs.find(x=>x.id===e.songId) || null : null;
+}
+window.metroNav = d => {
+  if(!metroPanel) return;
+  const seq = metroSeq(); const pos = seq.indexOf(metroCurKey());
+  const k = seq[pos + d]; if(k===undefined) return;
+  const source = metroPanel.source;
+  openMetro(source, k);
+  const row = document.querySelector(`.setlist-item[data-drag-list="${source}"][data-key="${k}"]`);
+  if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ row.scrollIntoView(); } }
+};
 function renderMetroSheet(){
+  const p0 = metroPanel; if(!p0) return;
+  const s = p0.source==='stock' ? songs.find(x=>x.id===p0.songId) : (metroLive() && metroLive().setlist.includes(p0.entry) ? songs.find(x=>x.id===p0.entry.songId) : null);
+  if(!s){ stopMetro(); return; }
   let el = document.getElementById('metro-sheet');
   if(!el){
     el = document.createElement('div');
@@ -914,10 +956,20 @@ function renderMetroSheet(){
     document.body.classList.add('metro-open');
   }
   const p = metroPanel;
+  const e = p.source==='live' ? p.entry : null;
+  const key = e ? effVal(e, s, 'key') : songVal(s, 'key');
+  const seq = metroSeq(); const pos = seq.indexOf(metroCurKey());
+  const prevK = pos > 0 ? seq[pos-1] : undefined;
+  const nextK = pos >= 0 && pos < seq.length-1 ? seq[pos+1] : undefined;
+  const navName = k => { const x = k===undefined ? null : metroSongAt(k); return x ? esc(x.name) : '—'; };
   el.innerHTML = `<div class="metro-inner">
     <div class="metro-top">
-      <div class="metro-title">${METRO_ICON_SVG}<span>${esc(p.name||'メトロノーム')}</span></div>
+      <div class="metro-title">${METRO_ICON_SVG}<span>${esc(s.name||'メトロノーム')}</span>${pos>=0 ? `<span class="metro-pos mono">${pos+1}/${seq.length}</span>` : ''}</div>
       <button type="button" class="metro-close" onclick="closeMetro()" aria-label="閉じる">×</button>
+    </div>
+    <div class="metro-info">
+      <div class="metro-tags"><span class="mini-label">Key</span><span class="key-label mono">${esc(key)||'—'}</span>${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>
+      ${songDetailHtml(s, e)}
     </div>
     <div class="metro-beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
     <div class="metro-bpm-row">
@@ -931,7 +983,11 @@ function renderMetroSheet(){
       <button type="button" class="btn metro-tap" onclick="tapMetro()">TAP</button>
       <button type="button" class="btn btn-accent metro-play" id="metro-play" onclick="toggleMetroPlay()">${metro.playing?'■ 停止':'▶ 再生'}</button>
     </div>
-    <div class="metro-note">テンポを変えると、この曲の${p.source==='stock'?'曲マスタの':'このイベントでの'}BPMとして保存されます</div>
+    <div class="metro-nav">
+      <button type="button" onclick="metroNav(-1)" ${prevK===undefined?'disabled':''}>◀ 前の曲<small>${navName(prevK)}</small></button>
+      <button type="button" onclick="metroNav(1)" ${nextK===undefined?'disabled':''}>次の曲 ▶<small>${navName(nextK)}</small></button>
+    </div>
+    <div class="metro-note">テンポ変更は${p.source==='stock'?'曲マスタ':'このイベント'}に保存されます</div>
   </div>`;
 }
 window.closeMetro = () => { stopMetro(); render(); };
@@ -1086,6 +1142,7 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
+  if(metroPanel) renderMetroSheet();
 }
 
 // ---------- 曲マスタ ----------
@@ -1100,7 +1157,6 @@ function renderSongs(){
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
-    <button type="button" class="show-toggle ${showDetails?'on':''}" onclick="toggleShowDetails()" aria-pressed="${showDetails}">小窓を開く <span class="switch"><span></span></span></button>
     <label class="sort-chip" title="ジャンルで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンルで絞り込み">
       <option value="all" ${songGenreFilter==='all'?'selected':''}>全ジャンル</option>
       <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
@@ -1146,13 +1202,12 @@ function renderSongs(){
         </label>`;
         return;
       }
-      const open = showDetails ? !stockCollapsed.has(s.id) : stockExpandedId === s.id;
-      html += `<div class="setlist-item" data-drag-list="stock" data-key="${s.id}" data-swipe="stock">
+      html += `<div class="setlist-item ${metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id?'metro-current':''}" data-drag-list="stock" data-key="${s.id}" data-swipe="stock">
         <div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${pos+1}</span>
-          <button type="button" class="setlist-name-btn" onclick="toggleStockExpand('${s.id}')">${esc(s.name)} <span class="chev">${open?'▾':'▸'}</span></button>
+          <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${esc(s.name)}</button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
           ${canMove ? dragHandleHtml('stock') : ''}
         </div>
@@ -1164,7 +1219,6 @@ function renderSongs(){
           <button type="button" class="row-edit" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
         </div>
-        ${open ? `<div class="detail-panel">${songDetailHtml(s)}</div>` : ''}
         </div>
       </div>`;
     });
@@ -1203,7 +1257,6 @@ const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','ハーフタ�
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const lines = [];
-  if(s.rhythm) lines.push(`<div class="detail-line">リズム：${esc(s.rhythm)}</div>`);
   if(s.orig) lines.push(`<div class="detail-line">原曲：${esc(s.orig)}</div>`);
   lines.push(`<div class="detail-line">${esc(v('start')||'—')} → ${esc(v('end')||'—')}</div>`);
   const notes = v('notes');
@@ -1656,7 +1709,6 @@ window.toggleLiveInfo = () => {
 };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
-window.toggleShowDetails = () => { showDetails = !showDetails; store.set('setlist_show_details', showDetails); entryCollapsed.clear(); stockCollapsed.clear(); entryExpandedIdx = null; render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
@@ -1793,12 +1845,11 @@ function renderLiveEdit(){
   // ---- セットリストエリア ----
   html += `<div class="setlist-head">
     <div class="section-title" style="margin:0;">セットリスト</div>
-    <button type="button" class="show-toggle ${showDetails?'on':''}" onclick="toggleShowDetails()" aria-pressed="${showDetails}">小窓を開く <span class="switch"><span></span></span></button>
     ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
   </div>`;
   html += totalsCardHtml;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
-  html += `<div class="hint">曲名をタップで、このイベントだけ変更できます</div>`;
+  html += `<div class="hint">曲名タップで曲情報とメトロノーム。鉛筆でこのイベント用に変更</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
@@ -1839,13 +1890,12 @@ function renderLiveEdit(){
     const dur = effVal(entry, s, 'duration');
     const ovB = isOv(entry, s, 'bpm'), ovK = isOv(entry, s, 'key'), ovD = isOv(entry, s, 'duration');
     const anyOv = ovB || ovK || ovD;
-    const exp = showDetails ? !entryCollapsed.has(i) : entryExpandedIdx===i;
-    html += `<div class="setlist-item" data-drag-list="live" data-key="${i}" data-swipe="live">
+    html += `<div class="setlist-item ${metroPanel&&metroPanel.entry===entry?'metro-current':''}" data-drag-list="live" data-key="${i}" data-swipe="live">
       <div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>
       <div class="swipe-face">
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
-        <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${esc(s.name)} <span class="chev">${exp?'▾':'▸'}</span></button>
+        <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}</button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
         ${dragHandleHtml('live')}
       </div>
@@ -1858,7 +1908,6 @@ function renderLiveEdit(){
         <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
-      ${exp ? `<div class="detail-panel">${songDetailHtml(s, entry)}</div>`:''}
       </div>
     </div>`;
   });
@@ -2015,11 +2064,7 @@ window.updateOtherDur = (i, part, value) => {
   saveLives();
   render();  // 合計時間・タイマーをすぐ反映
 };
-window.toggleStockExpand = id => {
-  if(showDetails){ if(stockCollapsed.has(id)) stockCollapsed.delete(id); else stockCollapsed.add(id); }
-  else stockExpandedId = stockExpandedId===id ? null : id;
-  render();
-};
+window.toggleStockExpand = id => { stockExpandedId = stockExpandedId===id ? null : id; render(); };
 // 行のスワイプ削除（タッチ端末のみ。左にスワイプすると「削除」が出る。PCは✕ボタンを使う）
 const SWIPE_W = 88;
 let swipeState = null;
@@ -2135,11 +2180,7 @@ window.applyOverridesToMaster = i => {
   live.updatedAt = Date.now(); saveLives(); render();
   showToast(`「${s.name}」の曲マスタを更新しました。`);
 };
-window.toggleEntryExpand = i => {
-  if(showDetails){ if(entryCollapsed.has(i)) entryCollapsed.delete(i); else entryCollapsed.add(i); }
-  else entryExpandedIdx = entryExpandedIdx===i ? null : i;
-  render();
-};
+window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
 window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; entryEditIdx=null; render(); scrollToTop(); };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
@@ -2681,7 +2722,6 @@ let netQ = '';              // 検索欄の文字（タブを切り替えても�
 let netLoading = false;
 let netResultsQ = '';       // netResults がどの文字の検索結果か
 let regTimer = null;
-let stockCollapsed = new Set();  // 小窓を一括で開いている時に、タップで閉じた曲（曲マスタ）
 let stockExpandedId = null;  // 曲マスタで小窓を開いている曲
 let netSource = '';         // 最後の検索の検索元ごとの件数
 const catalogCache = new Map();
