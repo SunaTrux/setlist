@@ -649,6 +649,7 @@ let songForm = null;
 let liveEditId = null;
 let songExpandedId = null;
 let entryExpandedIdx = null;
+let entryEditIdx = null;     // このイベントの曲の設定画面（鉛筆）
 let liveInfoOpen = false;
 let justCopiedId = null;
 let liveTotalsOpen = false;
@@ -1157,13 +1158,8 @@ function renderSongs(){
           <button type="button" class="row-edit" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
         </div>
-        ${open ? `<div class="detail-panel detail-edit">
-          <div class="ov-hint">すべてのイベントの初期値になります</div>
-          <div class="field-row">
-            <div class="field"><label>曲時間</label><select class="mono" onchange="updateStockSong('${s.id}','duration',this.value)">${durationSelectHtml(s.duration)}</select></div>
-            <div class="field"><label>キー</label><select onchange="updateStockSong('${s.id}','key',this.value)">${keyOptionsHtml(s.key||'')}</select></div>
-          </div>
-          ${(s.start||s.end) ? `<div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>` : ''}
+        ${open ? `<div class="detail-panel">
+          <div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>
           ${s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`}
           <button type="button" class="btn-ghost detail-edit-link" onclick="editSong('${s.id}')">詳細を編集 ›</button>
         </div>` : ''}
@@ -1625,7 +1621,7 @@ function renderLives(){
   if(quickSort) quickSort.onchange = function(){ liveSort = this.value; store.set('setlist_live_sort', liveSort); render(); };
 }
 window.openLive = id => {
-  entryExpandedIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
+  entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
   const l = lives.find(x=>x.id===id);
   liveRegisterOpen = !l || l.setlist.length===0;
   liveInfoOpen = false;
@@ -1650,6 +1646,11 @@ window.updateDow = (val) => {
 function renderLiveEdit(){
   const live = lives.find(l=>l.id===liveEditId);
   if(!live){ liveEditId=null; render(); return; }
+  if(entryEditIdx!==null){
+    const h = entryEditHtml(live, entryEditIdx);
+    if(h!==null){ main.innerHTML = h; return; }
+    entryEditIdx = null;
+  }
   const total = live.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
   const songOnlyTotal = live.setlist.filter(e=>e.type!=='other').reduce((sum,e)=>sum+entryDuration(e),0);
   const songCount = live.setlist.filter(e=>e.type!=='other').length;
@@ -1830,23 +1831,12 @@ function renderLiveEdit(){
         ${ovB?`<span class="ov-master">←${esc(songVal(s,'bpm'))}</span>`:''}
         <span class="mini-label">Key</span>
         <span class="key-label mono ${ovK?'ov':''}">${esc(key) || '—'}</span>${ovK?`<span class="ov-master">←${esc(songVal(s,'key'))}</span>`:''}
-        <button type="button" class="row-edit" onclick="editSongInStock('${s.id}')" aria-label="詳細を編集" title="詳細を編集">${ICON_EDIT}</button>
+        <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
-      ${exp ? `<div class="detail-panel detail-edit">
-        <div class="ov-hint">このイベントだけに反映されます</div>
-        <div class="field-row3">
-          <div class="field"><label>曲時間</label><div class="ov-field"><select class="mono" onchange="setEntryOverride(${i},'duration',this.value)">${durationSelectHtml(dur)}</select>${ovD?`<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'duration')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`:''}</div></div>
-          <div class="field"><label>キー</label><div class="ov-field"><select onchange="setEntryOverride(${i},'key',this.value)">${keyOptionsHtml(key)}</select>${ovK?`<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'key')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`:''}</div></div>
-          <div class="field"><label>BPM</label><div class="ov-field"><input class="mono" inputmode="numeric" value="${esc(bpm)}" onchange="setEntryOverride(${i},'bpm',this.value)">${ovB?`<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'bpm')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`:''}</div></div>
-        </div>
-        <div class="ov-foot">
-          ${anyOv ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
-          <span class="ov-master-line">曲マスタ：${esc(normDurStr(songVal(s,'duration')))} · ${esc(songVal(s,'key'))||'—'} · ${esc(songVal(s,'bpm'))} BPM</span>
-        </div>
-        ${(s.start||s.end) ? `<div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>`:''}
+      ${exp ? `<div class="detail-panel">
+        <div class="detail-line">${esc(s.start||'—')} → ${esc(s.end||'—')}</div>
         ${s.notes ? `<div class="detail-note">${esc(s.notes)}</div>` : `<div class="detail-line muted">メモなし</div>`}
-        <button type="button" class="btn-ghost detail-edit-link" onclick="editSongInStock('${s.id}')">曲マスタで詳細を編集 ›</button>
       </div>`:''}
       </div>
     </div>`;
@@ -2052,6 +2042,31 @@ document.addEventListener('pointercancel', endSwipe);
 document.addEventListener('click', e => {
   if(swipeSuppressClick){ swipeSuppressClick = false; e.stopPropagation(); e.preventDefault(); }
 }, true);
+// このイベントの曲の設定画面：曲時間・キー・BPM（イベントだけ／マスタに反映）
+function entryEditHtml(live, i){
+  const e = live.setlist[i]; const s = e && e.type!=='other' ? songs.find(x=>x.id===e.songId) : null;
+  if(!s) return null;
+  const dur = effVal(e,s,'duration'), key = effVal(e,s,'key'), bpm = effVal(e,s,'bpm');
+  const ovB = isOv(e,s,'bpm'), ovK = isOv(e,s,'key'), ovD = isOv(e,s,'duration');
+  const reset = f => `<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`;
+  return `<div class="entry-edit-head"><button type="button" class="btn-ghost" onclick="closeEntryEdit()">← 戻る</button></div>
+  <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
+  <div class="ov-hint">このイベントだけに反映されます</div>
+  <div class="panel">
+    <div class="field-row3">
+      <div class="field"><label>曲時間</label><div class="ov-field"><select class="mono" onchange="setEntryOverride(${i},'duration',this.value)">${durationSelectHtml(dur)}</select>${ovD?reset('duration'):''}</div></div>
+      <div class="field"><label>キー</label><div class="ov-field"><select onchange="setEntryOverride(${i},'key',this.value)">${keyOptionsHtml(key)}</select>${ovK?reset('key'):''}</div></div>
+      <div class="field"><label>BPM</label><div class="ov-field"><input class="mono" inputmode="numeric" value="${esc(bpm)}" onchange="setEntryOverride(${i},'bpm',this.value)">${ovB?reset('bpm'):''}</div></div>
+    </div>
+    <div class="ov-foot">
+      ${(ovB||ovK||ovD) ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
+      <span class="ov-master-line">曲マスタ：${esc(normDurStr(songVal(s,'duration')))} · ${esc(songVal(s,'key'))||'—'} · ${esc(songVal(s,'bpm'))} BPM</span>
+    </div>
+  </div>
+  <div class="settings-btn-row" style="margin-top:8px;"><button type="button" class="btn" onclick="editSongInStock('${s.id}')">曲マスタで詳細を編集 ›</button></div>`;
+}
+window.openEntryEdit = i => { entryEditIdx = i; render(); scrollToTop(); };
+window.closeEntryEdit = () => { entryEditIdx = null; render(); scrollToTop(); };
 window.setEntryOverride = (i, field, value) => {
   const live = lives.find(l=>l.id===liveEditId); const e = live && live.setlist[i]; if(!e) return;
   const s = songs.find(x=>x.id===e.songId);
@@ -2079,7 +2094,7 @@ window.applyOverridesToMaster = i => {
   showToast(`「${s.name}」の曲マスタを更新しました。`);
 };
 window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
-window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; render(); scrollToTop(); };
+window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; entryEditIdx=null; render(); scrollToTop(); };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
   const label = live ? [live.date, live.venue, live.artist].filter(Boolean).join(' ') : 'このイベント';
@@ -2100,6 +2115,7 @@ window.moveSong = (i, dir) => {
 };
 window.removeSongFromLive = i => {
   const live = lives.find(l=>l.id===liveEditId);
+  entryEditIdx = null;
   if(metroPanel && metroPanel.entry===live.setlist[i]) stopMetro();
   live.setlist.splice(i,1);
   live.updatedAt = Date.now();
