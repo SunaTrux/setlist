@@ -44,6 +44,8 @@ main{flex:1; padding:16px; padding-bottom:40px;}
 .btn{display:inline-block; padding:10px 16px; border-radius:var(--radius); border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:14px; font-weight:600; cursor:pointer;}
 .btn-accent{background:var(--accent); color:var(--accent-text); border-color:var(--accent);}
 .btn-ghost{background:none; border:none; color:var(--muted); font-weight:500; padding:6px 8px; cursor:pointer;}
+.back-btn{display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:8px 18px 8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:15px; font-weight:700; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.back-btn .back-arrow{font-size:18px; line-height:1;}
 .btn-danger{color:var(--danger); background:none; border:none; font-weight:500; cursor:pointer;}
 .btn-block{width:100%; text-align:center; margin-bottom:14px;}
 .btn-with-icon{display:flex; align-items:center; justify-content:center; gap:8px;}
@@ -1754,7 +1756,7 @@ function renderLiveEdit(){
   const summaryTime = timeRangeText(live.startTime, live.endTime) ? ' '+esc(timeRangeText(live.startTime, live.endTime)) : '';
   let html = `
   <div class="topbar">
-    <button class="btn-ghost" onclick="backToLives()">← イベント一覧</button>
+    <button type="button" class="back-btn" onclick="backToLives()"><span class="back-arrow">←</span>イベント一覧</button>
   </div>`;
   if(justCopiedId===live.id){
     html += `<div class="new-copy-note">コピーから作った新しいイベントです。イベント名や日付を変更してください。</div>`;
@@ -2143,7 +2145,7 @@ function entryEditHtml(live, i){
       </select>${ov?reset(f):''}</div>
       <input value="${esc(val)}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" style="margin-top:6px;"></div>`;
   };
-  return `<div class="entry-edit-head"><button type="button" class="btn-ghost" onclick="closeEntryEdit()">← 戻る</button></div>
+  return `<div class="entry-edit-head"><button type="button" class="back-btn" onclick="closeEntryEdit()"><span class="back-arrow">←</span>戻る</button></div>
   <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
   <div class="ov-hint">このイベントだけに反映されます</div>
   <div class="panel">
