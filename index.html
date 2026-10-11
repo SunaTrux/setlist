@@ -3,12 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- アプリ側でライト／ダークを切り替えるので、ブラウザの強制ダーク（Brave のナイトモード等）をかけない -->
+<meta name="color-scheme" content="light dark">
+<meta name="darkreader-lock">
 <title>プレイヤーズセットリスト</title>
 <style>
 :root{
   --bg:#EDE8DE; --surface:#F8F5EC; --surface2:#FFFFFF; --text:#211D16; --muted:#6B6355;
   --accent:#C98A2C; --accent-text:#211D16; --border:#D8D0BF; --danger:#A84432; --radius:10px;
+  color-scheme:light dark;
 }
+:root[data-theme="light"]{color-scheme:only light;}
+:root[data-theme="dark"]{color-scheme:dark;}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#14120F; --surface:#1E1A15; --surface2:#262019; --text:#F2EDE4; --muted:#A79E8C;
