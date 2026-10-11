@@ -172,6 +172,11 @@ select.mini-input{width:64px; padding:5px 2px;}
 .ov-master-line{font-size:12px; color:var(--muted);}
 .dur-label{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); padding:0 2px;}
 .setlist-item.is-other .dur-label{color:var(--muted); font-size:14px;}
+.key-chip{display:inline-flex; align-items:baseline; gap:3px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-size:13px; line-height:1.4; white-space:nowrap;}
+.key-chip small{font-size:9px; font-weight:600; color:var(--muted); letter-spacing:.02em;}
+.key-chip b{font-weight:700;}
+.key-chip.ov b{color:var(--accent);}
+.key-chip .ov-master{margin-left:2px;}
 .key-label{font-size:14px; font-weight:600; color:var(--text); min-width:28px; text-align:center;}
 .detail-edit .field:last-child{margin-bottom:0;}
 .setlist-item.is-other .setlist-name-btn{font-size:14px;}
@@ -318,6 +323,13 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .ocr-dur{flex-shrink:0; width:62px; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; text-align:center;}
 .bulk-box .pos-row{margin-bottom:12px;}
 .setlist-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:20px 0 8px;}
+.head-toggles{display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
+.list-opts{display:flex; justify-content:flex-end; margin:-4px 0 6px;}
+.setlist-row1 .c-only{display:none;}
+body.cards-min .setlist-row1 .c-only{display:flex;}
+.setlist-row1 .row-edit, .setlist-row1 .row-del{width:32px; height:32px; margin:-4px 0; margin-left:0;}
+body.cards-min .setlist-row2{display:none;}
+body.cards-min .setlist-row1{padding:8px 12px;}
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
 .switch span{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--surface2); transition:transform .15s;}
@@ -437,7 +449,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-4';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-5';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -593,6 +605,11 @@ function fmtMinutes(min){
   return h>0 ? `${h}時間${m}分` : `${m}分`;
 }
 // 曲の値は「曲マスタ」が基準。イベント側で変えた項目だけ entry に持つ（上書き）
+// キーを小さなピルで表示（未設定・「-」は出さない）。ovFrom があれば曲マスタの値を添える
+function keyChipHtml(k, ovFrom){
+  if(!k || k==='-') return ovFrom!=null ? `<span class="key-chip ov"><small>Key</small><b class="mono">${esc(k||'—')}</b><span class="ov-master">←${esc(ovFrom)}</span></span>` : '';
+  return `<span class="key-chip mono ${ovFrom!=null?'ov':''}"><small>Key</small><b>${esc(k)}</b>${ovFrom!=null?`<span class="ov-master">←${esc(ovFrom)}</span>`:''}</span>`;
+}
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
 function isOv(e, s, f){
@@ -705,6 +722,7 @@ let liveTotalsOpen = false;
 let liveOtherOpen = false;   // 「曲以外を追加」カード
 let liveRegisterOpen = false; // 「曲を登録」カード
 let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加位置：'start' or 'end'
+let cardMin = store.get('setlist_cards_min', false);  // 曲カードを最小表示（曲順・曲名・時間・編集ボタンだけ）にするか
 let showOthers = store.get('setlist_show_others', true);  // セットリストに曲以外（MC・SEなど）を表示するか
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','end'); // 「曲を登録」の追加位置
@@ -997,7 +1015,7 @@ function renderMetroSheet(){
   const navName = k => { const x = k===undefined ? null : metroSongAt(k); return x ? esc(x.name) : '—'; };
   const parts = {
     'metro-title': `${METRO_ICON_SVG}<span>${esc(s.name||'メトロノーム')}</span>${pos>=0 ? `<span class="metro-pos mono">${pos+1}/${seq.length}</span>` : ''}`,
-    'metro-info': `<div class="metro-tags"><span class="mini-label">Key</span><span class="key-label mono">${esc(key)||'—'}</span>${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>${songDetailHtml(s, e)}`,
+    'metro-info': `<div class="metro-tags">${keyChipHtml(key) || '<span class="key-chip"><small>Key</small><b class="mono">—</b></span>'}${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>${songDetailHtml(s, e)}`,
     'metro-nav': `<button type="button" onclick="metroNav(-1)" ${prevK===undefined?'disabled':''}>◀ 前の曲<small>${navName(prevK)}</small></button>
       <button type="button" onclick="metroNav(1)" ${nextK===undefined?'disabled':''}>次の曲 ▶<small>${navName(nextK)}</small></button>`,
     'metro-timer': metroTimerHtml(p),
@@ -1200,6 +1218,7 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
+  document.body.classList.toggle('cards-min', cardMin);
   if(metroPanel) renderMetroSheet();
 }
 
@@ -1242,6 +1261,7 @@ function renderSongs(){
         <span class="totals-label">合計（${filteredSongs.length}曲${filtered?'・絞り込み中':''}）</span>
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
+      if(!songForm && !stockSelectMode) html += `<div class="list-opts"><button type="button" class="show-toggle ${cardMin?'on':''}" onclick="toggleCardMin()" aria-pressed="${cardMin}">最小表示 <span class="switch"><span></span></span></button></div>`;
       if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」、絞り込みを「すべて」にしてください。</div>`;
     }
     if(filteredSongs.length===0 && !songForm){
@@ -1267,13 +1287,14 @@ function renderSongs(){
           <span class="setlist-num mono">${pos+1}</span>
           <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${esc(s.name)}</button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
+          <button type="button" class="row-edit c-only" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
+          <button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
           ${canMove ? dragHandleHtml('stock') : ''}
         </div>
         <div class="setlist-row2">
           ${bpmChipHtml(s.bpm, metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id, `openMetro('stock','${s.id}')`)}
           ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
-          <span class="mini-label">Key</span>
-          <span class="key-label mono">${esc(s.key||'') || '—'}</span>
+          ${keyChipHtml(s.key)}
           <button type="button" class="row-edit" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
         </div>
@@ -1314,7 +1335,7 @@ function renderSongs(){
 // はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
 const SE_START_OPTS = ['ドラムカウントから','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
 const SE_START_DEFAULT = 'ドラムカウントから';
-const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
+const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','THE WHO','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
@@ -1785,6 +1806,7 @@ window.toggleLiveInfo = () => {
 };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
+window.toggleCardMin = () => { cardMin = !cardMin; store.set('setlist_cards_min', cardMin); render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
@@ -1922,7 +1944,9 @@ function renderLiveEdit(){
   // ---- セットリストエリア ----
   html += `<div class="setlist-head">
     <div class="section-title" style="margin:0;">セットリスト</div>
+    <div class="head-toggles"><button type="button" class="show-toggle ${cardMin?'on':''}" onclick="toggleCardMin()" aria-pressed="${cardMin}">最小表示 <span class="switch"><span></span></span></button>
     ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
+    </div>
   </div>`;
   html += totalsCardHtml;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
@@ -1944,6 +1968,7 @@ function renderLiveEdit(){
           <span class="setlist-num mono">${numLabel}</span>
           <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'} <span class="chev">${exp?'▾':'▸'}</span></button>
           <span class="dur-label mono">${esc(entry.duration||'')}</span>
+          <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
           ${dragHandleHtml('live')}
         </div>
         <div class="setlist-row2">
@@ -1974,14 +1999,15 @@ function renderLiveEdit(){
         <span class="setlist-num mono">${seq}</span>
         <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}</button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
+        <button type="button" class="row-edit c-only" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
+        <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
         ${dragHandleHtml('live')}
       </div>
       <div class="setlist-row2">
         ${bpmChipHtml(bpm, metroPanel&&metroPanel.entry===entry, `openMetro('live',${i})`)}
         ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
         ${ovB?`<span class="ov-master">←${esc(songVal(s,'bpm'))}</span>`:''}
-        <span class="mini-label">Key</span>
-        <span class="key-label mono ${ovK?'ov':''}">${esc(key) || '—'}</span>${ovK?`<span class="ov-master">←${esc(songVal(s,'key'))}</span>`:''}
+        ${keyChipHtml(key, ovK ? songVal(s,'key') : null)}
         <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
