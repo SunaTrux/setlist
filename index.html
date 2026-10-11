@@ -488,7 +488,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-19';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-20';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1570,7 +1570,7 @@ function bulkOverlay(inner){
 window.closeBulk = () => { const ov = document.getElementById('bulk-overlay'); if(ov) ov.remove(); };
 window.openBulkText = () => {
   bulkOverlay(`<div class="bulk-head">テキストからまとめて登録</div>
-    <div class="hint">曲名を1行に1曲ずつ貼り付け。「曲名 - アーティスト」「3:45」も読み取ります。</div>
+    <div class="hint">テキストを貼り付けてください。1行に1曲、「曲名 - アーティスト」「3:45」も読み取ります。</div>
     <textarea id="bulk-text" class="bulk-text" rows="5" placeholder="1. Get Back - The Beatles 3:11&#10;Kansas City&#10;Iko Iko 3:30">${esc(bulk.text)}</textarea>
     <div class="modal-actions">
       <button type="button" class="btn" onclick="closeBulk()">キャンセル</button>
