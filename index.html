@@ -338,6 +338,13 @@ body.cards-min .setlist-row2{display:none;}
 .setlist-row3{padding:0 12px 10px; margin-top:-2px; font-size:12px; line-height:1.55; color:var(--muted);}
 .setlist-row3 .r3-note{margin-top:2px; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
 body.cards-min .setlist-row3{display:none;}
+.name-sub{display:none;}
+body.cards-bk .name-sub{display:flex; align-items:center; gap:6px; margin-top:3px; font-size:12px; font-weight:600; color:var(--muted);}
+.ns-bpm.ov{color:var(--accent);}
+.view-seg{display:flex; align-items:center; gap:8px;}
+.view-seg-label{font-size:12px; font-weight:600; color:var(--muted);}
+.view-seg .pos-seg button{padding:6px 12px;}
+.hidden-tag{display:inline-block; margin-left:6px; padding:0 6px; border-radius:999px; border:1px solid var(--border); font-size:10px; font-weight:700; color:var(--muted); vertical-align:middle;}
 body.cards-min .setlist-row1{padding:8px 12px;}
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
@@ -458,7 +465,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-6';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-7';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -742,7 +749,12 @@ let liveTotalsOpen = false;
 let liveOtherOpen = false;   // 「曲以外を追加」カード
 let liveRegisterOpen = false; // 「曲を登録」カード
 let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加位置：'start' or 'end'
-let cardMin = store.get('setlist_cards_min', false);  // 曲カードを最小表示（曲順・曲名・時間・編集ボタンだけ）にするか
+// 曲カードの表示：full=標準 / bk=最小＋BPM・Key / min=最小（曲順・曲名・時間・編集ボタンだけ）
+let cardMode = store.get('setlist_card_mode', store.get('setlist_cards_min', false) ? 'min' : 'full');
+const CARD_MODES = [['full','標準'],['bk','BPM・Key'],['min','最小']];
+function viewSegHtml(){
+  return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${cardMode===k?'on':''}" onclick="setCardMode('${k}')" aria-pressed="${cardMode===k}">${l}</button>`).join('')}</div></div>`;
+}
 let showOthers = store.get('setlist_show_others', true);  // セットリストに曲以外（MC・SEなど）を表示するか
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','end'); // 「曲を登録」の追加位置
@@ -894,9 +906,13 @@ function endDrag(e){
 // 画面に見えている並びを保存する。見えていない項目（隠した曲以外）は元の位置のまま
 function applyDragOrder(list, keys){
   if(list==='stock'){
-    const byId = new Map(songs.map(s => [s.id, s]));
-    const next = keys.map(k => byId.get(k)).filter(Boolean);
-    if(next.length===songs.length && next.some((s,k)=>s!==songs[k])){ songs = next; saveSongs(); }
+    // 見えている曲だけを、元いた位置（スロット）に並べ直して入れる。非表示の曲は動かさない
+    const byId = new Map(songs.map((s,i) => [s.id, i]));
+    const idxs = keys.map(k => byId.get(k)).filter(i => i!==undefined);
+    const slots = [...idxs].sort((a,b)=>a-b);
+    const next = songs.slice();
+    slots.forEach((slot, k) => { next[slot] = songs[idxs[k]]; });
+    if(next.some((s,k)=>s!==songs[k])){ songs = next; saveSongs(); }
   } else {
     const live = lives.find(l=>l.id===liveEditId);
     if(!live) return;
@@ -987,7 +1003,7 @@ window.openMetro = (source, key) => {
 };
 // 並び順（画面の表示順）での曲のキー一覧。イベントは曲だけ（MC・SEなどは飛ばす）
 function stockOrderIds(){
-  return sortSongs(songs, songSort).filter(s => songGenreFilter==='all' ? true : songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter).map(s => s.id);
+  return sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => songGenreFilter==='all' ? true : songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter).map(s => s.id);
 }
 function metroLive(){ return metroPanel && metroPanel.source==='live' ? lives.find(l=>l.id===metroPanel.liveId) : null; }
 function metroSeq(){
@@ -1238,7 +1254,8 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
-  document.body.classList.toggle('cards-min', cardMin);
+  document.body.classList.toggle('cards-min', cardMode!=='full');
+  document.body.classList.toggle('cards-bk', cardMode==='bk');
   if(metroPanel) renderMetroSheet();
 }
 
@@ -1268,7 +1285,10 @@ function renderSongs(){
     html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「一括登録」からまとめて登録できます。</div>`;
   } else {
     const sortedSongs = sortSongs(songs, songSort);
+    const hiddenCount = songs.filter(s => s.hidden).length;
+    const visNum = stockVisibleNumbers();
     const filteredSongs = sortedSongs.filter(s => {
+      if(s.hidden && !stockSelectMode) return false;  // 非表示の曲は、選択画面でだけ出す
       if(songGenreFilter==='all') return true;
       if(songGenreFilter==='__none__') return !s.genre;
       return s.genre===songGenreFilter;
@@ -1281,21 +1301,22 @@ function renderSongs(){
         <span class="totals-label">合計（${filteredSongs.length}曲${filtered?'・絞り込み中':''}）</span>
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
-      if(!songForm && !stockSelectMode) html += `<div class="list-opts"><button type="button" class="show-toggle ${cardMin?'on':''}" onclick="toggleCardMin()" aria-pressed="${cardMin}">最小表示 <span class="switch"><span></span></span></button></div>`;
+      if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}</div>`;
       if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」、絞り込みを「すべて」にしてください。</div>`;
     }
     if(filteredSongs.length===0 && !songForm){
-      html += `<div class="empty">該当するジャンルの曲がありません。</div>`;
+      html += `<div class="empty">${hiddenCount && songGenreFilter==='all' ? 'すべての曲が非表示です。' : '該当するジャンルの曲がありません。'}</div>`;
     }
+    if(hiddenCount && !songForm && !stockSelectMode) html += `<div class="hint">非表示の曲：${hiddenCount}曲（「選択」から表示に戻せます）</div>`;
     filteredSongs.forEach(s => {
       if(songForm && songForm.id===s.id){ html += songFormHtml(songForm); return; }
-      const pos = songs.indexOf(s);
+      const num = visNum.get(s.id) || '–';
       if(stockSelectMode){
         const on = stockSelected.has(s.id);
         html += `<label class="setlist-item select-row ${on?'is-checked':''}">
           <input type="checkbox" ${on?'checked':''} onchange="toggleStockSelect('${s.id}')">
-          <span class="setlist-num mono">${pos+1}</span>
-          <span class="select-name">${esc(s.name)}</span>
+          <span class="setlist-num mono">${num}</span>
+          <span class="select-name">${esc(s.name)}${s.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</span>
           <span class="select-dur mono">${esc(s.duration||'')}</span>
         </label>`;
         return;
@@ -1304,8 +1325,8 @@ function renderSongs(){
         <div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>
         <div class="swipe-face">
         <div class="setlist-row1">
-          <span class="setlist-num mono">${pos+1}</span>
-          <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${esc(s.name)}</button>
+          <span class="setlist-num mono">${num}</span>
+          <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key)}</span></button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
           <button type="button" class="row-edit c-only" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
@@ -1336,6 +1357,10 @@ function renderSongs(){
         <div class="select-actions">
           <button type="button" class="btn" ${n?'':'disabled'} onclick="copySelectedStockText()">テキストで書き出し</button>
           <button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>
+        </div>
+        <div class="select-actions">
+          <button type="button" class="btn" ${n?'':'disabled'} onclick="setSelectedHidden(true)">非表示にする</button>
+          <button type="button" class="btn" ${n?'':'disabled'} onclick="setSelectedHidden(false)">表示する</button>
         </div>
       </div>`;
     }
@@ -1609,6 +1634,8 @@ window.commitBulk = () => {
 window.enterStockSelect = () => { stopMetro(); stockSelectMode = true; stockSelected = new Set(); render(); };
 window.exitStockSelect = () => { stockSelectMode = false; stockSelected = new Set(); render(); };
 window.toggleStockSelect = (id) => { if(stockSelected.has(id)) stockSelected.delete(id); else stockSelected.add(id); render(); };
+// 曲マスタの番号：非表示の曲を飛ばして、表示中の曲だけで 1, 2, 3 … と振る
+function stockVisibleNumbers(){ const m = new Map(); let n = 0; songs.forEach(s => { if(!s.hidden) m.set(s.id, ++n); }); return m; }
 function visibleStockSongs(){
   return sortSongs(songs, songSort).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
 }
@@ -1719,6 +1746,14 @@ window.copySelectedStockText = () => {
   if(!list.length) return;
   openTextExport(`選んだ${list.length}曲`, n => list.map((s,k) => n ? `${k+1}. ${s.name}` : s.name).join('\n'));
 };
+window.setSelectedHidden = (hide) => {
+  const ids = new Set(stockSelected); if(!ids.size) return;
+  let n = 0;
+  songs.forEach(s => { if(ids.has(s.id) && !!s.hidden !== hide){ if(hide) s.hidden = true; else delete s.hidden; s.updatedAt = Date.now(); n++; } });
+  saveSongs();
+  stockSelected = new Set(); render();
+  showToast(n ? `${n}曲を${hide?'非表示に':'表示に'}しました。` : `選んだ曲はすでに${hide?'非表示':'表示'}です。`);
+};
 window.deleteSelectedStock = () => {
   const ids = new Set(stockSelected); const n = ids.size;
   if(!n) return;
@@ -1732,9 +1767,10 @@ window.deleteSelectedStock = () => {
   }, '削除する');
 };
 window.copyStockText = () => {
-  const list = sortSongs(songs, songSort).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
+  const list = sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
   if(!list.length){ showToast('曲がありません。'); return; }
-  openTextExport('曲マスタの曲順', n => list.map(s => n ? `${songs.indexOf(s)+1}. ${s.name}` : s.name).join('\n'));
+  const num = stockVisibleNumbers();
+  openTextExport('曲マスタの曲順', n => list.map(s => n ? `${num.get(s.id)}. ${s.name}` : s.name).join('\n'));
 };
 // 曲マスタに入れる位置（先頭／最後）。画面を描き直さずに切り替える（入力中のフォームを消さないため）
 function stockPosSegHtml(){
@@ -1827,7 +1863,7 @@ window.toggleLiveInfo = () => {
 };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
-window.toggleCardMin = () => { cardMin = !cardMin; store.set('setlist_cards_min', cardMin); render(); };
+window.setCardMode = m => { cardMode = m; store.set('setlist_card_mode', m); render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
@@ -1957,7 +1993,7 @@ function renderLiveEdit(){
   </div>`;
 
 
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">ネット検索・ライブラリ・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
+  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
     ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
   html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
@@ -1965,10 +2001,11 @@ function renderLiveEdit(){
   // ---- セットリストエリア ----
   html += `<div class="setlist-head">
     <div class="section-title" style="margin:0;">セットリスト</div>
-    <div class="head-toggles"><button type="button" class="show-toggle ${cardMin?'on':''}" onclick="toggleCardMin()" aria-pressed="${cardMin}">最小表示 <span class="switch"><span></span></span></button>
+    <div class="head-toggles">
     ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
     </div>
   </div>`;
+  html += `<div class="list-opts">${viewSegHtml()}</div>`;
   html += totalsCardHtml;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
   html += `<div class="hint">曲名タップで曲情報とメトロノーム。鉛筆でこのイベント用に変更</div>`;
@@ -2018,7 +2055,7 @@ function renderLiveEdit(){
       <div class="swipe-face">
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
-        <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}</button>
+        <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null)}</span></button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
         <button type="button" class="row-edit c-only" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
@@ -2064,14 +2101,14 @@ window.updateQuickSuggest = (q) => {
   const live = lives.find(l=>l.id===liveEditId);
   const used = live ? live.setlist.filter(e=>e.type!=='other').map(e=>e.songId) : [];
   const stockHits = songs
+    .filter(s => !s.hidden)
     .map(s => ({s, n:normName(s.name)}))
     .filter(x => x.n.includes(nq))
     .sort((a,b) => (b.n.startsWith(nq)-a.n.startsWith(nq)) || a.n.localeCompare(b.n,'ja'))
     .slice(0,5);
   const packHits = packSuggestions(nq, 5);
   if(!stockHits.length && !packHits.length){
-    if([...nq].length >= 2) showNetSearch(box, q.trim(), 'quick');
-    else { cancelNetSearch(); box.hidden = true; box.innerHTML = ''; }
+    cancelNetSearch(); box.hidden = true; box.innerHTML = '';
     return;
   }
   cancelNetSearch();
@@ -2619,13 +2656,13 @@ function parseCSV(text){
   });
 }
 
-const SONG_CSV_HEADERS = ['id','name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','updatedAt'];
+const SONG_CSV_HEADERS = ['id','name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','hidden','updatedAt'];
 const EVENT_CSV_HEADERS = ['event_id','event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','event_updated_at','entry_type','entry_song_id','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end'];
 
 window.exportSongs = async () => {
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', orig:s.orig||'', updatedAt:s.updatedAt||''}));
+  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', orig:s.orig||'', hidden:s.hidden?'1':'', updatedAt:s.updatedAt||''}));
   try{ await dl.save({filename:'曲マスタ.csv', data: toCSV(SONG_CSV_HEADERS, rows)}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
@@ -2680,6 +2717,7 @@ window.handleSongImport = (file) => {
         start: row.start||'', end: row.end||'', url: row.url||'', notes: row.notes||'', genre: row.genre||'', rhythm: row.rhythm||'', orig: row.orig||'',
         updatedAt: Number(row.updatedAt) || Date.now()
       };
+      if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
       const idx = songs.findIndex(s=>s.id===item.id);
       if(idx>=0) songs[idx] = item; else songs.push(item);
       count++;
@@ -2924,7 +2962,7 @@ function netSearchHtml(q, title){
     <div class="net-note">${title ? '' : 'この画面からは曲の情報を直接取り込めないため、検索ページを開きます。'}見つかったら、曲名と時間を入力してそのまま登録してください。見つからなくても手入力で登録できます。</div>`;
 }
 // ---- 曲を登録：ネット検索 / ライブラリ / 手入力（イベント画面と曲マスタの両方で使う） ----
-let regTab = 'net';         // イベント画面の「曲を登録」のタブ
+let regTab = 'lib';         // イベント画面の「曲を登録」のタブ（ネット検索は曲マスタだけ）
 let stockRegTab = 'net';    // 曲マスタの「曲を登録」のタブ
 let netQ = '';              // 検索欄の文字（タブを切り替えても残す）
 let netLoading = false;
@@ -2936,7 +2974,8 @@ const catalogCache = new Map();
 const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
 function regCurrentTab(ctx){ return ctx==='stock' ? stockRegTab : regTab; }
 function regSegHtml(tab, ctx){
-  return `<div class="reg-seg" role="tablist">${REG_TABS.map(([k,l]) => `<button type="button" class="${tab===k?'on':''}" onclick="setRegTab('${k}','${ctx}')" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
+  const tabs = ctx==='stock' ? REG_TABS : REG_TABS.filter(([k]) => k!=='net');
+  return `<div class="reg-seg" role="tablist">${tabs.map(([k,l]) => `<button type="button" class="${tab===k?'on':''}" onclick="setRegTab('${k}','${ctx}')" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
 }
 function regSearchHtml(ctx){
   return `<input class="reg-search" type="search" placeholder="曲名の頭、またはアーティスト名" value="${esc(netQ)}" autocomplete="off" enterkeyhint="search" oninput="onRegQuery(this.value,'${ctx}')" aria-label="曲名の頭、またはアーティスト名">
@@ -2944,6 +2983,7 @@ function regSearchHtml(ctx){
 }
 // イベント画面の「曲を登録」の中身
 function regBodyHtml(){
+  if(regTab==='net') regTab = 'lib';
   const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
     return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
@@ -2953,7 +2993,7 @@ function regBodyHtml(){
     </div>
     <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲マスタにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲マスタで編集できます。</div>`;
   }
-  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}`;
+  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}<div class="hint" style="padding-bottom:0;">ネット検索は、曲マスタの「曲を登録」から使えます</div>`;
 }
 // 曲マスタの「曲を登録」（手入力以外のタブ）の中身
 function stockRegPanelHtml(){
@@ -3060,10 +3100,10 @@ function regResultsHtml(ctx){
         packHits.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, inStock(x.p.name) ? doneTag : addBtn(`addPackToStock(${x.idx})`))).join('') + `</div>`;
     }
     const stockHits = songs
-      .filter(s => !nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq))
+      .filter(s => !s.hidden && (!nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq)))
       .sort((a,b) => nq ? ((normName(b.name).startsWith(nq)) - (normName(a.name).startsWith(nq))) : 0);
     if(!stockHits.length && !packHits.length){
-      return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲マスタはまだ空です。'}「ネット検索」か「手入力」から登録できます。</div>`;
+      return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲マスタはまだ空です。'}「手入力」か、曲マスタのネット検索から登録できます。</div>`;
     }
     let html = '';
     if(stockHits.length){
