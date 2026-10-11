@@ -344,6 +344,13 @@ body.cards-bk .name-sub{display:flex; align-items:center; gap:6px; margin-top:3p
 .view-seg{display:flex; align-items:center; gap:8px;}
 .view-seg-label{font-size:12px; font-weight:600; color:var(--muted);}
 .view-seg .pos-seg button{padding:6px 12px;}
+.eye-btn{flex-shrink:0; width:42px; height:42px; margin:-6px -4px -6px 4px; display:flex; align-items:center; justify-content:center; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.eye-btn.off{color:var(--muted); background:none; border-style:dashed;}
+.select-row.is-hidden .select-name, .select-row.is-hidden .select-dur{color:var(--muted);}
+.export-opts{display:flex; align-items:center; gap:8px; margin:-2px 0 10px;}
+.export-opts-label{font-size:12px; font-weight:600; color:var(--muted);}
+.opt-chip{padding:6px 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--muted); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; touch-action:manipulation;}
+.opt-chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .hidden-tag{display:inline-block; margin-left:6px; padding:0 6px; border-radius:999px; border:1px solid var(--border); font-size:10px; font-weight:700; color:var(--muted); vertical-align:middle;}
 body.cards-min .setlist-row1{padding:8px 12px;}
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
@@ -465,7 +472,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-7';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-8';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -635,7 +642,7 @@ function cardInfoHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const st = v('start'), en = v('end'), nt = v('notes');
   if(!st && !en && !nt) return '';
-  return `<div class="setlist-row3">${(st||en) ? `<div class="r3-se">${esc(st||'—')} → ${esc(en||'—')}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}</div>`;
+  return `<div class="setlist-row3">${(st||en) ? `<div class="r3-se">${esc(st||'-')} → ${esc(en||'-')}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}</div>`;
 }
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
@@ -681,7 +688,7 @@ function otherIcon(label){ return OTHER_ICON_SVG; }
 
 let songGenreFilter = 'all';
 let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番号順
-let stockAddPos = store.get('setlist_stock_pos', 'end');
+let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
 let liveSort = store.get('setlist_live_sort', 'date_desc');
@@ -757,7 +764,7 @@ function viewSegHtml(){
 }
 let showOthers = store.get('setlist_show_others', true);  // セットリストに曲以外（MC・SEなど）を表示するか
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
-let registerAddPos = store.get('setlist_register_pos','end'); // 「曲を登録」の追加位置
+let registerAddPos = store.get('setlist_register_pos','start'); // 「曲を登録」の追加位置
 // 追加位置の切り替え（先頭／最後）
 function posSegHtml(kind, pos){
   return `<div class="pos-row">
@@ -1302,6 +1309,7 @@ function renderSongs(){
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
       if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}</div>`;
+      if(stockSelectMode) html += `<div class="hint">目のアイコンで、曲マスタに表示する／しないを切り替えます</div>`;
       if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」、絞り込みを「すべて」にしてください。</div>`;
     }
     if(filteredSongs.length===0 && !songForm){
@@ -1313,11 +1321,12 @@ function renderSongs(){
       const num = visNum.get(s.id) || '–';
       if(stockSelectMode){
         const on = stockSelected.has(s.id);
-        html += `<label class="setlist-item select-row ${on?'is-checked':''}">
+        html += `<label class="setlist-item select-row ${on?'is-checked':''} ${s.hidden?'is-hidden':''}">
           <input type="checkbox" ${on?'checked':''} onchange="toggleStockSelect('${s.id}')">
           <span class="setlist-num mono">${num}</span>
           <span class="select-name">${esc(s.name)}${s.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</span>
           <span class="select-dur mono">${esc(s.duration||'')}</span>
+          <button type="button" class="eye-btn ${s.hidden?'off':''}" onclick="event.preventDefault(); event.stopPropagation(); toggleSongHidden('${s.id}')" aria-label="${s.hidden?'表示する':'非表示にする'}" title="${s.hidden?'表示する':'非表示にする'}">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>
         </label>`;
         return;
       }
@@ -1358,10 +1367,7 @@ function renderSongs(){
           <button type="button" class="btn" ${n?'':'disabled'} onclick="copySelectedStockText()">テキストで書き出し</button>
           <button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>
         </div>
-        <div class="select-actions">
-          <button type="button" class="btn" ${n?'':'disabled'} onclick="setSelectedHidden(true)">非表示にする</button>
-          <button type="button" class="btn" ${n?'':'disabled'} onclick="setSelectedHidden(false)">表示する</button>
-        </div>
+
       </div>`;
     }
   }
@@ -1380,13 +1386,13 @@ function renderSongs(){
 }
 // はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
 const SE_START_OPTS = ['ドラムカウントから','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
-const SE_START_DEFAULT = 'ドラムカウントから';
+const SE_START_DEFAULT = '';  // 新しい曲のはじめかたは「-」（未設定）から
 const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','THE WHO','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const lines = [];
-  lines.push(`<div class="detail-line">${esc(v('start')||'—')} → ${esc(v('end')||'—')}</div>`);
+  lines.push(`<div class="detail-line">${esc(v('start')||'-')} → ${esc(v('end')||'-')}</div>`);
   const notes = v('notes');
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
@@ -1397,7 +1403,7 @@ function startEndHtml(id, label, value, opts){
   const selVal = isFree ? '__free' : (value || '');
   return `<div class="field"><label>${label}</label>
     <select id="${id}-sel" onchange="onStartEndSel('${id}', this.value)">
-      <option value="" ${selVal===''?'selected':''}>未設定</option>
+      <option value="" ${selVal===''?'selected':''}>-</option>
       ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
       <option value="__free" ${selVal==='__free'?'selected':''}>（その他）</option>
     </select>
@@ -1744,7 +1750,16 @@ window.moveStock = (id, dir) => {
 window.copySelectedStockText = () => {
   const list = visibleStockSongs().filter(s => stockSelected.has(s.id));
   if(!list.length) return;
-  openTextExport(`選んだ${list.length}曲`, n => list.map((s,k) => n ? `${k+1}. ${s.name}` : s.name).join('\n'));
+  openTextExport(`選んだ${list.length}曲`, (n, o) => list.map((s,k) => (n ? `${k+1}. ` : '') + s.name + songSuffix(s, null, o)).join('\n'));
+};
+const EYE_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1C11 5 11.5 5 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 4.1"/><path d="M6.5 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
+// 選択画面の目のアイコン：その曲だけ、すぐに表示／非表示を切り替える
+window.toggleSongHidden = id => {
+  const s = songs.find(x=>x.id===id); if(!s) return;
+  if(s.hidden) delete s.hidden; else s.hidden = true;
+  s.updatedAt = Date.now(); saveSongs(); render();
+  showToast(`「${s.name}」を${s.hidden?'非表示に':'表示に'}しました。`);
 };
 window.setSelectedHidden = (hide) => {
   const ids = new Set(stockSelected); if(!ids.size) return;
@@ -1770,7 +1785,7 @@ window.copyStockText = () => {
   const list = sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
   if(!list.length){ showToast('曲がありません。'); return; }
   const num = stockVisibleNumbers();
-  openTextExport('曲マスタの曲順', n => list.map(s => n ? `${num.get(s.id)}. ${s.name}` : s.name).join('\n'));
+  openTextExport('曲マスタの曲順', (n, o) => list.map(s => (n ? `${num.get(s.id)}. ` : '') + s.name + songSuffix(s, null, o)).join('\n'));
 };
 // 曲マスタに入れる位置（先頭／最後）。画面を描き直さずに切り替える（入力中のフォームを消さないため）
 function stockPosSegHtml(){
@@ -2314,7 +2329,7 @@ function entryEditHtml(live, i){
     const ov = isOv(e,s,f), val = effVal(e,s,f), mv = songVal(s,f);
     const selVal = ov ? (opts.includes(val) ? val : '__free') : '';
     return `<div class="field"><label>${label}</label><div class="ov-field"><select id="ee-${f}-sel" onchange="onEeSel('${f}', this.value)">
-        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(mv)||'未設定'}）</option>
+        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(mv)||'-'}）</option>
         ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
         <option value="__free" ${selVal==='__free'?'selected':''}>（その他）</option>
       </select>${reset(f)}</div>
@@ -2427,7 +2442,7 @@ window.updateEntry = (i, field, value) => {
   if(field==='bpm') syncMetroFromRow('live', live.setlist[i], value);
 };
 // セットリストを「画面に見えている番号 + 曲名」だけのテキストにする（LINE等に貼り付け用）
-function buildSetlistText(live, numbered=true){
+function buildSetlistText(live, numbered=true, o=null){
   let seq = 0;
   const lines = [];
   live.setlist.forEach(e => {
@@ -2439,7 +2454,7 @@ function buildSetlistText(live, numbered=true){
     } else {
       seq++;
       const s = songs.find(x=>x.id===e.songId);
-      if(s) lines.push(numbered ? `${seq}. ${s.name}` : s.name);
+      if(s) lines.push((numbered ? `${seq}. ` : '') + s.name + songSuffix(s, e, o));
     }
   });
   return lines.join('\n');
@@ -2483,12 +2498,22 @@ function showTextModal(text){
 }
 // テキスト書き出し：番号あり／なしを選んで、内容を確かめてからコピーする
 let textNumbered = store.get('setlist_text_numbered', true);
+let textOpts = Object.assign({bpm:false, key:false}, store.get('setlist_text_opts', {}));  // 書き出しに BPM・Key を付けるか
+// 曲名の後ろに付ける「 (BPM 92 / Key Cm)」。未設定や「-」は付けない。e があればイベントの値
+function songSuffix(s, e, o){
+  if(!o || (!o.bpm && !o.key)) return '';
+  const v = f => e ? effVal(e, s, f) : songVal(s, f);
+  const b = v('bpm'), k = v('key'), parts = [];
+  if(o.bpm && b && b!=='-') parts.push(`BPM ${b}`);
+  if(o.key && k && k!=='-') parts.push(`Key ${k}`);
+  return parts.length ? ` (${parts.join(' / ')})` : '';
+}
 function openTextExport(title, build){
-  if(!build(true)){ showToast('書き出す曲がありません。'); return; }
+  if(!build(true, {})){ showToast('書き出す曲がありません。'); return; }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const draw = () => {
-    const text = build(textNumbered);
+    const text = build(textNumbered, textOpts);
     overlay.innerHTML = `<div class="modal-box" role="dialog" aria-label="${esc(title)}">
       <div class="export-head">
         <span class="export-title">${esc(title)}</span>
@@ -2496,6 +2521,11 @@ function openTextExport(title, build){
           <button type="button" class="${textNumbered?'on':''}" data-num="1">番号あり</button>
           <button type="button" class="${textNumbered?'':'on'}" data-num="0">番号なし</button>
         </div>
+      </div>
+      <div class="export-opts">
+        <span class="export-opts-label">付ける</span>
+        <button type="button" class="opt-chip ${textOpts.bpm?'on':''}" data-opt="bpm" aria-pressed="${textOpts.bpm}">BPM</button>
+        <button type="button" class="opt-chip ${textOpts.key?'on':''}" data-opt="key" aria-pressed="${textOpts.key}">Key</button>
       </div>
       <textarea class="modal-text" readonly rows="${Math.min(12, text.split('\n').length+1)}">${esc(text)}</textarea>
       <div class="modal-actions">
@@ -2509,10 +2539,11 @@ function openTextExport(title, build){
     if(e.target===overlay) return overlay.remove();
     const b = e.target.closest('button'); if(!b) return;
     if(b.dataset.num !== undefined){ textNumbered = b.dataset.num==='1'; store.set('setlist_text_numbered', textNumbered); draw(); return; }
+    if(b.dataset.opt){ textOpts[b.dataset.opt] = !textOpts[b.dataset.opt]; store.set('setlist_text_opts', textOpts); draw(); return; }
     if(b.dataset.act==='close') return overlay.remove();
     if(b.dataset.act==='copy'){
       const ta = overlay.querySelector('.modal-text');
-      if(await copyTextToClipboard(build(textNumbered))){ overlay.remove(); showToast('コピーしました。LINEなどに貼り付けできます。'); }
+      if(await copyTextToClipboard(build(textNumbered, textOpts))){ overlay.remove(); showToast('コピーしました。LINEなどに貼り付けできます。'); }
       else { ta.focus(); ta.select(); showToast('文字を長押ししてコピーしてください。'); }
     }
   });
@@ -2522,7 +2553,7 @@ window.copySetlistText = () => {
   const live = lives.find(l=>l.id===liveEditId);
   if(!live) return;
   if(!buildSetlistText(live)){ showToast('セットリストが空です。'); return; }
-  openTextExport('セットリスト', n => buildSetlistText(live, n));
+  openTextExport('セットリスト', (n, o) => buildSetlistText(live, n, o));
 };
 window.copyLive = () => {
   applyLiveForm();  // 元イベントの入力途中の内容を先に保存してからコピー
