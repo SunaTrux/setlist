@@ -80,6 +80,7 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .detail-line{font-size:13px; color:var(--muted); margin-bottom:6px; line-height:1.6;}
 .detail-line a{color:var(--accent); text-decoration:none; font-weight:600;}
 .detail-note{font-size:13px; white-space:pre-wrap; line-height:1.7; overflow-wrap:anywhere;}
+.detail-se{margin-bottom:4px;}
 .muted{color:var(--muted);}
 
 .live-card{display:block; width:100%; text-align:left; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; cursor:pointer; color:var(--text);}
@@ -345,7 +346,8 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 body.cards-min .setlist-row1 .c-only{display:flex;}
 .setlist-row1 .row-edit, .setlist-row1 .row-del{width:32px; height:32px; margin:-4px 0; margin-left:0;}
 body.cards-min .setlist-row2{display:none;}
-.setlist-row3{padding:0 12px 10px; margin-top:-2px; font-size:12px; line-height:1.55; color:var(--muted);}
+.setlist-row3{padding:0 12px 10px; margin-top:-2px; font-size:12px; line-height:1.55; color:var(--text);}
+.setlist-row3 .r3-se{overflow-wrap:anywhere;}
 .setlist-row3 .r3-note{margin-top:2px; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
 body.cards-min .setlist-row3{display:none;}
 .name-sub{display:none;}
@@ -482,7 +484,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-17';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-18';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1442,7 +1444,7 @@ const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート�
 function songDetailHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const lines = [];
-  lines.push(`<div class="detail-line">${esc(v('start')||'-')} → ${esc(v('end')||'-')}</div>`);
+  lines.push(`<div class="detail-note detail-se">${esc(v('start')||'-')} → ${esc(v('end')||'-')}</div>`);
   const notes = v('notes');
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
@@ -1571,8 +1573,8 @@ window.openBulkText = () => {
       <button type="button" class="btn btn-accent" onclick="parseBulk()">次へ</button>
     </div>
     <div class="bulk-excel">
-      <div class="bulk-sub">Excel・Numbersで入力する</div>
-      <div class="hint" style="padding:0 0 8px;">フォーマットをダウンロードし、1行に1曲ずつ記入してCSVで保存、読み込みます。曲名以外は空欄でも大丈夫です。曲名と原曲が同じ曲は登録済みとして飛ばします。</div>
+      <div class="bulk-sub">CSVで入力する</div>
+      <div class="hint" style="padding:0 0 8px;">フォーマットをダウンロードし、Googleスプレッドシートなどの表計算アプリで1行に1曲ずつ記入、CSV形式でダウンロード（保存）して読み込みます。曲名以外は空欄でも大丈夫です。曲名と原曲が同じ曲は登録済みとして飛ばします。</div>
       <div class="settings-btn-row">
         <button type="button" class="btn btn-with-icon" onclick="downloadSongTemplate()">フォーマット${EXPORT_ICON_SVG}</button>
         <button type="button" class="btn btn-with-icon" onclick="document.getElementById('bulk-csv-input').click()">CSVを読み込む${IMPORT_ICON_SVG}</button>
@@ -2752,7 +2754,7 @@ function renderSettings(){
       </div>
       <input type="file" id="import-lives-input" accept="text/csv,.csv" style="display:none">
     </div>
-    <div class="hint">Excel等の表計算ソフトで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
+    <div class="hint">Googleスプレッドシートなどの表計算アプリで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
   </div>
 
   <div class="section-title">サンプルデータ</div>
