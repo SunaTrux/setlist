@@ -146,7 +146,13 @@ main{flex:1; padding:16px; padding-bottom:40px;}
 .setlist-name-btn .chev{color:var(--muted); font-weight:400; margin-left:2px;}
 .metro-btn{flex-shrink:0; width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:var(--surface2); font-size:14px; cursor:pointer; color:var(--text); display:flex; align-items:center; justify-content:center;}
 .metro-btn.playing{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
-.setlist-row2{display:flex; align-items:center; gap:5px; padding:0 12px 10px; flex-wrap:wrap;}
+.setlist-row2{display:flex; align-items:center; gap:5px; padding:0 12px 10px; flex-wrap:nowrap; min-width:0;}
+.setlist-row2 > *{flex-shrink:0;}
+.setlist-row2 .rhythm-tag{flex-shrink:1; min-width:2.4em; overflow:hidden; text-overflow:ellipsis;}
+.setlist-row2{gap:4px;}
+.setlist-row2 .bpm-chip{padding:0 10px 0 8px; gap:5px;}
+.setlist-row2 .ov-master{margin-left:0;}
+@media (max-width:374px){ .setlist-row2 .bpm-chip small{display:none;} }
 .mini-label{font-size:10px; color:var(--muted);}
 .mini-input{width:46px; padding:5px 4px; text-align:center; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px;}
 select.mini-input{width:64px; padding:5px 2px;}
@@ -329,6 +335,9 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 body.cards-min .setlist-row1 .c-only{display:flex;}
 .setlist-row1 .row-edit, .setlist-row1 .row-del{width:32px; height:32px; margin:-4px 0; margin-left:0;}
 body.cards-min .setlist-row2{display:none;}
+.setlist-row3{padding:0 12px 10px; margin-top:-2px; font-size:12px; line-height:1.55; color:var(--muted);}
+.setlist-row3 .r3-note{margin-top:2px; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+body.cards-min .setlist-row3{display:none;}
 body.cards-min .setlist-row1{padding:8px 12px;}
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
@@ -449,7 +458,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-5';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-6';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -459,13 +468,14 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 
 // サンプルデータを新しいIDで生成する（初回起動時と「設定」からの個別読み込みの両方で使う）
 function buildBandSample(){
-  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'C', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'16ビート', orig:'The Meters'};
+  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'Cm', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'セカンドライン', orig:'The Meters'};
   const s2={id:uid(), name:'Get Back', bpm:'123', key:'A', duration:'3:15', start:'ギターのカッティングから', end:'最後のコードを伸ばして止める', url:'', notes:'ギターソロは2コーラス', genre:'rock', rhythm:'8ビート', orig:'The Beatles'};
   const s3={id:uid(), name:'Kansas City', bpm:'130', key:'G', duration:'2:40', start:'ドラムのカウント4つ', end:'ブレイクからジャーンで締める', url:'', notes:'12小節ブルース。ソロ回し可', genre:'rock', rhythm:'シャッフル', orig:'Wilbert Harrison'};
   const s4={id:uid(), name:'Iko Iko', bpm:'108', key:'F', duration:'3:30', start:'ドラムのセカンドラインから', end:'リズムだけ残してフェードアウト', url:'', notes:'客席と掛け合い', genre:'rock', rhythm:'シャッフル', orig:'The Dixie Cups'};
   const s5={id:uid(), name:'Summer Time Blues', bpm:'150', key:'E', duration:'2:10', start:'ギターのリフから', end:'全員でジャーンと締める', url:'', notes:'ブレイク部分のキメに注意', genre:'rock', rhythm:'8ビート', orig:'Eddie Cochran'};
   const s6={id:uid(), name:"Don't You Just Know It", bpm:'140', key:'Bb', duration:'2:40', start:'ピアノのイントロから', end:'コール＆レスポンスで盛り上げて終わる', url:'', notes:'ラストナンバー。客席を巻き込む', genre:'rock', rhythm:'シャッフル', orig:'Huey Smith & His Clowns'};
-  const sampleSongs = [s1,s2,s3,s4,s5,s6];
+  const s7={id:uid(), name:'Green Onions', bpm:'136', key:'Fm', duration:'2:55', start:'ベースとオルガンのリフから', end:'最後のコードを伸ばして止める', url:'', notes:'インスト。Fmの12小節ブルース。オルガン→ギターの順でソロ', genre:'rnb', rhythm:'シャッフル', orig:"Booker T. & the M.G.'s"};
+  const sampleSongs = [s1,s7,s2,s3,s4,s5,s6];
   const now = Date.now();
   sampleSongs.forEach((s,i) => { s.updatedAt = now + i; });
   const sampleLives = [
@@ -473,6 +483,7 @@ function buildBandSample(){
       setlist:[
         {type:'other', id:uid(), label:'SE', duration:'1:00', notes:'', numbered:false},
         {type:'song', songId:s1.id},
+        {type:'song', songId:s7.id},
         {type:'song', songId:s2.id},
         {type:'other', id:uid(), label:'MC', duration:'2:00', notes:'次の曲の紹介', numbered:false},
         {type:'song', songId:s3.id},
@@ -539,8 +550,10 @@ function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','
 
 const GENRE_OPTS = [
   {value:'rock', label:'ロック'},
-  {value:'funk', label:'ファンク'},
-  {value:'blues', label:'ブルース'},
+  {value:'funk', label:'Funk'},
+  {value:'soul', label:'Soul'},
+  {value:'rnb', label:'R&B'},
+  {value:'blues', label:'Blues'},
   {value:'classic', label:'クラシック'},
   {value:'latin', label:'ラテン'},
   {value:'pops', label:'ポップス'},
@@ -550,7 +563,7 @@ function genreOptionsHtml(current){
   let html = `<option value="">未設定</option>`;
   const known = GENRE_OPTS.map(o=>o.value);
   if(current && !known.includes(current)) html += `<option value="${esc(current)}" selected>${esc(current)}</option>`;
-  GENRE_OPTS.forEach(o => { html += `<option value="${o.value}" ${o.value===current?'selected':''}>${o.label}</option>`; });
+  GENRE_OPTS.forEach(o => { html += `<option value="${o.value}" ${o.value===current?'selected':''}>${esc(o.label)}</option>`; });
   return html;
 }
 function genreLabel(value){
@@ -609,6 +622,13 @@ function fmtMinutes(min){
 function keyChipHtml(k, ovFrom){
   if(!k || k==='-') return ovFrom!=null ? `<span class="key-chip ov"><small>Key</small><b class="mono">${esc(k||'—')}</b><span class="ov-master">←${esc(ovFrom)}</span></span>` : '';
   return `<span class="key-chip mono ${ovFrom!=null?'ov':''}"><small>Key</small><b>${esc(k)}</b>${ovFrom!=null?`<span class="ov-master">←${esc(ovFrom)}</span>`:''}</span>`;
+}
+// 曲カードの3行目：はじめかた → おわりかた とメモ（最小表示では隠す）。e があればイベントの値
+function cardInfoHtml(s, e){
+  const v = f => e ? effVal(e, s, f) : songVal(s, f);
+  const st = v('start'), en = v('end'), nt = v('notes');
+  if(!st && !en && !nt) return '';
+  return `<div class="setlist-row3">${(st||en) ? `<div class="r3-se">${esc(st||'—')} → ${esc(en||'—')}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}</div>`;
 }
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
@@ -796,7 +816,7 @@ function getCtx(){ audioCtx = audioCtx || new (window.AudioContext||window.webki
 // BPMはラベル表示。タップでメトロノームのパネルを開く
 function bpmChipHtml(bpm, active, onclick){
   return `<button type="button" class="bpm-chip ${active?'playing':''}" onclick="${onclick}" title="メトロノーム" aria-label="メトロノームを開く（BPM ${esc(bpm||'未設定')}）">
-    ${METRO_ICON_SVG}<span class="mono">${bpm ? esc(bpm) : '—'}</span><small>BPM</small>
+    ${METRO_ICON_SVG}<span class="mono">${bpm ? esc(bpm) : '-'}</span><small>BPM</small>
   </button>`;
 }
 const FILTER_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4-2v-4.5z"/></svg>`;
@@ -1237,7 +1257,7 @@ function renderSongs(){
     <label class="sort-chip" title="ジャンルで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンルで絞り込み">
       <option value="all" ${songGenreFilter==='all'?'selected':''}>全ジャンル</option>
       <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
-      ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${songGenreFilter===o.value?'selected':''}>${o.label}</option>`).join('')}
+      ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${songGenreFilter===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
     </select></label>
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="song-sort-quick" aria-label="並び替え">${songSortOptionsHtml(songSort)}</select></label>
   </div>` : ''}`;
@@ -1298,6 +1318,7 @@ function renderSongs(){
           <button type="button" class="row-edit" onclick="editSong('${s.id}')" aria-label="編集" title="編集">${ICON_EDIT}</button>
           <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
         </div>
+        ${cardInfoHtml(s)}
         </div>
       </div>`;
     });
@@ -1322,7 +1343,7 @@ function renderSongs(){
   main.innerHTML = html;
   const addBtn = document.getElementById('btn-add-song');
   if(addBtn) addBtn.onclick = () => {
-    songForm = {id:null, name:'', bpm:'120', key:'-', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:''};
+    songForm = {id:null, name:'', bpm:'-', key:'-', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:''};
     stockRegTab = 'net';
     netQ = ''; netResults = []; netResultsQ = ''; netLoading = false;
     render();
@@ -2011,6 +2032,7 @@ function renderLiveEdit(){
         <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
+      ${cardInfoHtml(s, entry)}
       </div>
     </div>`;
   });
@@ -2125,7 +2147,7 @@ window.quickAddSong = () => {
   } else {
     const pk = (quickPackPick!==null && PACK_INDEX[quickPackPick] && normName(PACK_INDEX[quickPackPick].name)===normName(name)) ? PACK_INDEX[quickPackPick] : null;
     const nk = (!pk && quickNetPick && normName(quickNetPick.name)===normName(name)) ? quickNetPick : null;
-    song = {id:uid(), name, bpm:'120', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: nk ? nk.url : '', notes: '', orig: pk ? pk.who : (nk && nk.artist ? nk.artist : ''), rhythm:'', genre: pk ? pk.genre : (nk ? nk.genre : ''), updatedAt:Date.now()};
+    song = {id:uid(), name, bpm:'-', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: nk ? nk.url : '', notes: '', orig: pk ? pk.who : (nk && nk.artist ? nk.artist : ''), rhythm:'', genre: pk ? pk.genre : (nk ? nk.genre : ''), updatedAt:Date.now()};
     songs.push(song); saveSongs();
     msg = `「${name}」を曲マスタに登録して追加しました。`;
   }
@@ -2529,7 +2551,7 @@ function renderSettings(){
       <button type="button" class="btn" onclick="loadSampleData('band')">バンド編成</button>
       <button type="button" class="btn" onclick="loadSampleData('piano')">ピアノ演奏会</button>
     </div>
-    <div class="hint">バンド編成（曲6曲・イベント1件）またはピアノ演奏会（曲5曲・イベント1件）を選んで追加できます。既存のデータは消えません。</div>
+    <div class="hint">バンド編成（曲7曲・イベント1件）またはピアノ演奏会（曲5曲・イベント1件）を選んで追加できます。既存のデータは消えません。</div>
   </div>
 
   <div class="section-title">データ初期化</div>
@@ -3071,7 +3093,7 @@ function regResultsHtml(ctx){
 function songFromInfo(info){
   const name = String(info.name||'').trim();
   const dur = info.dur ? fmtDur(parseDur(info.dur)) : DEFAULT_SONG_DUR;
-  return {id:uid(), name, bpm:'120', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', rhythm:'', orig: info.orig||'', updatedAt:Date.now()};
+  return {id:uid(), name, bpm:'-', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', rhythm:'', orig: info.orig||'', updatedAt:Date.now()};
 }
 function registerSongToStock(info){
   const name = String(info.name||'').trim();
@@ -3143,7 +3165,7 @@ function packItemHtml(x, handler){
 }
 window.loadSampleData = (kind) => {
   const label = kind==='piano' ? 'ピアノ演奏会' : 'バンド編成';
-  confirmAction(`${label}のサンプルデータ（曲${kind==='piano'?5:6}曲・イベント1件）を追加します。よろしいですか？`, () => {
+  confirmAction(`${label}のサンプルデータ（曲${kind==='piano'?5:7}曲・イベント1件）を追加します。よろしいですか？`, () => {
     const sample = kind==='piano' ? buildPianoSample() : buildBandSample();
     songs = songs.concat(sample.songs);
     lives = lives.concat(sample.lives);
