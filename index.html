@@ -480,7 +480,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-14';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-15';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -2663,20 +2663,20 @@ function renderSettings(){
     <div class="field">
       <label>曲マスタ</label>
       <div class="settings-btn-row">
-        <button type="button" class="btn btn-with-icon" onclick="exportSongs()">エクスポート${EXPORT_ICON_SVG}</button>
-        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('import-songs-input').click()">インポート${IMPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="exportSongs()">CSV出力${EXPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('import-songs-input').click()">CSV入力${IMPORT_ICON_SVG}</button>
       </div>
       <input type="file" id="import-songs-input" accept="text/csv,.csv" style="display:none">
     </div>
     <div class="field">
       <label>イベント一覧</label>
       <div class="settings-btn-row">
-        <button type="button" class="btn btn-with-icon" onclick="exportLives()">エクスポート${EXPORT_ICON_SVG}</button>
-        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('import-lives-input').click()">インポート${IMPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="exportLives()">CSV出力${EXPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('import-lives-input').click()">CSV入力${IMPORT_ICON_SVG}</button>
       </div>
       <input type="file" id="import-lives-input" accept="text/csv,.csv" style="display:none">
     </div>
-    <div class="hint">Excel等の表計算ソフトで開ける CSV 形式です。インポートは同じID（1列目）の行を上書きし、ID欄を空にして保存すれば新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先にインポートしていなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
+    <div class="hint">Excel等の表計算ソフトで開ける CSV 形式です。CSV入力は同じID（1列目）の行を上書きし、ID欄を空にして保存すれば新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
   </div>
 
   <div class="section-title">サンプルデータ</div>
