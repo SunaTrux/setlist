@@ -218,6 +218,8 @@ select.mini-input{width:64px; padding:5px 2px;}
 .modal-box{background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:18px; max-width:360px; width:100%;}
 .modal-message{font-size:14px; line-height:1.7; white-space:pre-wrap; margin-bottom:16px; color:var(--text);}
 .modal-actions{display:flex; gap:8px; justify-content:flex-end;}
+.bulk-excel{margin-top:16px; padding-top:14px; border-top:1px dashed var(--border);}
+.bulk-sub{font-size:14px; font-weight:700; margin-bottom:4px;}
 .app-version{margin:20px 0 8px; text-align:center; font-size:12px; color:var(--muted);}
 .export-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
 .export-title{font-size:15px; font-weight:700;}
@@ -480,7 +482,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-16';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-17';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1567,7 +1569,81 @@ window.openBulkText = () => {
     <div class="modal-actions">
       <button type="button" class="btn" onclick="closeBulk()">キャンセル</button>
       <button type="button" class="btn btn-accent" onclick="parseBulk()">次へ</button>
+    </div>
+    <div class="bulk-excel">
+      <div class="bulk-sub">Excel・Numbersで入力する</div>
+      <div class="hint" style="padding:0 0 8px;">フォーマットをダウンロードし、1行に1曲ずつ記入してCSVで保存、読み込みます。曲名以外は空欄でも大丈夫です。曲名と原曲が同じ曲は登録済みとして飛ばします。</div>
+      <div class="settings-btn-row">
+        <button type="button" class="btn btn-with-icon" onclick="downloadSongTemplate()">フォーマット${EXPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('bulk-csv-input').click()">CSVを読み込む${IMPORT_ICON_SVG}</button>
+      </div>
+      <input type="file" id="bulk-csv-input" accept="text/csv,.csv" style="display:none" onchange="if(this.files[0]) importTemplateCsv(this.files[0]); this.value='';">
     </div>`);
+};
+// ---- Excel などで記入して一括登録するフォーマット ----
+const TPL_HEADERS = ['曲名','BPM','キー','曲時間','はじめかた','おわりかた','ジャンル','リズム','原曲','メモ','URL'];
+const TPL_EXAMPLE = ['例：Get Back','123','A','3:15','カウント','最後のコードを伸ばして止める','ロック','8ビート','The Beatles','ギターソロは2コーラス',''];
+// 見出しの言い方の違いを受け付ける（日本語・英語の両方）
+const TPL_ALIASES = {
+  name:['曲名','タイトル','name','title'], bpm:['BPM','テンポ','bpm'], key:['キー','key'], duration:['曲時間','時間','長さ','duration'],
+  start:['はじめかた','開始方法','start'], end:['おわりかた','終わり方','end'], genre:['ジャンル','genre'], rhythm:['リズム','リズムパターン','rhythm'],
+  orig:['原曲','原曲アーティスト','アーティスト','orig','artist'], notes:['メモ','notes','memo'], url:['URL','リファレンスURL','url']
+};
+window.downloadSongTemplate = async () => {
+  const dl = await getDownloads();
+  const rows = [Object.fromEntries(TPL_HEADERS.map((h,k) => [h, TPL_EXAMPLE[k]]))];
+  try{ await dl.save({filename:'曲の一括登録フォーマット.csv', data: toCSV(TPL_HEADERS, rows)}); }
+  catch(err){ if(!err || err.code!=='declined') showToast('ダウンロードに失敗しました: '+((err&&err.message)||'不明なエラー')); }
+};
+// Excel が「3:45」を時刻「3:45:00」に変えてしまっても、分:秒として読む
+function tplDuration(v){
+  v = String(v||'').normalize('NFKC').trim();
+  if(!v) return DEFAULT_SONG_DUR;
+  const m3 = v.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if(m3) v = (+m3[1]===0) ? `${+m3[2]}:${m3[3]}` : `${+m3[1]}:${m3[2]}`;
+  const sec = parseDur(v);
+  return sec>0 ? fmtDur(sec) : DEFAULT_SONG_DUR;
+}
+function tplGenre(v){
+  v = String(v||'').trim(); if(!v) return '';
+  const g = GENRE_OPTS.find(o => normName(o.label)===normName(v) || normName(o.value)===normName(v));
+  return g ? g.value : v;
+}
+window.importTemplateCsv = (file) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    let rows;
+    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }catch(e){ showToast('CSVの読み込みに失敗しました。'); return; }
+    if(!rows.length){ showToast('記入された行がありません。'); return; }
+    const heads = Object.keys(rows[0]);
+    const col = {};
+    Object.entries(TPL_ALIASES).forEach(([f, al]) => { col[f] = heads.find(h => al.some(a => normName(a)===normName(h))); });
+    if(!col.name){ showToast('「曲名」の列が見つかりません。フォーマットの見出しはそのままにしてください。'); return; }
+    const val = (row, f) => col[f] ? String(row[col[f]]||'').trim() : '';
+    const dupKey = (name, orig) => normName(name) + '|' + normName(orig);
+    const have = new Set(songs.map(s => dupKey(s.name, s.orig)));
+    const added = []; let skipped = 0;
+    const now = Date.now();
+    rows.forEach((row, k) => {
+      const name = val(row, 'name');
+      if(!name || /^例[:：]/.test(name)) return;
+      const orig = val(row, 'orig');
+      const key = dupKey(name, orig);
+      if(have.has(key)){ skipped++; return; }
+      have.add(key);
+      added.push({id:uid(), name, bpm: val(row,'bpm') || '-', key: val(row,'key') || '-', duration: tplDuration(val(row,'duration')),
+        start: val(row,'start'), end: val(row,'end'), url: val(row,'url'), notes: val(row,'notes'),
+        genre: tplGenre(val(row,'genre')), rhythm: val(row,'rhythm'), orig, updatedAt: now + k});
+    });
+    if(added.length){
+      if(stockAddPos==='start') songs = [...added, ...songs]; else songs.push(...added);
+      saveSongs();
+    }
+    closeBulk(); render();
+    if(!added.length && !skipped) showToast('登録できる行がありませんでした。曲名を記入してください。');
+    else showToast(`${added.length}曲を登録しました${skipped ? `（${skipped}曲は登録済みのため飛ばしました）` : ''}。`);
+  };
+  reader.readAsArrayBuffer(file);
 };
 // 1行ずつ読み取る。番号・記号を外し、時間とアーティストを切り分ける
 // ミュージックアプリの検索結果のように「曲名」の次の行が「曲・アーティスト」になっている形も読む
@@ -2730,7 +2806,9 @@ function browserDownloads(){
   }};
 }
 async function getDownloads(){
-  if(window.claude && window.claude.use){ try{ return await window.claude.use('downloads'); }catch(e){} }
+  if(window.claude && window.claude.use){
+    try{ const d = await window.claude.use('downloads'); return { save: o => d.save({...o, data: '\ufeff' + o.data}) }; }catch(e){}
+  }
   return browserDownloads();
 }
 
@@ -2744,6 +2822,11 @@ function toCSV(headers, rows){
   const lines = [headers.map(csvEscape).join(',')];
   rows.forEach(r => lines.push(headers.map(h => csvEscape(r[h])).join(',')));
   return lines.join('\r\n');
+}
+// CSVの文字コード：UTF-8 で読めなければ Shift_JIS（Windows の Excel の「CSV（コンマ区切り）」）として読む
+function decodeCsvBuffer(buf){
+  try{ return new TextDecoder('utf-8', {fatal:true}).decode(buf); }
+  catch(e){ try{ return new TextDecoder('shift_jis').decode(buf); }catch(e2){ return new TextDecoder('utf-8').decode(buf); } }
 }
 function parseCSV(text){
   text = String(text||'').replace(/^\ufeff/, '');  // 先頭のBOMを外す（Excel・書き出しファイル）
@@ -2824,7 +2907,7 @@ window.handleSongImport = (file) => {
   const reader = new FileReader();
   reader.onload = () => {
     let rows;
-    try{ rows = parseCSV(reader.result); }
+    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }
     catch(e){ showToast('曲データの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
     if(!Array.isArray(rows)){ showToast('曲データの形式が正しくありません。'); return; }
     let count = 0;
@@ -2844,13 +2927,13 @@ window.handleSongImport = (file) => {
     saveSongs(); render();
     showToast(`${count}件の曲データを読み込みました。`);
   };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 };
 window.handleLiveImport = (file) => {
   const reader = new FileReader();
   reader.onload = () => {
     let rows;
-    try{ rows = parseCSV(reader.result); }
+    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }
     catch(e){ showToast('イベントデータの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
     if(!Array.isArray(rows)){ showToast('イベントデータの形式が正しくありません。'); return; }
     const order = [];
@@ -2891,7 +2974,7 @@ window.handleLiveImport = (file) => {
     saveLives(); render();
     showToast(`${count}件のイベントを読み込みました${addedSongs>0?`（曲を${addedSongs}件自動追加）`:''}。`);
   };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 };
 
 // ---- 定番曲パック（曲マスタへの一括追加用）----
