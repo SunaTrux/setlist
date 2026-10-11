@@ -475,7 +475,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-12';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-13';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -699,6 +699,15 @@ function matchesSongFilter(s, f = songGenreFilter){
   return s.genre===f;
 }
 // 原曲アーティストの一覧（表示記号を揃えて同じ名前をまとめ、曲数の多い順）
+// 原曲欄の予測入力：曲マスタの原曲・イベントのアーティスト・定番曲のアーティスト（重複なし）
+function origSuggestList(){
+  const seen = new Set(), out = [];
+  const add = n => { n = String(n||'').trim(); const k = normName(n); if(n && !seen.has(k)){ seen.add(k); out.push(n); } };
+  origArtistList().forEach(a => add(a.name));
+  lives.forEach(l => add(l.artist));
+  PACK_INDEX.forEach(p => add(p.who));
+  return out;
+}
 function origArtistList(){
   const m = new Map();
   songs.forEach(s => { if(s.hidden) return; const o = String(s.orig||'').trim(); if(!o) return; const k = normName(o); const x = m.get(k) || {name:o, count:0}; x.count++; m.set(k, x); });
@@ -1484,7 +1493,7 @@ function songFormHtml(f){
     </div>
     ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
     ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
-    <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off"></div>
+    <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${f.url ? `<a class="ref-link" href="${esc(f.url)}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
     ${!f.id ? stockPosSegHtml() : ''}
@@ -2695,9 +2704,29 @@ window.setTheme = (val) => {
   applyTheme(val);
   render();
 };
+// ファイル書き出し：Claude のアーティファクトではその機能を、ふつうのブラウザ（GitHub Pages など）では
+// スマホは共有シート（ファイルに保存・LINE・AirDrop など）、PC はダウンロードで保存する
+function browserDownloads(){
+  return { save: async ({filename, data}) => {
+    const blob = new Blob(['\ufeff' + data], {type:'text/csv;charset=utf-8'});  // 先頭のBOMで Excel でも文字化けしない
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+    if(isMobile && typeof File==='function' && navigator.canShare){
+      const file = new File([blob], filename, {type:'text/csv'});
+      if(navigator.canShare({files:[file]})){
+        try{ await navigator.share({files:[file], title:filename}); showToast('書き出しました。'); return; }
+        catch(e){ if(e && e.name==='AbortError'){ const err = new Error('cancel'); err.code = 'declined'; throw err; } }
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    showToast(`「${filename}」をダウンロードしました。`);
+  }};
+}
 async function getDownloads(){
-  if(!window.claude || !window.claude.use) return null;
-  try{ return await window.claude.use('downloads'); }catch(e){ return null; }
+  if(window.claude && window.claude.use){ try{ return await window.claude.use('downloads'); }catch(e){} }
+  return browserDownloads();
 }
 
 // ---- 簡易CSV ----
@@ -2712,6 +2741,7 @@ function toCSV(headers, rows){
   return lines.join('\r\n');
 }
 function parseCSV(text){
+  text = String(text||'').replace(/^\ufeff/, '');  // 先頭のBOMを外す（Excel・書き出しファイル）
   const rows = [];
   let i=0, field='', row=[], inQuotes=false;
   const pushField = () => { row.push(field); field=''; };
@@ -3070,7 +3100,7 @@ function regBodyHtml(){
   const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
     return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
-      <input id="quick-song-name" placeholder="曲名" enterkeyhint="done" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
+      <input id="quick-song-name" placeholder="曲名" value="${esc(netQ.trim())}" enterkeyhint="done" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
       <select id="quick-song-dur" class="mono" aria-label="曲時間" onchange="this.dataset.touched='1'">${durationSelectHtml(DEFAULT_SONG_DUR)}</select>
       <button type="button" class="btn btn-accent" onclick="quickAddSong()">追加</button>
     </div>
@@ -3087,8 +3117,17 @@ function stockRegPanelHtml(){
     <div class="form-actions"><button type="button" class="btn" id="song-cancel">キャンセル</button></div>`;
 }
 window.setRegTab = (t, ctx='live') => {
-  if(ctx==='stock'){ syncSongFormDom(); stockRegTab = t; }
-  else regTab = t;
+  if(ctx==='stock'){
+    syncSongFormDom();
+    // 検索欄の文字を手入力の曲名へ、手入力の曲名を検索欄へ引き継ぐ（空いている方にだけ入れる）
+    if(stockRegTab==='manual' && t!=='manual' && !netQ.trim() && songForm && songForm.name) netQ = songForm.name;
+    if(t==='manual' && songForm && !String(songForm.name||'').trim() && netQ.trim()) songForm.name = netQ.trim();
+    stockRegTab = t;
+  } else {
+    const qn = document.getElementById('quick-song-name');
+    if(regTab==='manual' && t!=='manual' && qn && qn.value.trim() && !netQ.trim()) netQ = qn.value.trim();
+    regTab = t;
+  }
   clearTimeout(regTimer); cancelNetSearch(); netLoading = false;
   render();
 };
