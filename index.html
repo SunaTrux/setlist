@@ -475,7 +475,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-11';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-12';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -709,6 +709,18 @@ let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
 let liveSort = store.get('setlist_live_sort', 'date_desc');
+let liveArtistFilter = store.get('setlist_live_artist', 'all');  // イベント一覧の絞り込み：all / __none__ / アーティスト名
+// イベントのアーティスト一覧（表記ゆれ・前後の空白はまとめ、件数の多い順）
+function liveArtistList(){
+  const m = new Map();
+  lives.forEach(l => { const a = String(l.artist||'').trim(); if(!a) return; const k = normName(a); const x = m.get(k) || {name:a, count:0}; x.count++; m.set(k, x); });
+  return [...m.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'ja'));
+}
+function matchesLiveFilter(l, f = liveArtistFilter){
+  if(f==='all') return true;
+  if(f==='__none__') return !String(l.artist||'').trim();
+  return normName(l.artist) === normName(f);
+}
 const SONG_SORT_OPTS = [
   {value:'order', label:'番号順'},
   {value:'updated_desc', label:'更新日（新しい順）'},
@@ -1854,13 +1866,27 @@ window.deleteSong = id => {
 
 // ---------- イベント一覧 ----------
 function renderLives(){
+  const artists = liveArtistList();
+  if(liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && !artists.some(a => normName(a.name)===normName(liveArtistFilter)) && !lives.length) liveArtistFilter = 'all';
+  const noneCount = lives.filter(l => !String(l.artist||'').trim()).length;
+  const showFilter = artists.length > 0;
   let html = `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-live">+ 新しいイベント</button>
+  </div>
+  ${(lives.length>1 || showFilter) ? `<div class="stock-tools">
+    ${showFilter ? `<label class="sort-chip" title="アーティストで絞り込み">${FILTER_ICON_SVG}<select id="live-artist-filter" aria-label="アーティストで絞り込み">
+      <option value="all" ${liveArtistFilter==='all'?'selected':''}>すべてのアーティスト</option>
+      ${artists.map(a => `<option value="${esc(a.name)}" ${liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && normName(a.name)===normName(liveArtistFilter)?'selected':''}>${esc(a.name)}（${a.count}）</option>`).join('')}
+      ${liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && !artists.some(a => normName(a.name)===normName(liveArtistFilter)) ? `<option value="${esc(liveArtistFilter)}" selected>${esc(liveArtistFilter)}（0）</option>` : ''}
+      ${noneCount ? `<option value="__none__" ${liveArtistFilter==='__none__'?'selected':''}>アーティスト未設定（${noneCount}）</option>` : ''}
+    </select></label>` : ''}
     ${lives.length>1 ? `<label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="live-sort-quick" aria-label="並び替え">${liveSortOptionsHtml(liveSort)}</select></label>` : ''}
-  </div>`;
-  const sorted = sortLives(lives, liveSort);
-  if(sorted.length===0){
+  </div>` : ''}`;
+  const sorted = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
+  if(lives.length===0){
     html += `<div class="empty">まだイベントが登録されていません。<br>「新しいイベント」から作成しましょう。</div>`;
+  } else if(sorted.length===0){
+    html += `<div class="empty">絞り込みに合うイベントがありません。</div>`;
   } else {
     sorted.forEach(l => {
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
@@ -1876,7 +1902,9 @@ function renderLives(){
   }
   main.innerHTML = html;
   document.getElementById('btn-add-live').onclick = () => {
-    const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:'', startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
+    // アーティストで絞り込み中なら、そのアーティスト名を入れておく
+    const presetArtist = (liveArtistFilter!=='all' && liveArtistFilter!=='__none__') ? liveArtistFilter : '';
+    const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:presetArtist, startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
     lives.push(l); saveLives(); liveEditId = l.id; entryExpandedIdx = null;
     liveInfoOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = true;
     render();
@@ -1884,6 +1912,8 @@ function renderLives(){
   };
   const quickSort = document.getElementById('live-sort-quick');
   if(quickSort) quickSort.onchange = function(){ liveSort = this.value; store.set('setlist_live_sort', liveSort); render(); };
+  const artistSel = document.getElementById('live-artist-filter');
+  if(artistSel) artistSel.onchange = function(){ liveArtistFilter = this.value; store.set('setlist_live_artist', liveArtistFilter); render(); };
 }
 window.openLive = id => {
   entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
