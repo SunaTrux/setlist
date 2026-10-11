@@ -35,7 +35,12 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
-#app{max-width:520px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;}
+#app{max-width:520px; margin:0 auto; min-height:100%; display:flex; flex-direction:column; min-width:0;}
+/* 画面より横に広がらないように（Safari はプルダウンの一番長い選択肢の幅で広がることがある） */
+body{overflow-x:hidden;}
+#app > *{min-width:0; max-width:100%;}
+.stock-tools > *, .song-toolbar > *, .list-opts > *, .setlist-head > *{min-width:0;}
+.sort-chip select{max-width:100%;}
 
 header{position:sticky; top:0; padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
 h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
@@ -43,7 +48,7 @@ nav{display:flex; padding:0 16px; gap:4px;}
 nav button{flex:1; padding:10px 0; background:none; border:none; color:var(--muted); font-size:14px; font-weight:600; border-bottom:2px solid transparent; cursor:pointer;}
 nav button.active{color:var(--text); border-bottom-color:var(--accent);}
 
-main{flex:1; padding:16px; padding-bottom:40px;}
+main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100%; overflow-x:clip;}
 .empty{color:var(--muted); font-size:14px; text-align:center; padding:40px 12px; line-height:1.7;}
 .hint{color:var(--muted); font-size:12px; padding:0 2px 14px; line-height:1.6;}
 
@@ -475,7 +480,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-13';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-14';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
