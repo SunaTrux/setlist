@@ -492,7 +492,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-21';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-22';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1620,12 +1620,14 @@ function tplGenre(v){
   const g = GENRE_OPTS.find(o => normName(o.label)===normName(v) || normName(o.value)===normName(v));
   return g ? g.value : v;
 }
-window.importTemplateCsv = (file) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    let rows;
-    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }catch(e){ showToast('CSVの読み込みに失敗しました。'); return; }
-    if(!rows.length){ showToast('記入された行がありません。'); return; }
+window.importTemplateCsv = (file) => readCsvFile(file, rows => {
+  const kind = csvKind(rows);
+  if(kind==='event') return confirmAction('このファイルはイベント一覧のCSVのようです。\nイベント一覧として読み込みますか？', () => { closeBulk(); importLiveRows(rows); }, 'イベントとして読み込む');
+  if(kind==='empty'){ showToast('記入された行がありません。'); return; }
+  importTemplateRows(rows);
+});
+function importTemplateRows(rows){
+  {
     const heads = Object.keys(rows[0]);
     const col = {};
     Object.entries(TPL_ALIASES).forEach(([f, al]) => { col[f] = heads.find(h => al.some(a => normName(a)===normName(h))); });
@@ -1653,9 +1655,8 @@ window.importTemplateCsv = (file) => {
     closeBulk(); render();
     if(!added.length && !skipped) showToast('登録できる行がありませんでした。曲名を記入してください。');
     else showToast(`${added.length}曲を登録しました${skipped ? `（${skipped}曲は登録済みのため飛ばしました）` : ''}。`);
-  };
-  reader.readAsArrayBuffer(file);
-};
+  }
+}
 // 1行ずつ読み取る。番号・記号を外し、時間とアーティストを切り分ける
 // ミュージックアプリの検索結果のように「曲名」の次の行が「曲・アーティスト」になっている形も読む
 const DUR_RE = /[（(]?[0-9０-９]{1,2}[:：][0-5０-５][0-9０-９][)）]?/g;
@@ -2914,79 +2915,107 @@ window.exportSingleEvent = async () => {
   try{ await dl.save({filename, data: toCSV(EVENT_CSV_HEADERS, buildEventRows([live]))}); showToast('このイベントをCSVで書き出しました。'); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
-window.handleSongImport = (file) => {
+// ---- CSV入力：ファイルの種類を見分けてから読み込む（曲とイベントの取り違えを防ぐ）----
+function readCsvFile(file, done){
   const reader = new FileReader();
   reader.onload = () => {
     let rows;
-    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }
-    catch(e){ showToast('曲データの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
-    if(!Array.isArray(rows)){ showToast('曲データの形式が正しくありません。'); return; }
-    let count = 0;
-    rows.forEach(row => {
-      if(!row.name) return;
-      const item = {
-        id: row.id || uid(),
-        name: row.name, bpm: row.bpm||'', key: row.key||'', duration: row.duration||'',
-        start: row.start||'', end: row.end||'', url: row.url||'', notes: row.notes||'', genre: row.genre||'', rhythm: row.rhythm||'', orig: row.orig||'',
-        updatedAt: Number(row.updatedAt) || Date.now()
-      };
-      if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
-      const idx = songs.findIndex(s=>s.id===item.id);
-      if(idx>=0) songs[idx] = item; else songs.push(item);
-      count++;
-    });
-    saveSongs(); render();
-    showToast(`${count}件の曲データを読み込みました。`);
+    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }catch(e){ showToast('CSVの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
+    if(!Array.isArray(rows)){ showToast('CSVの形式が正しくありません。'); return; }
+    done(rows);
   };
   reader.readAsArrayBuffer(file);
-};
-window.handleLiveImport = (file) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    let rows;
-    try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }
-    catch(e){ showToast('イベントデータの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
-    if(!Array.isArray(rows)){ showToast('イベントデータの形式が正しくありません。'); return; }
-    const order = [];
-    const groups = {};
-    let addedSongs = 0;
-    rows.forEach(row => {
-      const id = row.event_id || uid();
-      if(!groups[id]){ groups[id] = {row, entries: []}; order.push(id); }
-      if(row.entry_type==='song'){
-        let songId = row.entry_song_id;
-        // 参照先の曲が手元にない場合は、埋め込まれたデータから自動で曲を追加する（他の人が共有したイベントを読み込むケース用）
-        if(songId && !songs.find(s=>s.id===songId) && row.entry_song_name){
-          songs.push({id: songId, name: row.entry_song_name, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_song_duration||'', start: row.entry_song_start||'', end: row.entry_song_end||'', url: row.entry_song_url||'', notes: row.entry_song_notes||'', genre: row.entry_song_genre||'', rhythm: row.entry_song_rhythm||'', orig: row.entry_song_orig||'', updatedAt: Date.now()});
-          addedSongs++;
-        }
-        const en = {type:'song', songId, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_duration||''};
-        ['start','end','notes'].forEach(f => { const v = row['entry_'+f]; if(v) en[f] = v; });
-        groups[id].entries.push(en);
-      } else if(row.entry_type==='other'){
-        groups[id].entries.push({type:'other', id: uid(), label: row.entry_label||'', duration: row.entry_duration||'', notes: row.entry_notes||'', numbered: row.entry_numbered==='true'});
+}
+// 1行目の見出しから種類を判定：event=イベント一覧 / song=曲マスタのCSV出力 / template=一括登録のフォーマット / unknown
+function csvKind(rows){
+  if(!rows.length) return 'empty';
+  const h = new Set(Object.keys(rows[0]).map(k => normName(k)));
+  if(['event_id','event_date','event_venue','entry_type'].some(k => h.has(k))) return 'event';
+  if(h.has('name')) return 'song';
+  if(TPL_ALIASES.name.some(a => h.has(normName(a)))) return 'template';
+  return 'unknown';
+}
+const CSV_WRONG_FILE = '曲マスタ・イベント一覧のCSVではないようです。1行目の見出しを確認してください。';
+window.handleSongImport = (file) => readCsvFile(file, rows => {
+  const kind = csvKind(rows);
+  if(kind==='song') return importSongRows(rows);
+  if(kind==='template') return importTemplateRows(rows);
+  if(kind==='event') return confirmAction('このファイルはイベント一覧のCSVのようです。\nイベント一覧として読み込みますか？', () => importLiveRows(rows), 'イベントとして読み込む');
+  showToast(kind==='empty' ? '読み込める行がありません。' : CSV_WRONG_FILE);
+});
+window.handleLiveImport = (file) => readCsvFile(file, rows => {
+  const kind = csvKind(rows);
+  if(kind==='event') return importLiveRows(rows);
+  if(kind==='song' || kind==='template') return confirmAction('このファイルは曲のCSVのようです（イベントの情報がありません）。\n曲マスタに読み込みますか？', () => kind==='song' ? importSongRows(rows) : importTemplateRows(rows), '曲マスタに読み込む');
+  showToast(kind==='empty' ? '読み込める行がありません。' : CSV_WRONG_FILE);
+});
+function importSongRows(rows){
+  let count = 0;
+  rows.forEach(row => {
+    if(!String(row.name||'').trim()) return;
+    const item = {
+      id: row.id || uid(),
+      name: row.name.trim(), bpm: row.bpm||'', key: row.key||'', duration: row.duration||'',
+      start: row.start||'', end: row.end||'', url: row.url||'', notes: row.notes||'', genre: row.genre||'', rhythm: row.rhythm||'', orig: row.orig||'',
+      updatedAt: Number(row.updatedAt) || Date.now()
+    };
+    if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
+    const idx = songs.findIndex(s=>s.id===item.id);
+    if(idx>=0) songs[idx] = item; else songs.push(item);
+    count++;
+  });
+  if(!count){ showToast('曲名のある行がありませんでした。'); return; }
+  saveSongs(); render();
+  showToast(`${count}件の曲データを読み込みました。`);
+}
+function importLiveRows(rows){
+  const order = [];
+  const groups = {};
+  let addedSongs = 0;
+  rows.forEach(row => {
+    const hasEvent = ['event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo'].some(k => String(row[k]||'').trim());
+    const hasEntry = row.entry_type==='song' || row.entry_type==='other';
+    if(!row.event_id && !hasEvent && !hasEntry) return;  // 何も入っていない行は読まない
+    // IDが無い（手で作った）行は、日付＋イベント名が同じものを1つのイベントにまとめる
+    const id = row.event_id || ('csv:' + normName(row.event_date) + '|' + normName(row.event_venue));
+    if(!groups[id]){ groups[id] = {row, entries: []}; order.push(id); }
+    if(row.entry_type==='song'){
+      let songId = row.entry_song_id;
+      if(!songId && row.entry_song_name){ const hit = songs.find(s => normName(s.name)===normName(row.entry_song_name)); songId = hit ? hit.id : uid(); }
+      // 参照先の曲が手元にない場合は、埋め込まれたデータから自動で曲を追加する（他の人が共有したイベントを読み込むケース用）
+      if(songId && !songs.find(s=>s.id===songId) && row.entry_song_name){
+        songs.push({id: songId, name: row.entry_song_name, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_song_duration||'', start: row.entry_song_start||'', end: row.entry_song_end||'', url: row.entry_song_url||'', notes: row.entry_song_notes||'', genre: row.entry_song_genre||'', rhythm: row.entry_song_rhythm||'', orig: row.entry_song_orig||'', updatedAt: Date.now()});
+        addedSongs++;
       }
-    });
-    if(addedSongs>0) saveSongs();
-    let count = 0;
-    order.forEach(id => {
-      const g = groups[id];
-      const item = {
-        id,
-        date: g.row.event_date||'', venue: g.row.event_venue||'', place: g.row.event_place||'', artist: g.row.event_artist||'',
-        startTime: g.row.event_start_time||'', endTime: g.row.event_end_time||'', memo: g.row.event_memo||'',
-        updatedAt: Number(g.row.event_updated_at) || Date.now(),
-        setlist: g.entries
-      };
-      const idx = lives.findIndex(l=>l.id===id);
-      if(idx>=0) lives[idx] = item; else lives.push(item);
-      count++;
-    });
-    saveLives(); render();
-    showToast(`${count}件のイベントを読み込みました${addedSongs>0?`（曲を${addedSongs}件自動追加）`:''}。`);
-  };
-  reader.readAsArrayBuffer(file);
-};
+      if(!songId || !songs.find(s=>s.id===songId)) return;  // 曲が特定できない行は入れない
+      const en = {type:'song', songId, bpm: row.entry_bpm||'', key: row.entry_key||'', duration: row.entry_duration||''};
+      ['start','end','notes'].forEach(f => { const v = row['entry_'+f]; if(v) en[f] = v; });
+      groups[id].entries.push(en);
+    } else if(row.entry_type==='other'){
+      groups[id].entries.push({type:'other', id: uid(), label: row.entry_label||'', duration: row.entry_duration||'', notes: row.entry_notes||'', numbered: row.entry_numbered==='true'});
+    }
+  });
+  let count = 0;
+  order.forEach(id => {
+    const g = groups[id];
+    if(!String(g.row.event_venue||'').trim() && !String(g.row.event_date||'').trim() && !g.entries.length) return;  // 空のイベントは作らない
+    const realId = id.startsWith('csv:') ? uid() : id;
+    const item = {
+      id: realId,
+      date: g.row.event_date||'', venue: g.row.event_venue||'', place: g.row.event_place||'', artist: g.row.event_artist||'',
+      startTime: g.row.event_start_time||'', endTime: g.row.event_end_time||'', memo: g.row.event_memo||'',
+      updatedAt: Number(g.row.event_updated_at) || Date.now(),
+      setlist: g.entries
+    };
+    const idx = lives.findIndex(l=>l.id===realId);
+    if(idx>=0) lives[idx] = item; else lives.push(item);
+    count++;
+  });
+  if(addedSongs>0) saveSongs();
+  if(!count){ showToast('イベントとして読み込める行がありませんでした。'); return; }
+  saveLives(); render();
+  showToast(`${count}件のイベントを読み込みました${addedSongs>0?`（曲を${addedSongs}件自動追加）`:''}。`);
+}
 
 // ---- 定番曲パック（曲マスタへの一括追加用）----
 // [曲名, アーティスト／作曲者, 曲時間の目安]。曲時間は代表的な音源をもとにした目安。BPM・キーは未設定で入れる
