@@ -480,7 +480,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-15';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-16';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -2676,7 +2676,7 @@ function renderSettings(){
       </div>
       <input type="file" id="import-lives-input" accept="text/csv,.csv" style="display:none">
     </div>
-    <div class="hint">Excel等の表計算ソフトで開ける CSV 形式です。CSV入力は同じID（1列目）の行を上書きし、ID欄を空にして保存すれば新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
+    <div class="hint">Excel等の表計算ソフトで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
   </div>
 
   <div class="section-title">サンプルデータ</div>
@@ -2774,8 +2774,9 @@ function parseCSV(text){
   });
 }
 
-const SONG_CSV_HEADERS = ['id','name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','hidden','updatedAt'];
-const EVENT_CSV_HEADERS = ['event_id','event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','event_updated_at','entry_type','entry_song_id','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end'];
+// 人が読む列を左に、アプリ用の列（更新日時・ID）を右端に。読み込みは列名で判断するので順番は自由
+const SONG_CSV_HEADERS = ['name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','hidden','updatedAt','id'];
+const EVENT_CSV_HEADERS = ['event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','entry_type','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end','event_updated_at','event_id','entry_song_id'];
 
 window.exportSongs = async () => {
   const dl = await getDownloads();
