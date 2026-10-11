@@ -437,6 +437,8 @@ let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
+// はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
+const OV_EMPTYABLE = ['start','end','notes'];
 try{ normalizeOverrides(); }catch(e){ console.error(e); }  // 片付けに失敗しても起動は止めない
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
@@ -593,7 +595,8 @@ function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
 function isOv(e, s, f){
   const o = e[f];
-  if(o===undefined || o===null || o==='') return false;
+  if(o===undefined || o===null) return false;
+  if(o==='') return OV_EMPTYABLE.includes(f) && songVal(s,f)!=='';
   return f==='duration' ? normDurStr(o)!==normDurStr(songVal(s,f)) : String(o)!==songVal(s,f);
 }
 function effVal(e, s, f){ return isOv(e,s,f) ? String(e[f]) : songVal(s,f); }
@@ -2202,12 +2205,13 @@ function readEntryEditDom(s){
   const d = {};
   const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   const put = (f, v) => {
-    v = String(v||'').trim(); if(!v) return;
+    v = String(v||'').trim();
+    if(!v){ if(OV_EMPTYABLE.includes(f) && songVal(s,f)!=='') d[f] = ''; return; }
     const same = f==='duration' ? normDurStr(v)===normDurStr(songVal(s,f)) : v===songVal(s,f);
     if(!same) d[f] = f==='duration' ? normDurStr(v) : v;
   };
   put('duration', val('ee-duration')); put('key', val('ee-key')); put('bpm', val('ee-bpm'));
-  ['start','end'].forEach(f => { const sv = val(`ee-${f}-sel`); put(f, sv==='__free' ? val(`ee-${f}`) : sv); });
+  ['start','end'].forEach(f => { const sv = val(`ee-${f}-sel`); if(sv) put(f, sv==='__free' ? val(`ee-${f}`) : sv); });
   put('notes', val('ee-notes'));
   return d;
 }
