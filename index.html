@@ -225,6 +225,12 @@ select.mini-input{width:64px; padding:5px 2px;}
 @media (prefers-reduced-motion: reduce){ .metro-inner{animation:none;} }
 body.metro-open main{padding-bottom:500px;}
 .metro-pos{flex-shrink:0; font-size:12px; font-weight:600; color:var(--muted);}
+.metro-timer{display:flex; align-items:baseline; justify-content:center; gap:8px; margin-top:8px; padding:4px 10px; border-radius:10px; background:var(--surface2); border:1px solid var(--border);}
+.metro-timer:empty{display:none;}
+.metro-inner{max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); overflow-y:auto; overscroll-behavior:contain;}
+.metro-timer-label, .metro-timer-state{font-size:12px; font-weight:600; color:var(--muted);}
+.metro-timer-val{font-size:28px; font-weight:700; line-height:1.15; color:var(--accent);}
+.metro-timer-val.over{color:var(--danger);}
 .metro-info{margin:10px 0 0; padding:10px 12px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); max-height:140px; overflow-y:auto;}
 .metro-info .detail-line{margin-bottom:4px;}
 .metro-tags{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px;}
@@ -958,6 +964,12 @@ window.metroNav = d => {
   const row = document.querySelector(`.setlist-item[data-drag-list="${source}"][data-key="${k}"]`);
   if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ row.scrollIntoView(); } }
 };
+// イベントのタイマーを動かした後は、パネルにも残り時間を出す（ライブ中に全体の経過を見ながらテンポを取れるように）
+function metroTimerHtml(p){
+  if(!p || p.source!=='live' || !timer.touched || timer.liveId!==p.liveId) return '';
+  const rem = timer.running ? Math.round((timer.endAt-Date.now())/1000) : timer.remaining;
+  return `<span class="metro-timer-label">残り</span><span class="metro-timer-val mono${rem<0?' over':''}" id="metro-timer-val">${fmtSignedDur(rem)}</span><span class="metro-timer-state">${timer.running?'計測中':'一時停止中'}</span>`;
+}
 // パネルは開いた時だけ組み立てる。以後は変わった部分だけ書き換える（ボタンを作り直さないので連打できる）
 function renderMetroSheet(){
   const p = metroPanel; if(!p) return;
@@ -974,6 +986,7 @@ function renderMetroSheet(){
     'metro-info': `<div class="metro-tags"><span class="mini-label">Key</span><span class="key-label mono">${esc(key)||'—'}</span>${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}</div>${songDetailHtml(s, e)}`,
     'metro-nav': `<button type="button" onclick="metroNav(-1)" ${prevK===undefined?'disabled':''}>◀ 前の曲<small>${navName(prevK)}</small></button>
       <button type="button" onclick="metroNav(1)" ${nextK===undefined?'disabled':''}>次の曲 ▶<small>${navName(nextK)}</small></button>`,
+    'metro-timer': metroTimerHtml(p),
     'metro-note': `テンポ変更は${p.source==='stock'?'曲マスタ':'このイベント'}に保存されます`
   };
   let el = document.getElementById('metro-sheet');
@@ -1001,6 +1014,7 @@ function renderMetroSheet(){
       <div class="metro-title" id="metro-title">${parts['metro-title']}</div>
       <button type="button" class="metro-close" onclick="closeMetro()" aria-label="閉じる">×</button>
     </div>
+    <div class="metro-timer" id="metro-timer">${parts['metro-timer']}</div>
     <div class="metro-info" id="metro-info">${parts['metro-info']}</div>
     <div class="metro-beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
     <div class="metro-bpm-row">
@@ -1076,6 +1090,8 @@ function tickTimer(){
   const rem = Math.round((timer.endAt-Date.now())/1000);
   const el = document.getElementById('timer-display');
   if(el){ el.textContent = fmtSignedDur(rem); el.classList.toggle('timer-over', rem<0); }
+  const mt = document.getElementById('metro-timer-val');
+  if(mt){ mt.textContent = fmtSignedDur(rem); mt.classList.toggle('over', rem<0); }
 }
 window.timerStart = () => {
   if(timer.running) return;
