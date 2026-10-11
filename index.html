@@ -164,6 +164,9 @@ select.mini-input{width:64px; padding:5px 2px;}
 .ov-field{display:flex; gap:4px; align-items:center;}
 .ov-field > :first-child{flex:1; min-width:0;}
 .ov-reset{flex-shrink:0; width:30px; height:34px; padding:0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:14px; cursor:pointer;}
+.ee-actions{display:flex; gap:10px; margin-top:14px;}
+.ee-actions .btn{flex:1; padding:13px 10px; font-size:15px; text-align:center;}
+.live-stage-min{display:inline-block; margin-left:8px; padding:0 8px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); font-size:12px; font-weight:700; color:var(--accent);}
 .ov-foot{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px;}
 .ov-foot .btn{padding:6px 12px; font-size:13px;}
 .ov-master-line{font-size:12px; color:var(--muted);}
@@ -540,8 +543,8 @@ function genreLabel(value){
 }
 const KEY_OPTS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B','Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'];
 function keyOptionsHtml(current){
-  let html = `<option value="">未設定</option>`;
-  if(current && !KEY_OPTS.includes(current)) html += `<option value="${esc(current)}" selected>${esc(current)}</option>`;
+  let html = `<option value="">未設定</option><option value="-" ${current==='-'?'selected':''}>-</option>`;
+  if(current && current!=='-' && !KEY_OPTS.includes(current)) html += `<option value="${esc(current)}" selected>${esc(current)}</option>`;
   KEY_OPTS.forEach(o => { html += `<option value="${o}" ${o===current?'selected':''}>${o}</option>`; });
   return html;
 }
@@ -1293,7 +1296,7 @@ function renderSongs(){
   main.innerHTML = html;
   const addBtn = document.getElementById('btn-add-song');
   if(addBtn) addBtn.onclick = () => {
-    songForm = {id:null, name:'', bpm:'120', key:'C', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:''};
+    songForm = {id:null, name:'', bpm:'120', key:'-', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:''};
     stockRegTab = 'net';
     netQ = ''; netResults = []; netResultsQ = ''; netLoading = false;
     render();
@@ -1303,8 +1306,8 @@ function renderSongs(){
   const genreFilterSel = document.getElementById('song-genre-filter');
   if(genreFilterSel) genreFilterSel.onchange = function(){ songGenreFilter = this.value; render(); };
 }
-// 開始方法・終わり方：候補から選ぶ、または「（その他）」で自由に書く
-const SE_START_OPTS = ['ドラムカウントから','ギターリフから','指揮者から'];
+// はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
+const SE_START_OPTS = ['ドラムカウントから','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
 const SE_START_DEFAULT = 'ドラムカウントから';
 const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
@@ -1316,7 +1319,7 @@ function songDetailHtml(s, e){
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
 }
-const SE_END_OPTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','全員でジャーンと締める','MCへつなげる'];
+const SE_END_OPTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング'];
 function startEndHtml(id, label, value, opts){
   const isFree = !!value && !opts.includes(value);
   const selVal = isFree ? '__free' : (value || '');
@@ -1367,8 +1370,8 @@ function songFormHtml(f){
       <div class="field"><label>ジャンル</label><select id="song-genre">${genreOptionsHtml(f.genre)}</select></div>
       ${startEndHtml('song-rhythm', 'リズムパターン', f.rhythm, RHYTHM_OPTS)}
     </div>
-    ${startEndHtml('song-start', '開始方法', f.start, SE_START_OPTS)}
-    ${startEndHtml('song-end', '終わり方', f.end, SE_END_OPTS)}
+    ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
+    ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off"></div>
     <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${f.url ? `<a class="ref-link" href="${esc(f.url)}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
@@ -1743,7 +1746,7 @@ function renderLives(){
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
       html += `<button class="live-card" onclick="openLive('${l.id}')">
-        <div class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}</div>
+        <div class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}${stageMinutes(l.startTime, l.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(l.startTime, l.endTime)}分</span>` : ''}</div>
         <div class="live-venue">${esc(l.venue || 'イベント名未設定')}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
@@ -2091,7 +2094,7 @@ window.quickAddSong = () => {
   } else {
     const pk = (quickPackPick!==null && PACK_INDEX[quickPackPick] && normName(PACK_INDEX[quickPackPick].name)===normName(name)) ? PACK_INDEX[quickPackPick] : null;
     const nk = (!pk && quickNetPick && normName(quickNetPick.name)===normName(name)) ? quickNetPick : null;
-    song = {id:uid(), name, bpm:'120', key:'C', duration: dur, start:SE_START_DEFAULT, end:'', url: nk ? nk.url : '', notes: '', orig: pk ? pk.who : (nk && nk.artist ? nk.artist : ''), rhythm:'', genre: pk ? pk.genre : (nk ? nk.genre : ''), updatedAt:Date.now()};
+    song = {id:uid(), name, bpm:'120', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: nk ? nk.url : '', notes: '', orig: pk ? pk.who : (nk && nk.artist ? nk.artist : ''), rhythm:'', genre: pk ? pk.genre : (nk ? nk.genre : ''), updatedAt:Date.now()};
     songs.push(song); saveSongs();
     msg = `「${name}」を曲マスタに登録して追加しました。`;
   }
@@ -2186,70 +2189,113 @@ document.addEventListener('pointercancel', endSwipe);
 document.addEventListener('click', e => {
   if(swipeSuppressClick){ swipeSuppressClick = false; e.stopPropagation(); e.preventDefault(); }
 }, true);
-// このイベントの曲の設定画面：曲時間・キー・BPM（イベントだけ／マスタに反映）
+// このイベントの曲の編集画面。入力中は下書き（entryDraft）に持ち、「保存」で初めてイベントに反映する
+let entryDraft = null;  // {liveId, idx, d:{上書きする項目}}
+function entryOvSnapshot(e, s){ const d = {}; OV_FIELDS.forEach(f => { if(isOv(e, s, f)) d[f] = String(e[f]); }); return d; }
+function entryEditCtx(){
+  const live = lives.find(l=>l.id===liveEditId); const e = live && entryEditIdx!==null ? live.setlist[entryEditIdx] : null;
+  const s = e && e.type!=='other' ? songs.find(x=>x.id===e.songId) : null;
+  return {live, e, s};
+}
+// 画面の入力内容から、曲マスタと違う項目だけを取り出す
+function readEntryEditDom(s){
+  const d = {};
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const put = (f, v) => {
+    v = String(v||'').trim(); if(!v) return;
+    const same = f==='duration' ? normDurStr(v)===normDurStr(songVal(s,f)) : v===songVal(s,f);
+    if(!same) d[f] = f==='duration' ? normDurStr(v) : v;
+  };
+  put('duration', val('ee-duration')); put('key', val('ee-key')); put('bpm', val('ee-bpm'));
+  ['start','end'].forEach(f => { const sv = val(`ee-${f}-sel`); put(f, sv==='__free' ? val(`ee-${f}`) : sv); });
+  put('notes', val('ee-notes'));
+  return d;
+}
 function entryEditHtml(live, i){
-  const e = live.setlist[i]; const s = e && e.type!=='other' ? songs.find(x=>x.id===e.songId) : null;
+  const e0 = live.setlist[i]; const s = e0 && e0.type!=='other' ? songs.find(x=>x.id===e0.songId) : null;
   if(!s) return null;
+  if(!entryDraft || entryDraft.liveId!==live.id || entryDraft.idx!==i) entryDraft = {liveId:live.id, idx:i, d:entryOvSnapshot(e0, s)};
+  const e = entryDraft.d;
   const dur = effVal(e,s,'duration'), key = effVal(e,s,'key'), bpm = effVal(e,s,'bpm');
-  const ovB = isOv(e,s,'bpm'), ovK = isOv(e,s,'key'), ovD = isOv(e,s,'duration');
-  const ovS = isOv(e,s,'start'), ovE = isOv(e,s,'end'), ovN = isOv(e,s,'notes');
-  const anyOv = ovB||ovK||ovD||ovS||ovE||ovN;
-  const reset = f => `<button type="button" class="ov-reset" onclick="resetEntryOverride(${i},'${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>`;
-  // 開始・終わり：テキストには今の値（マスタ or 上書き）を常に出す。候補はそこへ入れる近道
-  const seHtml = (f, label, opts, ov) => {
-    const val = effVal(e, s, f);
+  const reset = f => isOv(e,s,f) ? `<button type="button" class="ov-reset" onclick="resetEntryDraft('${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>` : '';
+  // はじめかた・おわりかた：曲マスタどおり／候補／（その他）で、このイベントだけの内容を入力
+  const seHtml = (f, label, opts) => {
+    const ov = isOv(e,s,f), val = effVal(e,s,f), mv = songVal(s,f);
     const selVal = ov ? (opts.includes(val) ? val : '__free') : '';
-    return `<div class="field"><label>${label}</label><div class="ov-field"><select onchange="setEntryOverride(${i},'${f}',this.value)">
-        <option value="" ${selVal===''?'selected':''}>曲マスタどおり</option>
+    return `<div class="field"><label>${label}</label><div class="ov-field"><select id="ee-${f}-sel" onchange="onEeSel('${f}', this.value)">
+        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(mv)||'未設定'}）</option>
         ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
-      </select>${ov?reset(f):''}</div>
-      <input value="${esc(val)}" placeholder="自由に入力" autocomplete="off" onchange="setEntryOverride(${i},'${f}',this.value)" style="margin-top:6px;"></div>`;
+        <option value="__free" ${selVal==='__free'?'selected':''}>（その他）</option>
+      </select>${reset(f)}</div>
+      <input id="ee-${f}" value="${esc(selVal==='__free' ? val : '')}" placeholder="このイベントでの${label}" autocomplete="off" ${selVal==='__free'?'':'hidden'} style="margin-top:6px;"></div>`;
   };
   return `<div class="entry-edit-head"><button type="button" class="back-btn" onclick="closeEntryEdit()"><span class="back-arrow">←</span>戻る</button></div>
   <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
   <div class="ov-hint">このイベントだけに反映されます</div>
   <div class="panel">
     <div class="field-row3">
-      <div class="field"><label>曲時間</label><div class="ov-field"><select class="mono" onchange="setEntryOverride(${i},'duration',this.value)">${durationSelectHtml(dur)}</select>${ovD?reset('duration'):''}</div></div>
-      <div class="field"><label>キー</label><div class="ov-field"><select onchange="setEntryOverride(${i},'key',this.value)">${keyOptionsHtml(key)}</select>${ovK?reset('key'):''}</div></div>
-      <div class="field"><label>BPM</label><div class="ov-field"><input class="mono" inputmode="numeric" value="${esc(bpm)}" onchange="setEntryOverride(${i},'bpm',this.value)">${ovB?reset('bpm'):''}</div></div>
+      <div class="field"><label>曲時間</label><div class="ov-field"><select id="ee-duration" class="mono">${durationSelectHtml(dur)}</select>${reset('duration')}</div></div>
+      <div class="field"><label>キー</label><div class="ov-field"><select id="ee-key">${keyOptionsHtml(key)}</select>${reset('key')}</div></div>
+      <div class="field"><label>BPM</label><div class="ov-field"><input id="ee-bpm" class="mono" inputmode="numeric" value="${esc(bpm)}">${reset('bpm')}</div></div>
     </div>
-    ${seHtml('start', '開始方法', SE_START_OPTS, ovS)}
-    ${seHtml('end', '終わり方', SE_END_OPTS, ovE)}
-    <div class="field"><label>メモ</label><div class="ov-field"><textarea rows="3" placeholder="このイベントだけの進行メモなど" onchange="setEntryOverride(${i},'notes',this.value)">${esc(effVal(e,s,'notes'))}</textarea>${ovN?reset('notes'):''}</div></div>
+    ${seHtml('start', 'はじめかた', SE_START_OPTS)}
+    ${seHtml('end', 'おわりかた', SE_END_OPTS)}
+    <div class="field"><label>メモ</label><div class="ov-field"><textarea id="ee-notes" rows="3" placeholder="このイベントだけの進行メモなど">${esc(effVal(e,s,'notes'))}</textarea>${reset('notes')}</div></div>
     <div class="ov-foot">
-      ${anyOv ? `<button type="button" class="btn" onclick="applyOverridesToMaster(${i})">曲マスタにも反映</button>` : ''}
       <span class="ov-master-line">曲マスタ：${esc(normDurStr(songVal(s,'duration')))} · ${esc(songVal(s,'key'))||'—'} · ${esc(songVal(s,'bpm'))} BPM</span>
     </div>
+    <div class="ee-actions">
+      <button type="button" class="btn" onclick="cancelEntryEdit()">キャンセル</button>
+      <button type="button" class="btn btn-accent" onclick="saveEntryEdit()">保存</button>
+    </div>
   </div>
-  <div class="settings-btn-row" style="margin-top:8px;"><button type="button" class="btn" onclick="editSongInStock('${s.id}')">曲マスタを編集 ›</button></div>`;
+  <div class="settings-btn-row" style="margin-top:8px;">
+    <button type="button" class="btn" onclick="applyOverridesToMaster()">曲マスタにも反映</button>
+    <button type="button" class="btn" onclick="editSongInStock('${s.id}')">曲マスタを編集 ›</button>
+  </div>`;
 }
-window.openEntryEdit = i => { entryEditIdx = i; render(); scrollToTop(); };
-window.closeEntryEdit = () => { entryEditIdx = null; render(); scrollToTop(); };
-window.setEntryOverride = (i, field, value) => {
-  const live = lives.find(l=>l.id===liveEditId); const e = live && live.setlist[i]; if(!e) return;
-  const s = songs.find(x=>x.id===e.songId);
-  const v = String(value||'').trim();
-  const same = field==='duration' ? normDurStr(v)===normDurStr(songVal(s,'duration')) : v===songVal(s,field);
-  if(!v || same) delete e[field];
-  else e[field] = field==='duration' ? normDurStr(v) : v;
-  live.updatedAt = Date.now(); saveLives();
-  if(field==='bpm' && metroPanel && metroPanel.entry===e) setMetroBpm(effVal(e, s, 'bpm'), false);
+window.onEeSel = (f, v) => {
+  const input = document.getElementById(`ee-${f}`); if(!input) return;
+  input.hidden = v !== '__free';
+  if(v === '__free') input.focus();
+};
+window.openEntryEdit = i => { entryEditIdx = i; entryDraft = null; render(); scrollToTop(); };
+// キャンセル：何も反映せずに戻る
+window.cancelEntryEdit = () => { entryEditIdx = null; entryDraft = null; render(); scrollToTop(); };
+// ← 戻る：変更があれば確認してから戻る
+window.closeEntryEdit = () => {
+  const {e, s} = entryEditCtx();
+  if(!e || !s) return cancelEntryEdit();
+  const now = readEntryEditDom(s), orig = entryOvSnapshot(e, s);
+  const same = JSON.stringify(Object.keys(now).sort().map(k=>[k,now[k]])) === JSON.stringify(Object.keys(orig).sort().map(k=>[k,orig[k]]));
+  if(same) return cancelEntryEdit();
+  confirmAction('保存していない変更があります。\n変更を破棄して戻りますか？', cancelEntryEdit, '破棄して戻る');
+};
+window.resetEntryDraft = f => {
+  const {s} = entryEditCtx(); if(!s || !entryDraft) return;
+  entryDraft.d = readEntryEditDom(s);
+  delete entryDraft.d[f];
   render();
 };
-window.resetEntryOverride = (i, field) => {
-  const live = lives.find(l=>l.id===liveEditId); const e = live && live.setlist[i]; if(!e) return;
-  delete e[field];
-  live.updatedAt = Date.now(); saveLives(); render();
+window.saveEntryEdit = () => {
+  const {live, e, s} = entryEditCtx(); if(!e || !s) return cancelEntryEdit();
+  const d = readEntryEditDom(s);
+  OV_FIELDS.forEach(f => delete e[f]);
+  Object.assign(e, d);
+  live.updatedAt = Date.now(); saveLives();
+  if(metroPanel && metroPanel.entry===e) setMetroBpm(effVal(e, s, 'bpm'), false);
+  entryEditIdx = null; entryDraft = null; render(); scrollToTop();
+  showToast(`「${s.name}」をこのイベントに保存しました。`);
 };
-window.applyOverridesToMaster = i => {
-  const live = lives.find(l=>l.id===liveEditId); const e = live && live.setlist[i]; if(!e) return;
-  const s = songs.find(x=>x.id===e.songId); if(!s) return;
-  OV_FIELDS.forEach(f => {
-    if(isOv(e, s, f)){ s[f] = f==='duration' ? normDurStr(e[f]) : String(e[f]); delete e[f]; }
-  });
+window.applyOverridesToMaster = () => {
+  const {live, e, s} = entryEditCtx(); if(!e || !s) return;
+  const d = readEntryEditDom(s);
+  Object.keys(d).forEach(f => { s[f] = d[f]; });
+  OV_FIELDS.forEach(f => delete e[f]);
   s.updatedAt = Date.now(); saveSongs();
-  live.updatedAt = Date.now(); saveLives(); render();
+  live.updatedAt = Date.now(); saveLives();
+  if(metroPanel && metroPanel.entry===e) setMetroBpm(effVal(e, s, 'bpm'), false);
+  entryEditIdx = null; entryDraft = null; render(); scrollToTop();
   showToast(`「${s.name}」の曲マスタを更新しました。`);
 };
 window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
@@ -2992,7 +3038,7 @@ function regResultsHtml(ctx){
 function songFromInfo(info){
   const name = String(info.name||'').trim();
   const dur = info.dur ? fmtDur(parseDur(info.dur)) : DEFAULT_SONG_DUR;
-  return {id:uid(), name, bpm:'120', key:'C', duration: dur, start:SE_START_DEFAULT, end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', rhythm:'', orig: info.orig||'', updatedAt:Date.now()};
+  return {id:uid(), name, bpm:'120', key:'-', duration: dur, start:SE_START_DEFAULT, end:'', url: info.url||'', notes: info.notes||'', genre: info.genre||'', rhythm:'', orig: info.orig||'', updatedAt:Date.now()};
 }
 function registerSongToStock(info){
   const name = String(info.name||'').trim();
