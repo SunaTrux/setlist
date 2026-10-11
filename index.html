@@ -199,6 +199,7 @@ select.mini-input{width:64px; padding:5px 2px;}
 .modal-box{background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:18px; max-width:360px; width:100%;}
 .modal-message{font-size:14px; line-height:1.7; white-space:pre-wrap; margin-bottom:16px; color:var(--text);}
 .modal-actions{display:flex; gap:8px; justify-content:flex-end;}
+.app-version{margin:20px 0 8px; text-align:center; font-size:12px; color:var(--muted);}
 .export-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
 .export-title{font-size:15px; font-weight:700;}
 .export-head .pos-seg button{padding:8px 14px; font-size:13px;}
@@ -436,6 +437,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
+const APP_VERSION = '2026.10.11-4';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -2508,7 +2510,8 @@ function renderSettings(){
   <div class="panel">
     <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、上の「サンプルデータ」からお好きなものを読み込みください。この操作は取り消せません。</div>
-  </div>`;
+  </div>
+  <div class="app-version">バージョン ${APP_VERSION}</div>`;
 
   document.getElementById('import-songs-input').onchange = function(){
     if(this.files[0]) handleSongImport(this.files[0]);
