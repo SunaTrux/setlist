@@ -472,7 +472,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-9';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-10';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -686,7 +686,21 @@ function durationSelectHtml(current){
 const OTHER_ICON_SVG = `<svg class="other-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`;
 function otherIcon(label){ return OTHER_ICON_SVG; }
 
-let songGenreFilter = 'all';
+let songGenreFilter = 'all';  // 曲マスタの絞り込み：all / __none__ / ジャンル値 / orig:アーティスト名 / __noorig__
+// 絞り込みに合う曲か（ジャンル・原曲アーティストの両方をこの1か所で判定する）
+function matchesSongFilter(s, f = songGenreFilter){
+  if(f==='all') return true;
+  if(f==='__none__') return !s.genre;
+  if(f==='__noorig__') return !String(s.orig||'').trim();
+  if(f.startsWith('orig:')) return normName(s.orig) === normName(f.slice(5));
+  return s.genre===f;
+}
+// 原曲アーティストの一覧（表示記号を揃えて同じ名前をまとめ、曲数の多い順）
+function origArtistList(){
+  const m = new Map();
+  songs.forEach(s => { if(s.hidden) return; const o = String(s.orig||'').trim(); if(!o) return; const k = normName(o); const x = m.get(k) || {name:o, count:0}; x.count++; m.set(k, x); });
+  return [...m.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'ja'));
+}
 let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番号順
 let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
@@ -1010,7 +1024,7 @@ window.openMetro = (source, key) => {
 };
 // 並び順（画面の表示順）での曲のキー一覧。イベントは曲だけ（MC・SEなどは飛ばす）
 function stockOrderIds(){
-  return sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => songGenreFilter==='all' ? true : songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter).map(s => s.id);
+  return sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => matchesSongFilter(s)).map(s => s.id);
 }
 function metroLive(){ return metroPanel && metroPanel.source==='live' ? lives.find(l=>l.id===metroPanel.liveId) : null; }
 function metroSeq(){
@@ -1278,15 +1292,22 @@ function renderSongs(){
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
-    <label class="sort-chip" title="ジャンルで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンルで絞り込み">
-      <option value="all" ${songGenreFilter==='all'?'selected':''}>全ジャンル</option>
-      <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
-      ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${songGenreFilter===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
+    <label class="sort-chip" title="ジャンル・原曲アーティストで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンル・原曲アーティストで絞り込み">
+      <option value="all" ${songGenreFilter==='all'?'selected':''}>すべての曲</option>
+      <optgroup label="ジャンル">
+        ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${songGenreFilter===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
+        <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
+      </optgroup>
+      <optgroup label="原曲アーティスト">
+        ${origArtistList().map(a=>{ const v = 'orig:'+a.name; return `<option value="${esc(v)}" ${normName(songGenreFilter)===normName(v)?'selected':''}>${esc(a.name)}（${a.count}）</option>`; }).join('')}
+        ${songGenreFilter.startsWith('orig:') && !origArtistList().some(a=>normName('orig:'+a.name)===normName(songGenreFilter)) ? `<option value="${esc(songGenreFilter)}" selected>${esc(songGenreFilter.slice(5))}（0）</option>` : ''}
+        <option value="__noorig__" ${songGenreFilter==='__noorig__'?'selected':''}>原曲なし</option>
+      </optgroup>
     </select></label>
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="song-sort-quick" aria-label="並び替え">${songSortOptionsHtml(songSort)}</select></label>
   </div>` : ''}`;
   // 曲の登録、または絞り込みで一覧に出ない曲の編集は、一覧の上にフォームを出す
-  const editingInList = songForm && songForm.id && sortSongs(songs, songSort).some(s => s.id===songForm.id && (songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter)));
+  const editingInList = songForm && songForm.id && sortSongs(songs, songSort).some(s => s.id===songForm.id && matchesSongFilter(s));
   if(songForm && !editingInList) html += songFormHtml(songForm);
   if(songs.length===0 && !songForm){
     html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「一括登録」からまとめて登録できます。</div>`;
@@ -1296,9 +1317,7 @@ function renderSongs(){
     const visNum = stockVisibleNumbers();
     const filteredSongs = sortedSongs.filter(s => {
       if(s.hidden && !stockSelectMode) return false;  // 非表示の曲は、選択画面でだけ出す
-      if(songGenreFilter==='all') return true;
-      if(songGenreFilter==='__none__') return !s.genre;
-      return s.genre===songGenreFilter;
+      return matchesSongFilter(s);
     });
     const canMove = songSort==='order' && songGenreFilter==='all' && !songForm && !stockSelectMode;
     const filtered = songGenreFilter!=='all';
@@ -1310,10 +1329,10 @@ function renderSongs(){
       </div>`;
       if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}</div>`;
       if(stockSelectMode) html += `<div class="hint">目のアイコンで、曲マスタに表示する／しないを切り替えます</div>`;
-      if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」、絞り込みを「すべて」にしてください。</div>`;
+      if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」、絞り込みを「すべての曲」にしてください。</div>`;
     }
     if(filteredSongs.length===0 && !songForm){
-      html += `<div class="empty">${hiddenCount && songGenreFilter==='all' ? 'すべての曲が非表示です。' : '該当するジャンルの曲がありません。'}</div>`;
+      html += `<div class="empty">${hiddenCount && songGenreFilter==='all' ? 'すべての曲が非表示です。' : '絞り込みに合う曲がありません。'}</div>`;
     }
     if(hiddenCount && !songForm && !stockSelectMode) html += `<div class="hint">非表示の曲：${hiddenCount}曲（「選択」から表示に戻せます）</div>`;
     filteredSongs.forEach(s => {
@@ -1643,7 +1662,7 @@ window.toggleStockSelect = (id) => { if(stockSelected.has(id)) stockSelected.del
 // 曲マスタの番号：非表示の曲を飛ばして、表示中の曲だけで 1, 2, 3 … と振る
 function stockVisibleNumbers(){ const m = new Map(); let n = 0; songs.forEach(s => { if(!s.hidden) m.set(s.id, ++n); }); return m; }
 function visibleStockSongs(){
-  return sortSongs(songs, songSort).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
+  return sortSongs(songs, songSort).filter(s => matchesSongFilter(s));
 }
 window.toggleSelectAllStock = () => {
   const vis = visibleStockSongs();
@@ -1782,7 +1801,7 @@ window.deleteSelectedStock = () => {
   }, '削除する');
 };
 window.copyStockText = () => {
-  const list = sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => songGenreFilter==='all' || (songGenreFilter==='__none__' ? !s.genre : s.genre===songGenreFilter));
+  const list = sortSongs(songs, songSort).filter(s => !s.hidden).filter(s => matchesSongFilter(s));
   if(!list.length){ showToast('曲がありません。'); return; }
   const num = stockVisibleNumbers();
   openTextExport('曲マスタの曲順', (n, o) => list.map(s => (n ? `${num.get(s.id)}. ` : '') + s.name + songSuffix(s, null, o)).join('\n'));
