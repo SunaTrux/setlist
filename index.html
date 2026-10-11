@@ -219,7 +219,8 @@ select.mini-input{width:64px; padding:5px 2px;}
 .modal-box{background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:18px; max-width:360px; width:100%;}
 .modal-message{font-size:14px; line-height:1.7; white-space:pre-wrap; margin-bottom:16px; color:var(--text);}
 .modal-actions{display:flex; gap:8px; justify-content:flex-end;}
-.bulk-excel{margin-top:16px; padding-top:14px; border-top:1px dashed var(--border);}
+.bulk-excel{margin-top:12px; padding-top:10px; border-top:1px dashed var(--border);}
+.bulk-excel .settings-btn-row .btn{padding:9px 8px; font-size:13px; white-space:nowrap;}
 .bulk-sub{font-size:14px; font-weight:700; margin-bottom:4px;}
 .app-version{margin:20px 0 8px; text-align:center; font-size:12px; color:var(--muted);}
 .export-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
@@ -326,9 +327,12 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .select-actions .btn.select-del{color:var(--danger); border-color:var(--danger);}
 .stock-tools .sort-chip{flex:1 1 0; max-width:none;}
 .bulk-btn{flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:0 14px;}
-.bulk-box{max-width:440px; max-height:86vh; display:flex; flex-direction:column;}
+.bulk-box{max-width:440px; max-height:86vh; max-height:calc(100dvh - 32px); display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; padding:14px;}
+.bulk-box .hint{font-size:12px; line-height:1.5; padding:0 0 6px !important;}
+.bulk-box .modal-actions .btn{padding:9px 14px;}
+#bulk-overlay{padding:12px;}
 .bulk-head{font-size:15px; font-weight:700; margin-bottom:4px;}
-.bulk-text{width:100%; padding:10px; margin-bottom:14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; line-height:1.6; font-family:inherit; resize:vertical;}
+.bulk-text{width:100%; padding:8px 10px; margin-bottom:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; line-height:1.6; font-family:inherit; resize:vertical;}
 .ocr-list{overflow-y:auto; flex:1; min-height:0; margin-bottom:12px; border:1px solid var(--border); border-radius:8px;}
 .ocr-row{display:flex; align-items:center; gap:8px; padding:8px 10px; border-top:1px solid var(--border);}
 .ocr-row:first-child{border-top:none;}
@@ -484,7 +488,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-18';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-19';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1566,15 +1570,15 @@ function bulkOverlay(inner){
 window.closeBulk = () => { const ov = document.getElementById('bulk-overlay'); if(ov) ov.remove(); };
 window.openBulkText = () => {
   bulkOverlay(`<div class="bulk-head">テキストからまとめて登録</div>
-    <div class="hint" style="padding:0 0 8px;">曲名を1行に1曲ずつ貼り付けてください。ミュージックアプリなどのスクリーンショットは、写真アプリで文字を長押しするとコピーできます（テキスト認識表示）。「曲名 - アーティスト」「3:45」のような書き方も読み取ります。</div>
-    <textarea id="bulk-text" class="bulk-text" rows="9" placeholder="1. Get Back - The Beatles 3:11&#10;Kansas City&#10;Iko Iko 3:30">${esc(bulk.text)}</textarea>
+    <div class="hint">曲名を1行に1曲ずつ貼り付け。「曲名 - アーティスト」「3:45」も読み取ります。</div>
+    <textarea id="bulk-text" class="bulk-text" rows="5" placeholder="1. Get Back - The Beatles 3:11&#10;Kansas City&#10;Iko Iko 3:30">${esc(bulk.text)}</textarea>
     <div class="modal-actions">
       <button type="button" class="btn" onclick="closeBulk()">キャンセル</button>
       <button type="button" class="btn btn-accent" onclick="parseBulk()">次へ</button>
     </div>
     <div class="bulk-excel">
       <div class="bulk-sub">CSVで入力する</div>
-      <div class="hint" style="padding:0 0 8px;">フォーマットをダウンロードし、Googleスプレッドシートなどの表計算アプリで1行に1曲ずつ記入、CSV形式でダウンロード（保存）して読み込みます。曲名以外は空欄でも大丈夫です。曲名と原曲が同じ曲は登録済みとして飛ばします。</div>
+      <div class="hint">フォーマットに記入してCSVで保存し、読み込みます（Googleスプレッドシートなど）。曲名と原曲が同じ曲は飛ばします。</div>
       <div class="settings-btn-row">
         <button type="button" class="btn btn-with-icon" onclick="downloadSongTemplate()">フォーマット${EXPORT_ICON_SVG}</button>
         <button type="button" class="btn btn-with-icon" onclick="document.getElementById('bulk-csv-input').click()">CSVを読み込む${IMPORT_ICON_SVG}</button>
