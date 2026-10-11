@@ -492,7 +492,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-22';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.12-1';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1654,6 +1654,7 @@ function importTemplateRows(rows){
     }
     closeBulk(); render();
     if(!added.length && !skipped) showToast('登録できる行がありませんでした。曲名を記入してください。');
+    else if(!added.length) showToast(`新しく登録する曲はありませんでした（${skipped}曲はすべて登録済み）。`);
     else showToast(`${added.length}曲を登録しました${skipped ? `（${skipped}曲は登録済みのため飛ばしました）` : ''}。`);
   }
 }
