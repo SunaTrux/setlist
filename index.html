@@ -150,7 +150,10 @@ main{flex:1; padding:16px; padding-bottom:40px;}
 .setlist-row2 > *{flex-shrink:0;}
 .setlist-row2 .rhythm-tag{flex-shrink:1; min-width:2.4em; overflow:hidden; text-overflow:ellipsis;}
 .setlist-row2{gap:4px;}
-.setlist-row2 .bpm-chip{padding:0 10px 0 8px; gap:5px;}
+.setlist-row2 .bpm-chip{height:auto; padding:2px 8px; gap:4px; line-height:18px;}
+.setlist-row2 .bpm-chip span{font-size:12px;}
+.setlist-row2 .bpm-chip small{font-size:9px; font-weight:600;}
+.setlist-row2 .bpm-chip svg{width:12px; height:12px;}
 .setlist-row2 .ov-master{margin-left:0;}
 @media (max-width:374px){ .setlist-row2 .bpm-chip small{display:none;} }
 .mini-label{font-size:10px; color:var(--muted);}
@@ -172,14 +175,14 @@ select.mini-input{width:64px; padding:5px 2px;}
 .ov-reset{flex-shrink:0; width:30px; height:34px; padding:0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:14px; cursor:pointer;}
 .ee-actions{display:flex; gap:10px; margin-top:14px;}
 .ee-actions .btn{flex:1; padding:13px 10px; font-size:15px; text-align:center;}
-.live-stage-min{display:inline-block; margin-left:8px; padding:0 8px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); font-size:12px; font-weight:700; color:var(--accent);}
+.live-stage-min{display:inline-block; margin-left:8px; padding:0 8px; line-height:18px; vertical-align:middle; border-radius:999px; background:var(--surface2); border:1px solid var(--border); font-size:12px; font-weight:700; color:var(--accent);}
 .ov-foot{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px;}
 .ov-foot .btn{padding:6px 12px; font-size:13px;}
 .ov-master-line{font-size:12px; color:var(--muted);}
 .dur-label{flex-shrink:0; font-size:16px; font-weight:700; color:var(--text); padding:0 2px;}
 .setlist-item.is-other .dur-label{color:var(--muted); font-size:14px;}
-.key-chip{display:inline-flex; align-items:baseline; gap:3px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-size:13px; line-height:1.4; white-space:nowrap;}
-.key-chip small{font-size:9px; font-weight:600; color:var(--muted); letter-spacing:.02em;}
+.key-chip{display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-size:12px; line-height:18px; white-space:nowrap;}
+.key-chip small{line-height:1; font-size:9px; font-weight:600; color:var(--muted); letter-spacing:.02em;}
 .key-chip b{font-weight:700;}
 .key-chip.ov b{color:var(--accent);}
 .key-chip .ov-master{margin-left:2px;}
@@ -306,7 +309,7 @@ body.metro-open main{padding-bottom:500px;}
 body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .setlist-row2 .row-del{margin-left:auto;}
 .setlist-row2 .row-edit + .row-del{margin-left:0;}
-.rhythm-tag{font-size:12px; padding:3px 9px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); white-space:nowrap;}
+.rhythm-tag{font-size:12px; line-height:18px; padding:2px 8px; border-radius:999px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); white-space:nowrap;}
 .row-edit{flex-shrink:0; width:34px; height:34px; padding:0; margin-left:auto; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .stock-name{cursor:default;}
 .stock-tools{display:flex; gap:8px; align-items:stretch; margin-bottom:14px;}
@@ -472,7 +475,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.11-10';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '2026.10.11-11';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1942,7 +1945,7 @@ function renderLiveEdit(){
       : `<div class="live-venue">${esc(live.venue || 'イベント名未設定')}</div>
         ${live.place ? `<div class="live-place">${esc(live.place)}</div>` : ''}
         ${live.artist ? `<div class="live-artist">${esc(live.artist)}</div>` : ''}
-        <div class="live-date mono summary-date">${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}</div>
+        <div class="live-date mono summary-date">${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>
         ${live.memo ? `<div class="live-summary-memo">${esc(live.memo.split('\n')[0])}</div>` : ''}`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
