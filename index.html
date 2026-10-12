@@ -228,6 +228,10 @@ select.mini-input{width:64px; padding:5px 2px;}
 .bulk-sub{font-size:14px; font-weight:700; margin-bottom:4px;}
 .app-version{margin:20px 0 8px; text-align:center; font-size:12px; line-height:1.7; color:var(--muted);}
 .app-version a{color:var(--muted);}
+.newver-bar{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius); padding:10px 10px 10px 14px; margin-bottom:12px; font-size:13px; font-weight:700;}
+.newver-bar span{flex:1;}
+.newver-bar .btn{padding:7px 12px; font-size:12.5px; white-space:nowrap;}
+.feedback-btn{display:block; text-align:center; text-decoration:none; margin:10px 0 0;}
 .update-notice{position:relative; background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius); padding:12px 40px 12px 14px; margin-bottom:14px; font-size:13px; line-height:1.6;}
 .update-title{font-weight:700; color:var(--accent); margin-bottom:6px;}
 .update-notice ul{margin:0 0 8px; padding-left:18px;}
@@ -501,11 +505,19 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.0.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-12';  // リリース日。CHANGELOG.md と合わせる
+const APP_VERSION = '1.1.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-12';
+const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
+const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.1.0': [
+    '「設定」→「データ管理」で、全データを1つのファイルにバックアップ・復元できるように',
+    '電波の弱いスタジオやライブハウスでも、一度開いていればアプリが起動するように',
+    '新しいバージョンが出たら、画面上部でお知らせ（「再読み込み」で更新）',
+    '「設定」の一番下に、ご意見・不具合報告の窓口（X）を追加'
+  ],
   '1.0.0': [
     'バージョン番号を「1.0.0」形式にして、更新履歴を残すように（「設定」の一番下から見られます）',
     'CSV入力で、曲用とイベント用のファイルの取り違えを確認するように',
@@ -516,6 +528,36 @@ const SEEN_VERSION_KEY = 'setlist_seen_version';
 let seenVersion = store.get(SEEN_VERSION_KEY, null);
 if(!hadSavedData){ seenVersion = APP_VERSION; store.set(SEEN_VERSION_KEY, APP_VERSION); }  // 初めて使う人にはお知らせを出さない
 function markVersionSeen(){ seenVersion = APP_VERSION; store.set(SEEN_VERSION_KEY, APP_VERSION); render(); }
+// 保存データの形式番号（形式1：v1.0〜。将来、形式を変えるときはここで古いデータを変換する）
+if(!store.get('setlist_schema_version', 0)) store.set('setlist_schema_version', SCHEMA_VERSION);
+
+// ---- オフライン対応と新バージョン検知（GitHub Pages 上でのみ動作） ----
+const IS_HOSTED = location.protocol==='https:' && /github\.io$/.test(location.hostname);
+if(IS_HOSTED && 'serviceWorker' in navigator){
+  try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){}
+}
+let newVersion = null;
+function cmpVersion(a, b){
+  const x = String(a).split('.'), y = String(b).split('.');
+  for(let i=0;i<3;i++){ const d = (parseInt(x[i],10)||0) - (parseInt(y[i],10)||0); if(d) return d; }
+  return 0;
+}
+let lastUpdateCheck = 0;
+function checkForUpdate(){
+  if(!IS_HOSTED || !window.fetch) return;
+  if(Date.now() - lastUpdateCheck < 60*1000) return;
+  lastUpdateCheck = Date.now();
+  fetch('index.html?check=' + Date.now(), {cache:'no-store'}).then(r => r.ok ? r.text() : '').then(t => {
+    const m = /const APP_VERSION = '([0-9.]+)'/.exec(t||'');
+    if(m && cmpVersion(m[1], APP_VERSION) > 0 && newVersion!==m[1]){ newVersion = m[1]; render(); }
+  }).catch(()=>{});
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible') checkForUpdate(); });
+setTimeout(checkForUpdate, 3000);
+function newVersionBarHtml(){
+  if(!newVersion) return '';
+  return `<div class="newver-bar"><span>新しいバージョン v${esc(newVersion)} があります</span><button type="button" class="btn" onclick="location.reload()">再読み込み</button></div>`;
+}
 function updateNoticeHtml(){
   if(seenVersion===APP_VERSION) return '';
   const notes = RELEASE_NOTES[APP_VERSION];
@@ -1350,7 +1392,7 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
-  const upd = updateNoticeHtml();
+  const upd = newVersionBarHtml() + updateNoticeHtml();
   if(upd) main.insertAdjacentHTML('afterbegin', upd);
   document.body.classList.toggle('cards-min', cardMode!=='full');
   document.body.classList.toggle('cards-bk', cardMode==='bk');
@@ -2783,8 +2825,17 @@ function renderSettings(){
     </div>
   </div>
 
-  <div class="section-title">データのバックアップ</div>
+  <div class="section-title">データ管理</div>
   <div class="panel">
+    <div class="field">
+      <label>全データ</label>
+      <div class="settings-btn-row">
+        <button type="button" class="btn btn-with-icon" onclick="exportBackup()">バックアップ${EXPORT_ICON_SVG}</button>
+        <button type="button" class="btn btn-with-icon" onclick="document.getElementById('backup-input').click()">復元${IMPORT_ICON_SVG}</button>
+      </div>
+      <input type="file" id="backup-input" accept=".json,application/json" style="display:none">
+      <div class="hint">データはこの端末のブラウザの中にだけ保存されています。ブラウザのデータ消去や機種変更に備えて、ときどきバックアップしておくと安心です。曲マスタ・イベント一覧・表示などの設定を1つのファイル（setlist-backup-日付.json）に保存し、復元すると今のデータと丸ごと置き換わります。</div>
+    </div>
     <div class="field">
       <label>曲マスタ</label>
       <div class="settings-btn-row">
@@ -2818,8 +2869,17 @@ function renderSettings(){
     <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、上の「サンプルデータ」からお好きなものを読み込みください。この操作は取り消せません。</div>
   </div>
+  <div class="section-title">ご意見・不具合報告</div>
+  <div class="panel">
+    <div class="hint" style="margin-top:0">使ってみた感想や「ここが使いにくい」「動かない」などは、X（旧Twitter）の <a href="https://x.com/${FEEDBACK_X}" target="_blank" rel="noopener" style="color:var(--accent)">@${FEEDBACK_X}</a> まで気軽にどうぞ。不具合の場合は、どの画面で何をしたかと、使っている端末・ブラウザを添えてもらえると助かります。</div>
+    <a class="btn btn-block feedback-btn" href="https://x.com/intent/post?text=${encodeURIComponent('@'+FEEDBACK_X+' プレイヤーズセットリスト v'+APP_VERSION+' について：\n')}" target="_blank" rel="noopener">Xでポストして送る</a>
+  </div>
   <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）<br><a href="${CHANGELOG_URL}" target="_blank" rel="noopener">更新履歴</a></div>`;
 
+  document.getElementById('backup-input').onchange = function(){
+    if(this.files[0]) handleBackupFile(this.files[0]);
+    this.value = '';
+  };
   document.getElementById('import-songs-input').onchange = function(){
     if(this.files[0]) handleSongImport(this.files[0]);
     this.value = '';
@@ -2837,11 +2897,12 @@ window.setTheme = (val) => {
 // ファイル書き出し：Claude のアーティファクトではその機能を、ふつうのブラウザ（GitHub Pages など）では
 // スマホは共有シート（ファイルに保存・LINE・AirDrop など）、PC はダウンロードで保存する
 function browserDownloads(){
-  return { save: async ({filename, data}) => {
-    const blob = new Blob(['\ufeff' + data], {type:'text/csv;charset=utf-8'});  // 先頭のBOMで Excel でも文字化けしない
+  return { save: async ({filename, data, raw}) => {
+    const type = raw ? 'application/json' : 'text/csv';
+    const blob = new Blob([raw ? data : '\ufeff' + data], {type: type + ';charset=utf-8'});  // CSVは先頭のBOMで Excel でも文字化けしない
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
     if(isMobile && typeof File==='function' && navigator.canShare){
-      const file = new File([blob], filename, {type:'text/csv'});
+      const file = new File([blob], filename, {type});
       if(navigator.canShare({files:[file]})){
         try{ await navigator.share({files:[file], title:filename}); showToast('書き出しました。'); return; }
         catch(e){ if(e && e.name==='AbortError'){ const err = new Error('cancel'); err.code = 'declined'; throw err; } }
@@ -2856,7 +2917,7 @@ function browserDownloads(){
 }
 async function getDownloads(){
   if(window.claude && window.claude.use){
-    try{ const d = await window.claude.use('downloads'); return { save: o => d.save({...o, data: '\ufeff' + o.data}) }; }catch(e){}
+    try{ const d = await window.claude.use('downloads'); return { save: ({raw, ...o}) => d.save({...o, data: raw ? o.data : '\ufeff' + o.data}) }; }catch(e){}
   }
   return browserDownloads();
 }
@@ -3502,6 +3563,68 @@ window.loadSampleData = (kind) => {
     showToast(`${label}のサンプルデータを読み込みました。`);
   }, '読み込む');
 };
+// ---- 全データのバックアップと復元 ----
+function backupKeys(){
+  const keys = [];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY) keys.push(k);
+    }
+  }catch(e){}
+  return keys.sort();
+}
+function backupStamp(){
+  const d = new Date(), z = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${z(d.getMonth()+1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
+}
+window.exportBackup = async () => {
+  const data = {};
+  backupKeys().forEach(k => { try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} });
+  data.setlist_songs = songs; data.setlist_lives = lives;  // 画面上の最新の内容
+  const obj = {app:'players-setlist', schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, createdAt: new Date().toISOString(), data};
+  const dl = await getDownloads();
+  if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
+  try{ await dl.save({filename:`setlist-backup-${backupStamp()}.json`, data: JSON.stringify(obj, null, 1), raw:true}); }
+  catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
+};
+function parseBackup(text){
+  let obj;
+  try{ obj = JSON.parse(String(text).replace(/^\ufeff/, '')); }catch(e){ return {error:'バックアップファイルとして読み込めませんでした。「バックアップ」で保存した .json ファイルを選んでください。'}; }
+  if(!obj || obj.app!=='players-setlist' || !obj.data || typeof obj.data!=='object'){
+    return {error:'このアプリのバックアップファイルではありません。「バックアップ」で保存した setlist-backup-日付.json を選んでください。（CSVは「曲マスタ」「イベント一覧」のCSV入力から読み込めます）'};
+  }
+  if((obj.schemaVersion||1) > SCHEMA_VERSION) return {error:'新しいバージョンのアプリで作られたバックアップです。アプリを最新にしてから復元してください。'};
+  const d = obj.data;
+  if(!Array.isArray(d.setlist_songs) || !Array.isArray(d.setlist_lives)) return {error:'バックアップの中身が壊れているようです（曲マスタまたはイベント一覧がありません）。'};
+  return {obj, songs: d.setlist_songs.length, lives: d.setlist_lives.length};
+}
+function handleBackupFile(file){
+  if(/\.csv$/i.test(file.name||'')){ showToast('CSVは「曲マスタ」「イベント一覧」のCSV入力から読み込んでください。'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const plan = parseBackup(reader.result);
+    if(plan.error){ showToast(plan.error); return; }
+    const o = plan.obj;
+    let when = '';
+    try{ const t = new Date(o.createdAt); if(!isNaN(t)) when = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; }catch(e){}
+    const msg = `このバックアップを復元しますか？\n作成日時：${when||'不明'}${o.appVersion?'（v'+o.appVersion+'）':''}\n内容：曲${plan.songs}曲・イベント${plan.lives}件\n\n今の曲マスタ（${songs.length}曲）とイベント一覧（${lives.length}件）、表示などの設定は、すべてこの内容に置き換わります。`;
+    confirmAction(msg, () => applyBackup(o), '復元する');
+  };
+  reader.onerror = () => showToast('ファイルを読み込めませんでした。');
+  reader.readAsText(file);
+}
+function applyBackup(obj){
+  try{
+    backupKeys().forEach(k => localStorage.removeItem(k));
+    Object.keys(obj.data).forEach(k => { if(k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY) localStorage.setItem(k, JSON.stringify(obj.data[k])); });
+    localStorage.setItem(SEEN_VERSION_KEY, JSON.stringify(APP_VERSION));
+    sessionStorage.setItem('setlist_restored', '1');
+  }catch(e){ showToast('復元に失敗しました: ' + (e && e.message || '不明なエラー')); return; }
+  location.reload();
+}
+try{ if(sessionStorage.getItem('setlist_restored')){ sessionStorage.removeItem('setlist_restored'); setTimeout(() => showToast('バックアップから復元しました。'), 300); } }catch(e){}
+
 window.resetAllData = () => {
   confirmAction('曲マスタとイベント一覧のすべてのデータを削除します。よろしいですか？\nこの操作は取り消せません。', () => {
     songs = []; lives = [];
