@@ -226,7 +226,14 @@ select.mini-input{width:64px; padding:5px 2px;}
 .bulk-excel{margin-top:12px; padding-top:10px; border-top:1px dashed var(--border);}
 .bulk-excel .settings-btn-row .btn{padding:9px 8px; font-size:13px; white-space:nowrap;}
 .bulk-sub{font-size:14px; font-weight:700; margin-bottom:4px;}
-.app-version{margin:20px 0 8px; text-align:center; font-size:12px; color:var(--muted);}
+.app-version{margin:20px 0 8px; text-align:center; font-size:12px; line-height:1.7; color:var(--muted);}
+.app-version a{color:var(--muted);}
+.update-notice{position:relative; background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius); padding:12px 40px 12px 14px; margin-bottom:14px; font-size:13px; line-height:1.6;}
+.update-title{font-weight:700; color:var(--accent); margin-bottom:6px;}
+.update-notice ul{margin:0 0 8px; padding-left:18px;}
+.update-notice li{margin:2px 0;}
+.update-notice a{color:var(--muted); font-size:12px;}
+.update-close{position:absolute; top:6px; right:6px; width:32px; height:32px; border:none; background:none; color:var(--muted); font-size:20px; cursor:pointer;}
 .export-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;}
 .export-title{font-size:15px; font-weight:700;}
 .export-head .pos-seg button{padding:8px 14px; font-size:13px;}
@@ -464,6 +471,8 @@ function applyTheme(val){
 }
 applyTheme(store.get('setlist_theme','auto'));
 
+let hadSavedData = false;
+try{ hadSavedData = !!localStorage.getItem('setlist_songs') || !!localStorage.getItem('setlist_lives'); }catch(e){}
 let songs = store.get('setlist_songs', []);
 let lives = store.get('setlist_lives', []);
 
@@ -492,7 +501,32 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '2026.10.12-1';  // 更新のたびに変える（設定画面の下に表示。古い画面が残っていないかの確認用）
+const APP_VERSION = '1.0.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-12';  // リリース日。CHANGELOG.md と合わせる
+const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
+// アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
+const RELEASE_NOTES = {
+  '1.0.0': [
+    'バージョン番号を「1.0.0」形式にして、更新履歴を残すように（「設定」の一番下から見られます）',
+    'CSV入力で、曲用とイベント用のファイルの取り違えを確認するように',
+    '一括登録に、表計算アプリで記入できる「CSVで入力する」を追加'
+  ]
+};
+const SEEN_VERSION_KEY = 'setlist_seen_version';
+let seenVersion = store.get(SEEN_VERSION_KEY, null);
+if(!hadSavedData){ seenVersion = APP_VERSION; store.set(SEEN_VERSION_KEY, APP_VERSION); }  // 初めて使う人にはお知らせを出さない
+function markVersionSeen(){ seenVersion = APP_VERSION; store.set(SEEN_VERSION_KEY, APP_VERSION); render(); }
+function updateNoticeHtml(){
+  if(seenVersion===APP_VERSION) return '';
+  const notes = RELEASE_NOTES[APP_VERSION];
+  if(!notes || !notes.length) return '';
+  return `<div class="update-notice">
+    <button type="button" class="update-close" onclick="markVersionSeen()" aria-label="閉じる">×</button>
+    <div class="update-title">v${esc(APP_VERSION)} にアップデートしました</div>
+    <ul>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>
+    <a href="${CHANGELOG_URL}" target="_blank" rel="noopener">すべての更新履歴を見る</a>
+  </div>`;
+}
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
 // はじめかた・おわりかた・メモは、イベントだけ「空」にもできる（'' を上書きとして持つ）
 const OV_EMPTYABLE = ['start','end','notes'];
@@ -1316,6 +1350,8 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
+  const upd = updateNoticeHtml();
+  if(upd) main.insertAdjacentHTML('afterbegin', upd);
   document.body.classList.toggle('cards-min', cardMode!=='full');
   document.body.classList.toggle('cards-bk', cardMode==='bk');
   if(metroPanel) renderMetroSheet();
@@ -2782,7 +2818,7 @@ function renderSettings(){
     <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、上の「サンプルデータ」からお好きなものを読み込みください。この操作は取り消せません。</div>
   </div>
-  <div class="app-version">バージョン ${APP_VERSION}</div>`;
+  <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）<br><a href="${CHANGELOG_URL}" target="_blank" rel="noopener">更新履歴</a></div>`;
 
   document.getElementById('import-songs-input').onchange = function(){
     if(this.files[0]) handleSongImport(this.files[0]);
