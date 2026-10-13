@@ -484,8 +484,8 @@ body.struct-open header{display:none;}
 .st-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
 .st-chip{font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
-.st-filters{display:flex; gap:6px; margin:10px 0; flex-wrap:wrap;}
-.st-fbtn{border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 12px; font-family:inherit; font-size:13px; color:var(--muted); cursor:pointer;}
+.st-filters{display:flex; gap:4px; margin:10px 0;}
+.st-fbtn{flex:1 1 auto; min-width:0; white-space:nowrap; border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 6px; font-family:inherit; font-size:12.5px; color:var(--muted); cursor:pointer; touch-action:manipulation;}
 .st-fbtn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700;}
 
 .st-se{display:flex; gap:6px; align-items:baseline; font-size:13px; font-weight:700; color:var(--text);}
@@ -608,13 +608,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.3.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.3.5';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.3.5': [
+    '構成表の表示切り替えボタンを1行に収めるように'
+  ],
   '1.3.4': [
     '構成表をさらに広く：アーティスト名を外し、長い曲名は1行で省略'
   ],
