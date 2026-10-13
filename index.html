@@ -473,9 +473,9 @@ body.struct-open header{display:none;}
 .st-info .st-memo{font-weight:400; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere;}
 
 .st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
-.st-title-row{display:flex; align-items:flex-start; gap:10px;}
+.st-title-row{display:flex; align-items:center; gap:10px;}
 .st-title-box{flex:1; min-width:0;}
-.st-title{font-size:20px; font-weight:700; margin:0; overflow-wrap:anywhere; text-wrap:balance;}
+.st-title{font-size:20px; font-weight:700; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .st-artist{font-size:12px; color:var(--muted); margin-top:1px;}
 .st-nav{display:flex; gap:6px; flex:none;}
 .st-nav button{width:40px; height:40px; padding:0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
@@ -608,13 +608,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.3.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.3.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.3.4': [
+    '構成表をさらに広く：アーティスト名を外し、長い曲名は1行で省略'
+  ],
   '1.3.3': [
     '構成表の上に、はじめかた・おわりかた・全体メモ（曲のメモ）をまとめて表示',
     '構成表を開いている間は、アプリのタイトルとタブを隠して広く表示。戻るボタンも小さく',
@@ -1707,7 +1710,7 @@ function renderStruct(){
     <div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>
   </div>
   <div class="st-title-row">
-    <div class="st-title-box"><h2 class="st-title">${esc(s.name)}</h2>${s.orig ? `<div class="st-artist">${esc(s.orig)}</div>` : ''}</div>
+    <div class="st-title-box"><h2 class="st-title" title="${esc(s.name)}">${esc(s.name)}</h2></div>
     <div class="st-nav">
       <button type="button" onclick="structNav(-1)" ${pos<=0?'disabled':''} aria-label="前の曲">${arrow('M15 5l-7 7 7 7')}</button>
       <button type="button" onclick="structNav(1)" ${pos>=seq.length-1?'disabled':''} aria-label="次の曲">${arrow('M9 5l7 7-7 7')}</button>
