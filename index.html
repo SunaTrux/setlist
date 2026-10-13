@@ -400,7 +400,9 @@ body.cards-min .setlist-row2{display:none;}
 .setlist-row3 .r3-note{margin-top:2px; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
 body.cards-min .setlist-row3{display:none;}
 .name-sub{display:none;}
-body.cards-bk .name-sub{display:flex; align-items:center; gap:6px; margin-top:3px; font-size:12px; font-weight:600; color:var(--muted);}
+body.cards-bk .setlist-row3{display:none;}
+.sl-tools{margin-top:-2px;}
+.sl-view-hint .link-btn{margin-left:6px; border:none; background:none; padding:0; color:var(--accent); font-weight:700; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;}
 .ns-bpm.ov{color:var(--accent);}
 .view-seg{display:flex; align-items:center; gap:8px;}
 .view-seg-label{font-size:12px; font-weight:600; color:var(--muted);}
@@ -639,13 +641,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.8.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.9.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.9.0': [
+    'イベントのセットリストでも、曲マスタと同じ絞り込み（ジャンル・原曲アーティスト）と並べ替え。見え方だけで本番の曲順は変わりません',
+    '曲カードの標準表示から、はじめかた・おわりかたを外しました（メモは表示）',
+    '「BPM・Key」表示は、1行目を標準と同じ並びに（メモを省いた表示）'
+  ],
   '1.8.0': [
     '曲マスタの「選択」で1曲選ぶと「コピーして開く」。構成も含めて曲を丸ごとコピーして編集できます',
     '構成表の編集のセクション欄に「曲マスタに保存（全イベント共通）」と表示'
@@ -930,9 +937,9 @@ function keyChipHtml(k, ovFrom){
 // 曲カードの3行目：はじめかた → おわりかた とメモ（最小表示では隠す）。e があればイベントの値
 function cardInfoHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
-  const st = v('start'), en = v('end'), nt = v('notes');
-  if(!st && !en && !nt) return '';
-  return `<div class="setlist-row3">${(st||en) ? `<div class="r3-se">${esc(st||'-')} → ${esc(en||'-')}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}</div>`;
+  const nt = v('notes');
+  // 標準表示では、はじめかた・おわりかたは出さない（メトロノームパネル・構成表で見る）
+  return nt ? `<div class="setlist-row3"><div class="r3-note">${esc(nt)}</div></div>` : '';
 }
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
@@ -996,12 +1003,29 @@ function origSuggestList(){
   PACK_INDEX.forEach(p => add(p.who));
   return out;
 }
-function origArtistList(){
+function origArtistList(list = songs){
   const m = new Map();
-  songs.forEach(s => { if(s.hidden) return; const o = String(s.orig||'').trim(); if(!o) return; const k = normName(o); const x = m.get(k) || {name:o, count:0}; x.count++; m.set(k, x); });
+  list.forEach(s => { if(s.hidden) return; const o = String(s.orig||'').trim(); if(!o) return; const k = normName(o); const x = m.get(k) || {name:o, count:0}; x.count++; m.set(k, x); });
   return [...m.values()].sort((a,b) => b.count-a.count || a.name.localeCompare(b.name,'ja'));
 }
+// 絞り込みの選択肢（曲マスタ・イベントのセットリストで共通）
+function songFilterSelectHtml(id, cur, list){
+  const arts = origArtistList(list);
+  return `<label class="sort-chip" title="ジャンル・原曲アーティストで絞り込み">${FILTER_ICON_SVG}<select id="${id}" aria-label="ジャンル・原曲アーティストで絞り込み">
+      <option value="all" ${cur==='all'?'selected':''}>すべての曲</option>
+      <optgroup label="ジャンル">
+        ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${cur===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
+        <option value="__none__" ${cur==='__none__'?'selected':''}>ジャンル未設定</option>
+      </optgroup>
+      <optgroup label="原曲アーティスト">
+        ${arts.map(a=>{ const v = 'orig:'+a.name; return `<option value="${esc(v)}" ${normName(cur)===normName(v)?'selected':''}>${esc(a.name)}（${a.count}）</option>`; }).join('')}
+        ${cur.startsWith('orig:') && !arts.some(a=>normName('orig:'+a.name)===normName(cur)) ? `<option value="${esc(cur)}" selected>${esc(cur.slice(5))}（0）</option>` : ''}
+        <option value="__noorig__" ${cur==='__noorig__'?'selected':''}>原曲なし</option>
+      </optgroup>
+    </select></label>`;
+}
 let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番号順
+let slFilter = 'all', slSort = 'order';  // イベントのセットリストの絞り込み・並べ替え（表示だけ。イベントを開くたびに戻す）
 let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
@@ -2182,7 +2206,7 @@ function render(){
   else renderSettings();
   const upd = newVersionBarHtml() + updateNoticeHtml();
   if(upd) main.insertAdjacentHTML('afterbegin', upd);
-  document.body.classList.toggle('cards-min', cardMode!=='full');
+  document.body.classList.toggle('cards-min', cardMode==='min');
   document.body.classList.toggle('cards-bk', cardMode==='bk');
   if(metroPanel) renderMetroSheet();
   stCleanupOutside();
@@ -2200,18 +2224,7 @@ function renderSongs(){
   </div>
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()">選択</button>
-    <label class="sort-chip" title="ジャンル・原曲アーティストで絞り込み">${FILTER_ICON_SVG}<select id="song-genre-filter" aria-label="ジャンル・原曲アーティストで絞り込み">
-      <option value="all" ${songGenreFilter==='all'?'selected':''}>すべての曲</option>
-      <optgroup label="ジャンル">
-        ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${songGenreFilter===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
-        <option value="__none__" ${songGenreFilter==='__none__'?'selected':''}>ジャンル未設定</option>
-      </optgroup>
-      <optgroup label="原曲アーティスト">
-        ${origArtistList().map(a=>{ const v = 'orig:'+a.name; return `<option value="${esc(v)}" ${normName(songGenreFilter)===normName(v)?'selected':''}>${esc(a.name)}（${a.count}）</option>`; }).join('')}
-        ${songGenreFilter.startsWith('orig:') && !origArtistList().some(a=>normName('orig:'+a.name)===normName(songGenreFilter)) ? `<option value="${esc(songGenreFilter)}" selected>${esc(songGenreFilter.slice(5))}（0）</option>` : ''}
-        <option value="__noorig__" ${songGenreFilter==='__noorig__'?'selected':''}>原曲なし</option>
-      </optgroup>
-    </select></label>
+    ${songFilterSelectHtml('song-genre-filter', songGenreFilter, songs.filter(x => !x.hidden))}
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="song-sort-quick" aria-label="並び替え">${songSortOptionsHtml(songSort)}</select></label>
   </div>` : ''}`;
   // 曲の登録、または絞り込みで一覧に出ない曲の編集は、一覧の上にフォームを出す
@@ -2946,7 +2959,9 @@ function renderLives(){
   const artistSel = document.getElementById('live-artist-filter');
   if(artistSel) artistSel.onchange = function(){ liveArtistFilter = this.value; store.set('setlist_live_artist', liveArtistFilter); render(); };
 }
+window.resetSlView = () => { slFilter = 'all'; slSort = 'order'; render(); };
 window.openLive = id => {
+  slFilter = 'all'; slSort = 'order';
   entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
   const l = lives.find(x=>x.id===id);
   liveRegisterOpen = !l || l.setlist.length===0;
@@ -3103,14 +3118,21 @@ function renderLiveEdit(){
     ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
     </div>
   </div>`;
+  const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
+  if(slSongs.length > 1) html += `<div class="stock-tools sl-tools">
+    ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
+    <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
+  </div>`;
   html += `<div class="list-opts">${viewSegHtml()}</div>`;
   html += totalsCardHtml;
+  const slView = slFilter!=='all' || slSort!=='order';
+  if(slView) html += `<div class="hint sl-view-hint">絞り込み・並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「すべての曲」「番号順」に戻してください。<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
   html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表、鉛筆でこのイベント用に変更</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
-    live.setlist.forEach((entry,i) => {
+  const renderEntry = (entry,i) => {
     if(entry.type==='other' && !showOthers){ if(entry.numbered) seq++; return; }
     if(entry.type==='other'){
       const numbered = !!entry.numbered;
@@ -3172,7 +3194,21 @@ function renderLiveEdit(){
       ${cardInfoHtml(s, entry)}
       </div>
     </div>`;
-  });
+  };
+  // 番号は本番の順で振ってから、表示の順（絞り込み・並べ替え）に並べ直す
+  const slParts = [];
+  live.setlist.forEach((entry,i) => { const b = html.length; renderEntry(entry,i); slParts.push({i, h: html.slice(b)}); html = html.slice(0, b); });
+  if(!slView){
+    html += slParts.map(p => p.h).join('');
+  } else {
+    const rows = slParts.map(p => {
+      const e = live.setlist[p.i]; if(e.type==='other') return null;
+      const sg = songs.find(x => x.id===e.songId); if(!sg || !matchesSongFilter(sg, slFilter)) return null;
+      return {p, name: sg.name, duration: effVal(e, sg, 'duration'), updatedAt: sg.updatedAt || 0};
+    }).filter(Boolean);
+    const shown = sortSongs(rows, slSort);
+    html += shown.length ? shown.map(r => r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
+  }
 
   if(live.setlist.length>0){
     html += `<div class="action-group">
@@ -3190,6 +3226,8 @@ function renderLiveEdit(){
 
   main.innerHTML = html;
   if(timer.running && !timer.intervalId){ timer.intervalId = setInterval(tickTimer, 1000); }
+  const slF = document.getElementById('sl-filter'); if(slF) slF.onchange = function(){ slFilter = this.value; render(); };
+  const slS = document.getElementById('sl-sort'); if(slS) slS.onchange = function(){ slSort = this.value; render(); };
 }
 // 曲名の予測：曲マスタから、入力した文字を含む曲を候補に出す（全角・半角や大文字・小文字の違いは無視）
 function normName(t){ return String(t||'').normalize('NFKC').toLowerCase().replace(/\s+/g,' ').trim(); }
