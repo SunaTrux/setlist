@@ -448,6 +448,101 @@ body.cards-min .setlist-row1{padding:8px 12px;}
 .setlist-item.is-other .setlist-name-btn{color:var(--muted); font-weight:600;}
 .setlist-item.is-other .setlist-num{color:var(--muted); font-weight:400; font-size:14px;}
 .other-icon{vertical-align:-2px; margin-right:2px;}
+/* ---- 構成表（曲カードの「構成」から開く） ---- */
+:root{
+  --kime:#B8323A; --c-intro:#6E6658; --c-a:#2F64B8; --c-b:#24855A; --c-sabi:#C2452C; --c-bridge:#7350B5; --c-solo:#16808A; --c-big:#AE3478;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE;
+  }
+}
+:root[data-theme="dark"]{
+  --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE;
+}
+.row-struct{flex-shrink:0; height:34px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap;}
+.row-struct.has{color:var(--accent); border-color:var(--accent);}
+.setlist-row1 .row-struct{height:32px; margin:-4px 0;}
+.setlist-row2 .row-struct{margin-left:auto;}
+.setlist-row2 .row-struct + .row-edit{margin-left:0;}
+body.struct-open main{padding-bottom:96px;}
+
+.st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px;}
+.st-title-row{display:flex; align-items:flex-start; gap:10px;}
+.st-title-box{flex:1; min-width:0;}
+.st-title{font-size:20px; font-weight:700; margin:0; overflow-wrap:anywhere; text-wrap:balance;}
+.st-artist{font-size:12px; color:var(--muted); margin-top:1px;}
+.st-nav{display:flex; gap:6px; flex:none;}
+.st-nav button{width:40px; height:40px; padding:0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.st-nav button:disabled{opacity:.35; cursor:default;}
+.st-nav svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;}
+.st-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.st-chip{font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
+.st-filters{display:flex; gap:6px; margin:10px 0; flex-wrap:wrap;}
+.st-fbtn{border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 12px; font-family:inherit; font-size:13px; color:var(--muted); cursor:pointer;}
+.st-fbtn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700;}
+
+.st-cue{display:flex; gap:8px; align-items:baseline; font-size:13px; padding:8px 12px;}
+.st-cue .lab{font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--bg); background:var(--text); border-radius:3px; padding:2px 6px; white-space:nowrap;}
+.st-table{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;}
+.st-thead{display:grid; grid-template-columns:6.2em minmax(0,1fr); gap:8px; padding:6px 10px; font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.06em; border-bottom:1px solid var(--border);}
+.st-row{position:relative; display:grid; grid-template-columns:6.2em minmax(0,1fr); gap:2px 8px; padding:7px 10px 8px;}
+.st-rhead{display:flex; flex-direction:column; align-items:flex-start; gap:3px; min-width:0;}
+.st-nm{font-size:14px; font-weight:700; color:var(--bg); background:var(--c); padding:2px 7px; border-radius:4px; max-width:100%; overflow-wrap:anywhere; line-height:1.3;}
+.st-len{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:17px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums;}
+.st-len small{font-family:inherit; font-size:11px; font-weight:500; color:var(--muted); margin-left:2px;}
+.st-len .x{color:var(--muted); font-size:14px; margin-left:4px;}
+.st-body{display:flex; flex-direction:column; gap:2px; min-width:0; font-size:14px; line-height:1.4;}
+.st-body p{margin:0; white-space:pre-wrap; overflow-wrap:anywhere;}
+.st-chord{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; font-weight:700;}
+.st-play{color:var(--muted);}
+.st-kime{color:var(--kime); font-weight:700;}
+.st-empty-memo{color:var(--muted); font-size:13px;}
+.st-segs{grid-column:1 / -1; display:flex; gap:3px; margin-top:3px;}
+.st-segs i{flex:1; height:5px; border-radius:2px; background:var(--border); max-width:28px;}
+.st-segs i.k{background:var(--kime);}
+.st-table.hide-bars .st-len .n, .st-table.hide-bars .st-len small, .st-table.hide-prog .st-segs,
+.st-table.hide-chord .st-chord, .st-table.hide-vocal .st-vocal, .st-table.hide-play .st-play, .st-table.hide-kime .st-kime{display:none;}
+.st-table.hide-bars .st-len .x{margin-left:0;}
+.st-empty{background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:24px 16px; text-align:center; color:var(--muted); font-size:14px; line-height:1.7;}
+.st-empty .btn{margin-top:10px;}
+
+/* 構成の編集 */
+.st-ed{border-left:4px solid var(--c); padding-left:10px;}
+.st-ed + .st-ed{margin-top:14px;}
+.st-ed-top{display:grid; grid-template-columns:minmax(0,1fr) 3.8em 3.8em 4.4em; gap:6px; align-items:end;}
+.st-ed-memos{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 8px; margin-top:6px;}
+.st-ed .field{margin:0;}
+.st-ed .field label{font-size:11px; font-weight:700;}
+.st-ed .field input, .st-ed .field textarea{padding:7px 8px;}
+.st-ed-tools{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+.st-mini{height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer;}
+.st-mini:disabled{opacity:.4; cursor:default;}
+.st-mini.danger{color:var(--danger);}
+.st-mini.danger.armed{background:var(--danger); border-color:var(--danger); color:#fff;}
+.st-note{font-size:12px; color:var(--muted); line-height:1.6; margin:0 0 8px;}
+.st-msg{font-size:13px; color:var(--muted); margin-top:8px;}
+#st-md{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre; overflow-x:auto;}
+.st-btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+@media (max-width:420px){ .st-ed-memos{grid-template-columns:minmax(0,1fr);} }
+
+/* 構成画面のメトロノーム（下に固定） */
+.st-mbar{position:fixed; left:0; right:0; bottom:0; z-index:80; background:var(--surface); border-top:1px solid var(--border); padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));}
+.st-mbar-in{max-width:520px; margin:0 auto; display:flex; align-items:center; gap:6px;}
+.st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
+.st-mbar button svg{width:18px; height:18px; fill:currentColor;}
+.st-mbar .st-bpm{border:0; background:transparent; flex-direction:column; line-height:1; min-width:3.4em; padding:0 2px;}
+.st-bpm span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-weight:700; font-size:26px; font-variant-numeric:tabular-nums;}
+.st-bpm small{font-size:10px; color:var(--muted); font-weight:700; margin-top:2px; white-space:nowrap;}
+.st-bpm.changed span{color:var(--accent);}
+.st-dots{display:flex; gap:5px; margin-inline:auto;}
+.st-dots i{width:10px; height:10px; border-radius:50%; background:var(--border);}
+.st-dots i.on{background:var(--accent);}
+.st-dots i.on.acc{background:var(--text);}
+.st-mbar button[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg);}
+.st-mbar .st-go{width:52px; background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
+.st-mbar .st-go.run{background:var(--text); border-color:var(--text); color:var(--bg);}
 </style>
 </head>
 <body>
@@ -505,13 +600,19 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.1.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-12';
+const APP_VERSION = '1.2.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.2.0': [
+    'イベントの曲カードに「構成」ボタン。セクションごとの小節数と、コード・歌・演奏・キメのメモを一覧で見られる構成表を開きます',
+    '構成表は＜＞でセットリストの順に前後の曲へ。下のメトロノームは曲のテンポで待機',
+    'AIなどで作った構成表（Markdownの表）を貼り付けて取り込み・Markdownで書き出し',
+    'サンプルと同じ名前の曲には、構成表の例を入れました（編集タブで書き換えられます）'
+  ],
   '1.1.0': [
     '「設定」→「データ管理」で、全データを1つのファイルにバックアップ・復元できるように',
     '電波の弱いスタジオやライブハウスでも、一度開いていればアプリが起動するように',
@@ -581,9 +682,9 @@ function buildBandSample(){
   const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'Cm', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'セカンドライン', orig:'The Meters'};
   const s2={id:uid(), name:'Get Back', bpm:'123', key:'A', duration:'3:15', start:'ギターのカッティングから', end:'最後のコードを伸ばして止める', url:'', notes:'ギターソロは2コーラス', genre:'rock', rhythm:'8ビート', orig:'The Beatles'};
   const s3={id:uid(), name:'Kansas City', bpm:'130', key:'G', duration:'2:40', start:'ドラムのカウント4つ', end:'ブレイクからジャーンで締める', url:'', notes:'12小節ブルース。ソロ回し可', genre:'rock', rhythm:'シャッフル', orig:'Wilbert Harrison'};
-  const s4={id:uid(), name:'Iko Iko', bpm:'108', key:'F', duration:'3:30', start:'ドラムのセカンドラインから', end:'リズムだけ残してフェードアウト', url:'', notes:'客席と掛け合い', genre:'rock', rhythm:'シャッフル', orig:'The Dixie Cups'};
-  const s5={id:uid(), name:'Summer Time Blues', bpm:'150', key:'E', duration:'2:10', start:'ギターのリフから', end:'全員でジャーンと締める', url:'', notes:'ブレイク部分のキメに注意', genre:'rock', rhythm:'8ビート', orig:'Eddie Cochran'};
-  const s6={id:uid(), name:"Don't You Just Know It", bpm:'140', key:'Bb', duration:'2:40', start:'ピアノのイントロから', end:'コール＆レスポンスで盛り上げて終わる', url:'', notes:'ラストナンバー。客席を巻き込む', genre:'rock', rhythm:'シャッフル', orig:'Huey Smith & His Clowns'};
+  const s4={id:uid(), name:'Iko Iko', bpm:'108', key:'D', duration:'3:30', start:'ドラムのセカンドラインから', end:'リズムだけ残してフェードアウト', url:'', notes:'客席と掛け合い', genre:'rock', rhythm:'セカンドライン', orig:'Dr. John'};
+  const s5={id:uid(), name:'Summer Time Blues', bpm:'150', key:'A', duration:'2:10', start:'ギターのリフから', end:'全員でジャーンと締める', url:'', notes:'ブレイク部分のキメに注意', genre:'rock', rhythm:'8ビート', orig:'The Who'};
+  const s6={id:uid(), name:"Don't You Just Know It", bpm:'140', key:'G', duration:'2:40', start:'ピアノのイントロから', end:'コール＆レスポンスで盛り上げて終わる', url:'', notes:'ラストナンバー。客席を巻き込む', genre:'rock', rhythm:'シャッフル', orig:'Dr. Feelgood'};
   const s7={id:uid(), name:'Green Onions', bpm:'136', key:'Fm', duration:'2:55', start:'ベースとオルガンのリフから', end:'最後のコードを伸ばして止める', url:'', notes:'インスト。Fmの12小節ブルース。オルガン→ギターの順でソロ', genre:'rnb', rhythm:'シャッフル', orig:"Booker T. & the M.G.'s"};
   const sampleSongs = [s1,s7,s2,s3,s4,s5,s6];
   const now = Date.now();
@@ -1379,16 +1480,468 @@ function cleanupEmptyLive(){
   if(isLiveEmpty(lives[idx])){ lives.splice(idx,1); saveLives(); }
 }
 
+// ================= 構成表（イベントの曲カードの「構成」から開く） =================
+// 構成は曲マスタの曲に持つ：song.struct = {sections:[{name,bars,times,chord,vocal,play,kime,kimeBar}], view:{bars,prog,chord,vocal,play,kime}}
+const ST_SEC = (name, bars, o = {}) => ({name, bars, times: o.times || 1, chord: o.chord || '', vocal: o.vocal || '', play: o.play || '', kime: o.kime || '', kimeBar: o.kimeBar || ''});
+const ST_VIEW_ALL = {bars:true, prog:true, chord:true, vocal:true, play:true, kime:true};
+const ST_FILTERS = [['bars','小節数'],['prog','バー'],['chord','コード'],['vocal','歌'],['play','演奏'],['kime','キメ']];
+let structOpen = null;   // {liveId, idx}（idx はセットリストの位置）
+let structEdit = false;  // 構成の編集中
+let structBaseView = store.get('setlist_struct_view', null) || {...ST_VIEW_ALL};  // 表示を決めていない曲に使う
+
+// サンプルの構成（曲名で当てる）
+const ST_BLUES = 'C7 F7 C7 C7\nF7 F7 C7 C7\nG7 F7 C7 G7';
+const ST_GD = 'A → D → A → A G D';
+const ST_SAMPLES = [
+  {re:/green\s*onions/i, sections:[
+    ST_SEC('Head', 12, {chord:'F（4）→ B♭（2）→ F（2）\nC → B♭ → F（2）\nリフ：F–A♭–B♭ を各コードで', play:'オルガンのメインリフ。Steve Cropperのギタースタブ', kime:'ターンアラウンドでキメ'}),
+    ST_SEC('Orgソロ', 12, {times:2, chord:'同じ12小節進行', play:'Booker T. Jonesのオルガンソロ。ミュート気味のギター\n小節数：12×2前後', kime:'ソロ終わりでリフに戻るキメ'}),
+    ST_SEC('Head', 12, {chord:'同じ12小節進行', play:'メインリフ再現'}),
+    ST_SEC('ソロ', 12, {times:2, chord:'同じ12小節進行', play:'Cropperのギターソロ\n小節数：12×2前後', kime:'ソロ終わりでしっかりキメ'}),
+    ST_SEC('Head / Outro', 12, {times:2, chord:'同じ12小節進行', play:'リフを繰り返して終わる\n小節数：12×2前後', kime:'最後を強く締める'})]},
+  {re:/cissy|シシー/i, sections:[
+    ST_SEC('A', 8, {chord:'C9 → C9 → Fsus4 → F（繰り返し）', play:'有名な下降リフ。Leo Nocentelliのギターが核\n小節数：8〜16', kime:'リフの終わりで軽くキメ'}),
+    ST_SEC('B', 8, {chord:'C9（ほぼ静止）', play:'よりシンプルなグルーヴ。スペースを大事に'}),
+    ST_SEC('A', 8, {chord:'C9 → C9 → Fsus4 → F', play:'メインリフに戻る\n小節数：8〜16'}),
+    ST_SEC('ソロ', 16, {chord:'C9 中心', play:'オルガンソロやギターソロ。C9でジャム\n小節数：16前後', kime:'ソロ終わりでAに戻るキメ'}),
+    ST_SEC('A / Outro', 8, {chord:'C9 → C9 → Fsus4 → F', play:'リフを繰り返して終わる\n小節数：8〜16', kime:'最後をタイトに締める'})]},
+  {re:/get\s*back/i, sections:[
+    ST_SEC('Intro', 4, {chord:'A → A → A → A G/A D/A', play:'8分音符のドライブ感。ビリー・プレストンのピアノが効く', kime:'G/A → D/A のアクセント', kimeBar:4}),
+    ST_SEC('Verse 1', 8, {chord:'A → A → D → A\n（G D が時々入る）', play:'シンプルなA-D進行。ジョンのリードギターが絡む', kime:'フレーズ終わりのG Dアクセント'}),
+    ST_SEC('Chorus', 8, {chord:ST_GD, play:'「Get back」を強調。ハーモニーが入る場合あり', kime:'フレーズ終わりのG Dの強いキメ'}),
+    ST_SEC('ソロ', 8, {chord:ST_GD, play:'ギターソロ。同じ進行', kime:'G Dキメ'}),
+    ST_SEC('Chorus', 8, {chord:ST_GD, play:'ハーモニー強化', kime:'G Dキメ'}),
+    ST_SEC('Pfソロ', 8, {chord:ST_GD, play:'ビリー・プレストンのソロ', kime:'G Dキメ'}),
+    ST_SEC('Verse 2', 8, {chord:'A → D → A', play:'歌詞が変わるが進行は同じ', kime:'G Dキメ'}),
+    ST_SEC('Chorus', 8, {chord:ST_GD, kime:'G Dキメ'}),
+    ST_SEC('ソロ', 8, {chord:ST_GD, play:'再度ギターソロ', kime:'G Dキメ'}),
+    ST_SEC('Chorus / Outro', 8, {chord:ST_GD, play:'繰り返して盛り上げ、フェードorライブ感で終わる\n小節数：8〜16', kime:'最後までG Dの強いキメを効かせる'})]},
+  {re:/kansas\s*city/i, sections:[
+    ST_SEC('Intro', 4, {play:'短い導入'}),
+    ST_SEC('Verse 1', 12, {chord:'12小節ブルース'}),
+    ST_SEC('Verse 2', 12, {chord:'12小節ブルース'}),
+    ST_SEC('ソロ', 12, {play:'ギターソロ'}),
+    ST_SEC('Chorus #1', 12, {times:2, play:'2回目は同じ内容の繰り返し'}),
+    ST_SEC('Chorus #2', 12, {vocal:'歌詞が少し変わる'}),
+    ST_SEC('Chorus #2 / Coda', 12, {play:'小節数は前後するので合図で終わる'})]},
+  {re:/iko\s*iko/i, sections:[
+    ST_SEC('Intro', 4, {chord:'D', play:'ピアノのニューオーリンズ・グルーヴで入る\n小節数：4〜8'}),
+    ST_SEC('Verse 1', 8, {chord:'D → A7 → D', vocal:'コール＆レスポンス中心', play:'Dr. Johnのボーカルが効く\n小節数：8〜16'}),
+    ST_SEC('Chorus', 8, {chord:'D → A7 → D', vocal:'「Hey now」の掛け合い', play:'掛け合いが肝', kime:'軽くアクセントを置く'}),
+    ST_SEC('Interlude', 4, {chord:'C7', play:'少しコードが変わるブリッジ的部分'}),
+    ST_SEC('Verse 2〜4', 8, {times:3, chord:'D → A7 → D', play:'歌詞が変わるが進行はほぼ同じ\n小節数：各8〜16'}),
+    ST_SEC('Chorus', 8, {chord:'D → A7 → D'}),
+    ST_SEC('Coda / Outro', 8, {chord:'C7 → D', vocal:'サビのフレーズを繰り返す', play:'フェードアウト気味に終わることが多い\n小節数：8〜16', kime:'最後までグルーヴを崩さない'})]},
+  {re:/summer\s*time|サマータイム/i, sections:[
+    ST_SEC('Intro', 8, {chord:'A5 → D → E5（繰り返し）\n最後にG5', play:'パワーコード主体のリフ。Townshendのスラッシュギター\n小節数：8〜12', kime:'リフの最後でG5を強調'}),
+    ST_SEC('Verse 1', 16, {chord:'A5 / D / E5\n途中 N.C.', play:'パワーコード＋リフ。ボスのセリフ前で止まる\n小節数：16前後', kime:'N.C.（無音）キメ：ボスのセリフ前で完全に止まる'}),
+    ST_SEC('Chorus', 4, {chord:'A5 → D5 → E5 → A5', play:'リフに戻る感じで強く\n小節数：4〜8', kime:'リフの戻りを強調'}),
+    ST_SEC('Verse 2', 16, {chord:'Verse 1と同じ', play:'Verse 1と同じ構成\n小節数：16前後', kime:'再びN.C.キメ（セリフ前）'}),
+    ST_SEC('Chorus', 4, {chord:'A5 → D5 → E5 → A5', play:'小節数：4〜8'}),
+    ST_SEC('ソロ', 16, {chord:'A → D → E（×8）\n後半で転調準備', play:'Townshendのソロ。後半でキーが上がる準備\n小節数：16前後', kime:'ソロ終わりでキーアップを予感させる'}),
+    ST_SEC('Verse 3', 16, {chord:'B5 → E5 → F♯5', play:'キーが全音上がる（A→B）。より攻撃的に\n小節数：16前後', kime:'N.C.キメ継続'}),
+    ST_SEC('Chorus / Outro', 8, {chord:'B5 → E5 → F♯5', play:'キーを上げたまま締め\n小節数：8〜12', kime:'最後のリフを強く締める'})]},
+  {re:/don.?t\s*you\s*just\s*know/i, sections:[
+    ST_SEC('Intro', 4, {chord:'G', play:'シンプルなGリフで入る\n小節数：4〜8'}),
+    ST_SEC('Verse 1', 8, {chord:'G', vocal:'コール＆レスポンス（バックコーラスがタイトルを返す）'}),
+    ST_SEC('Chorus', 8, {chord:'N.C. → G → C → G\nD → C → G → D', play:'コール＆レスポンスが楽しい部分', kime:'N.C.キメでChorusに入る', kimeBar:1}),
+    ST_SEC('Verse 2', 8, {chord:'G', play:'Verse 1と同じノリ'}),
+    ST_SEC('Chorus', 8, {chord:'N.C. → G → C → G\nD → C → G → D', kime:'N.C.キメでChorusに入る', kimeBar:1}),
+    ST_SEC('ソロ', 16, {chord:'G → C → G → D（繰り返し）', play:'Wilko Johnson系のカッティング\n小節数：16前後', kime:'ソロ終わりでしっかりキメ'}),
+    ST_SEC('Verse 3', 8, {chord:'G'}),
+    ST_SEC('Chorus', 8, {chord:'N.C. → G → C → G\nD → C → G → D', kime:'N.C.キメ', kimeBar:1}),
+    ST_SEC('Verse 4 / Outro', 8, {chord:'G → C → G → D', play:'フェードor繰り返しで終わる\n小節数：8〜16', kime:'最後を強く締める'})]}
+];
+function stSampleFor(name){
+  const hit = ST_SAMPLES.find(x => x.re.test(name || ''));
+  return hit ? {sections: hit.sections.map(s => ({...s}))} : null;
+}
+// 構成の入っていない曲に、曲名が合うサンプルの構成を一度だけ入れる
+function seedStructSamples(list){
+  let n = 0;
+  list.forEach(s => { if(!s.struct || !(s.struct.sections||[]).length){ const t = stSampleFor(s.name); if(t){ s.struct = t; n++; } } });
+  return n;
+}
+if(!store.get('setlist_struct_seeded', false)){
+  if(seedStructSamples(songs)) saveSongs();
+  store.set('setlist_struct_seeded', true);
+}
+
+function stColor(name){
+  const n = (name || '').toLowerCase();
+  if(/大サビ|last/.test(n)) return 'var(--c-big)';
+  if(/イントロ|intro|アウトロ|outro|エンディング|ending|coda|コーダ/.test(n)) return 'var(--c-intro)';
+  if(/プレ|pre|bメロ/.test(n)) return 'var(--c-b)';
+  if(/サビ|chorus|コーラス/.test(n)) return 'var(--c-sabi)';
+  if(/ブリッジ|bridge|cメロ|間奏|interlude/.test(n)) return 'var(--c-bridge)';
+  if(/ソロ|solo/.test(n)) return 'var(--c-solo)';
+  return 'var(--c-a)';
+}
+const stInt = v => parseInt(v, 10) || 0;
+const stTimes = s => Math.max(1, stInt(s.times));
+function hasStruct(s){ return !!(s && s.struct && (s.struct.sections||[]).length); }
+function stLive(){ return structOpen ? lives.find(l => l.id===structOpen.liveId) : null; }
+function stEntry(){ const l = stLive(); return l ? l.setlist[structOpen.idx] : null; }
+function stSong(){ const e = stEntry(); return e && e.type!=='other' ? songs.find(x => x.id===e.songId) || null : null; }
+function stSeq(){ const l = stLive(); return l ? l.setlist.map((e,i) => e.type==='other' ? null : i).filter(i => i!==null) : []; }
+function stView(s){ return {...ST_VIEW_ALL, ...structBaseView, ...((s.struct && s.struct.view) || {})}; }
+function stEnsure(s){ if(!s.struct) s.struct = {sections:[]}; if(!s.struct.sections) s.struct.sections = []; return s.struct; }
+function stTouch(s){ s.updatedAt = Date.now(); saveSongs(); }
+
+window.openStruct = (idx) => {
+  const live = lives.find(l => l.id===liveEditId); if(!live) return;
+  stopMetro();
+  structOpen = {liveId: live.id, idx}; structEdit = false;
+  stMetroStop();
+  stSetBpm(stSongBpm());
+  render(); scrollToTop();
+};
+window.closeStruct = () => {
+  const idx = structOpen ? structOpen.idx : null;
+  stMetroStop(); structOpen = null; structEdit = false;
+  render();
+  const row = idx!==null && document.querySelector(`.setlist-item[data-drag-list="live"][data-key="${idx}"]`);
+  if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'center'}); }catch(e){ row.scrollIntoView(); } }
+};
+window.structNav = d => {
+  const seq = stSeq(); const pos = seq.indexOf(structOpen.idx);
+  const k = seq[pos + d]; if(k===undefined) return;
+  structOpen.idx = k; structEdit = false;
+  stSetBpm(stSongBpm());   // 曲が変わったらその曲のテンポに（鳴っていればそのまま新しいテンポで）
+  render(); scrollToTop();
+};
+window.setStructEdit = on => { structEdit = !!on; render(); scrollToTop(); };
+window.toggleStructFilter = k => {
+  const s = stSong(); if(!s) return;
+  const v = stView(s); v[k] = !v[k];
+  stEnsure(s).view = v; structBaseView = {...v}; store.set('setlist_struct_view', structBaseView);
+  saveSongs();
+  const t = document.getElementById('st-table');
+  if(t) t.classList.toggle('hide-'+k, !v[k]);
+  document.querySelectorAll(`.st-fbtn[data-f="${k}"]`).forEach(b => b.setAttribute('aria-pressed', v[k]));
+};
+
+function stTotalBars(s){ return ((s.struct && s.struct.sections) || []).reduce((a, x) => a + stInt(x.bars) * stTimes(x), 0); }
+function stShow(v){ return v && v!=='-' ? v : ''; }
+
+function renderStruct(){
+  const live = stLive(), e = stEntry(), s = stSong();
+  if(!live || !s){ structOpen = null; structEdit = false; stMetroStop(); render(); return; }
+  document.body.classList.add('struct-open');
+  const seq = stSeq(), pos = seq.indexOf(structOpen.idx);
+  const key = stShow(effVal(e, s, 'key')), bpm = stShow(effVal(e, s, 'bpm')), dur = stShow(effVal(e, s, 'duration'));
+  const start = stShow(effVal(e, s, 'start')), end = stShow(effVal(e, s, 'end'));
+  const tb = stTotalBars(s), nb = parseInt(bpm, 10);
+  const chips = [];
+  chips.push(`<span class="st-chip">曲順<b>${pos+1}/${seq.length}</b></span>`);
+  if(key) chips.push(`<span class="st-chip">キー<b>${esc(key)}</b></span>`);
+  if(bpm) chips.push(`<span class="st-chip">BPM<b>${esc(bpm)}</b></span>`);
+  if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
+  if(tb) chips.push(`<span class="st-chip">全体<b>${tb}小節${nb>0 ? '・約'+fmtDur(tb*240/nb) : ''}</b></span>`);
+  if(dur) chips.push(`<span class="st-chip">曲時間<b>${esc(normDurStr(dur))}</b></span>`);
+  const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  let html = `<div class="st-head">
+    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>セットリスト</button>
+    <div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>
+  </div>
+  <div class="st-title-row">
+    <div class="st-title-box"><h2 class="st-title">${esc(s.name)}</h2>${s.orig ? `<div class="st-artist">${esc(s.orig)}</div>` : ''}</div>
+    <div class="st-nav">
+      <button type="button" onclick="structNav(-1)" ${pos<=0?'disabled':''} aria-label="前の曲">${arrow('M15 5l-7 7 7 7')}</button>
+      <button type="button" onclick="structNav(1)" ${pos>=seq.length-1?'disabled':''} aria-label="次の曲">${arrow('M9 5l7 7-7 7')}</button>
+    </div>
+  </div>
+  <div class="st-meta">${chips.join('')}</div>`;
+  if(structEdit){ html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
+
+  const v = stView(s);
+  html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
+  if(start) html += `<div class="st-cue"><span class="lab">はじめかた</span><span>${esc(start)}</span></div>`;
+  const secs = (s.struct && s.struct.sections) || [];
+  if(!secs.length){
+    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
+  } else {
+    const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
+    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span>メモ</span></div>${secs.map(x => {
+      const len = stInt(x.bars), t = stTimes(x), kb = stInt(x.kimeBar);
+      const lines = [];
+      if(x.chord) lines.push(`<p class="st-chord">${esc(x.chord)}</p>`);
+      if(x.vocal) lines.push(`<p class="st-vocal">${esc(x.vocal)}</p>`);
+      if(x.play) lines.push(`<p class="st-play">${esc(x.play)}</p>`);
+      if(x.kime || kb) lines.push(`<p class="st-kime">${kb ? kb+'小節目　' : ''}${esc(x.kime)}</p>`);
+      const segs = Array.from({length: Math.min(len, 32)}, (_, i) => `<i class="${kb===i+1 ? 'k' : ''}"></i>`).join('');
+      return `<div class="st-row" style="--c:${stColor(x.name)}">
+        <div class="st-rhead"><span class="st-nm">${esc(x.name || '—')}</span><span class="st-len"><span class="n">${len || '?'}</span><small>小節</small>${t>1 ? `<span class="x">×${t}</span>` : ''}</span></div>
+        <div class="st-body">${lines.join('') || '<span class="st-empty-memo">メモなし</span>'}</div>
+        <div class="st-segs" aria-hidden="true">${segs}</div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+  if(end) html += `<div class="st-cue"><span class="lab">おわりかた</span><span>${esc(end)}</span></div>`;
+  main.innerHTML = html;
+  stMetroBar(true);
+}
+
+// ---- 構成の編集 ----
+function stEditorHtml(s){
+  const secs = stEnsure(s).sections;
+  const eds = secs.map((x, si) => `<div class="st-ed" data-si="${si}" style="--c:${stColor(x.name)}">
+    <div class="st-ed-top">
+      <div class="field"><label>セクション名</label><input list="st-sec-names" data-k="name" value="${esc(x.name)}"></div>
+      <div class="field"><label>小節</label><input inputmode="numeric" data-k="bars" value="${esc(x.bars)}"></div>
+      <div class="field"><label>回数</label><input inputmode="numeric" data-k="times" value="${esc(x.times)}"></div>
+      <div class="field"><label>キメ小節</label><input inputmode="numeric" data-k="kimeBar" value="${esc(x.kimeBar)}" placeholder="-"></div>
+    </div>
+    <div class="st-ed-memos">
+      <div class="field"><label>コードメモ</label><textarea rows="2" data-k="chord">${esc(x.chord)}</textarea></div>
+      <div class="field"><label>歌メモ</label><textarea rows="2" data-k="vocal">${esc(x.vocal)}</textarea></div>
+      <div class="field"><label>演奏メモ</label><textarea rows="2" data-k="play">${esc(x.play)}</textarea></div>
+      <div class="field"><label>キメ・ブレイク</label><textarea rows="2" data-k="kime">${esc(x.kime)}</textarea></div>
+    </div>
+    <div class="st-ed-tools">
+      <button type="button" class="st-mini" data-act="up" ${si===0?'disabled':''}>上へ</button>
+      <button type="button" class="st-mini" data-act="down" ${si===secs.length-1?'disabled':''}>下へ</button>
+      <button type="button" class="st-mini" data-act="dup">複製</button>
+      <button type="button" class="st-mini danger" data-act="del">削除</button>
+    </div>
+  </div>`).join('');
+  const names = ['イントロ','Aメロ','Bメロ','サビ','大サビ','Cメロ','ブリッジ','間奏','ソロ','アウトロ','Intro','Verse','Pre-Chorus','Chorus','Bridge','Solo','Outro','Coda'];
+  return `<datalist id="st-sec-names">${names.map(n => `<option value="${n}">`).join('')}</datalist>
+  <p class="hint" style="padding-top:10px;">曲名・キー・BPM・はじめかた・おわりかたは、これまで通り曲マスタ（イベント用の変更は鉛筆）で編集します。構成はこの曲を使うすべてのイベントで共通です。</p>
+  <div class="panel">
+    <div class="section-title" style="margin-top:0;">セクション</div>
+    <div id="st-ed-list">${eds || '<p class="st-note">セクションがありません。下のボタンで追加するか、構成表を貼り付けてください。</p>'}</div>
+    <div class="st-btns"><button type="button" class="btn" onclick="stAddSection()">セクションを追加</button></div>
+  </div>
+  <div class="panel">
+    <div class="section-title" style="margin-top:0;">構成表を貼り付けて取り込む</div>
+    <p class="st-note">AIなどで作った構成表をそのまま貼り付けると、セクションに変換します。見出しに「コード」「歌詞」「演奏」「キメ」などの列があれば、それぞれのメモに振り分けます。「（繰り返し）」の行は前の行の回数にまとめます。今のセクションは置き換わります。</p>
+    <div class="field"><textarea id="st-paste" rows="6" placeholder="| 区間 | 小節数 | コード |&#10;| Intro | 4 | C G Am F |"></textarea></div>
+    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
+    <div class="st-msg" id="st-paste-msg"></div>
+  </div>
+  <div class="panel">
+    <div class="section-title" style="margin-top:0;">Markdownで書き出す</div>
+    <p class="st-note">この曲の情報と構成表をMarkdownの表にします。メンバーに送ったり、バックアップしたりできます。上の貼り付け欄に戻せば同じ内容で取り込めます。</p>
+    <div class="st-btns" style="margin-top:0;">
+      <button type="button" class="btn" onclick="stExportMd()">書き出す</button>
+      <button type="button" class="btn btn-with-icon" onclick="stSaveMd()">.mdで保存${EXPORT_ICON_SVG}</button>
+    </div>
+    <div id="st-md-box" hidden>
+      <div class="field" style="margin-top:10px;"><textarea id="st-md" rows="10" readonly></textarea></div>
+      <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-with-icon" onclick="stCopyMd()">コピー${COPY_ICON_SVG}</button></div>
+      <div class="st-msg" id="st-md-msg"></div>
+    </div>
+  </div>`;
+}
+// 入力欄：画面を作り直さずに保存（入力中のカーソルを保つ）
+document.addEventListener('input', ev => {
+  const t = ev.target; if(!structOpen || !structEdit || !t.dataset || !t.dataset.k) return;
+  const ed = t.closest('.st-ed'); if(!ed) return;
+  const s = stSong(); if(!s) return;
+  const sec = stEnsure(s).sections[+ed.dataset.si]; if(!sec) return;
+  sec[t.dataset.k] = t.value;
+  if(t.dataset.k==='name') ed.style.setProperty('--c', stColor(t.value));
+  stTouch(s);
+});
+document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('.st-ed [data-act]'); if(!b || !structOpen) return;
+  const s = stSong(); if(!s) return;
+  const L = stEnsure(s).sections, si = +b.closest('.st-ed').dataset.si, a = b.dataset.act;
+  if(a==='del' && !b.classList.contains('armed')){
+    b.classList.add('armed'); b.textContent = 'もう一度で削除';
+    setTimeout(() => { if(b.isConnected){ b.classList.remove('armed'); b.textContent = '削除'; } }, 2500);
+    return;
+  }
+  if(a==='up' && si>0) [L[si-1], L[si]] = [L[si], L[si-1]];
+  if(a==='down' && si<L.length-1) [L[si+1], L[si]] = [L[si], L[si+1]];
+  if(a==='dup') L.splice(si+1, 0, {...L[si]});
+  if(a==='del') L.splice(si, 1);
+  stTouch(s); render();
+});
+window.stAddSection = () => {
+  const s = stSong(); if(!s) return;
+  stEnsure(s).sections.push(ST_SEC('', 8)); stTouch(s); render();
+  const inputs = document.querySelectorAll('.st-ed input[data-k="name"]');
+  const last = inputs[inputs.length-1]; if(last){ last.focus(); last.scrollIntoView({block:'center'}); }
+};
+
+// 構成表の取り込み（見出し行があれば列を自動で振り分け）
+const ST_COLS = [['kimeBar',/キメ小節/],['kime',/キメ|ブレイク|kime/i],['times',/回数|times/i],['chord',/コード|chord/i],['vocal',/歌|vocal|lyric/i],['bars',/小節|バー|bars?|長さ/i],['name',/区間|セクション|section|パート|構成/i],['play',/演奏|play|note/i],['auto',/内容|メモ|備考|content/i]];
+function stSplitRow(line){
+  if(line.includes('|')) return line.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|')).filter((c, i, a) => !(c==='' && (i===0 || i===a.length-1)));
+  if(line.includes('\t')) return line.split('\t').map(c => c.trim());
+  return (line.match(/^(.+?)\s+(\d+)\s*(?:小節|bars?)?\s*(.*)$/i) || []).slice(1);
+}
+const stCell = c => { const t = (c || '').replace(/<br\s*\/?>/gi, '\n').replace(/\*\*/g, '').trim(); return /^[—–\-ー−]+$/.test(t) ? '' : t; };
+function stParseTable(text){
+  const out = []; let map = null;
+  for(const raw of String(text).split(/\r?\n/)){
+    const line = raw.trim();
+    if(!line || /^[|\s:\-–—]+$/.test(line)) continue;
+    if(!line.includes('|') && !line.includes('\t') && (/^#{1,3}\s/.test(line) || /^[-*・]\s*[^:：]+[:：]/.test(line))) continue;  // 曲名・曲情報の行は読み飛ばす
+    const cells = stSplitRow(line).map(stCell);
+    if(cells.length < 2) continue;
+    if(!cells.some(c => /\d/.test(c))){
+      const m = cells.map(c => (ST_COLS.find(([, re]) => re.test(c)) || [null])[0]);
+      if(m.filter(Boolean).length >= 2){ if(!m.includes('name')) m[0] = 'name'; map = m; continue; }
+    }
+    let name, barsCell, timesCell = '', kbCell = '';
+    const f = {chord:'', vocal:'', play:'', kime:'', auto:''};
+    if(map){
+      const g = k => { const i = map.indexOf(k); return i>=0 ? cells[i] || '' : ''; };
+      name = g('name'); barsCell = g('bars'); timesCell = g('times'); kbCell = g('kimeBar');
+      for(const k in f) f[k] = map.map((m, i) => m===k ? cells[i] : '').filter(Boolean).join('\n');
+    } else {
+      const ni = cells.findIndex((c, i) => i>0 && /\d/.test(c));
+      if(ni < 0) continue;
+      name = cells[0]; barsCell = cells[ni];
+      f.auto = cells.filter((_, i) => i!==0 && i!==ni).filter(Boolean).join(' / ');
+    }
+    if(!name) continue;
+    const isRep = /[（(]\s*(繰り返し|repeat)\s*[）)]/i.test(name);
+    const base = name.replace(/\s*[（(]\s*(繰り返し|repeat)\s*[）)]\s*/i, '').trim();
+    const prev = out[out.length-1];
+    if(isRep && prev && prev.name===base){ prev.times = stTimes(prev) + 1; continue; }
+    const dm = (barsCell||'').match(/\d+/), tm = (timesCell||'').match(/\d+/), km = (kbCell||'').match(/\d+/);
+    const sec = ST_SEC(base || name, dm ? +dm[0] : '', {times: tm ? +tm[0] : 1, kimeBar: km ? +km[0] : ''});
+    sec.chord = f.chord; sec.vocal = f.vocal; sec.play = f.play; sec.kime = f.kime;
+    if(f.auto){ if(/^[「『"“]/.test(f.auto)) sec.vocal = [sec.vocal, f.auto].filter(Boolean).join('\n'); else sec.play = [sec.play, f.auto].filter(Boolean).join('\n'); }
+    if(barsCell && !/^\d+\s*(小節)?$/.test(barsCell)) sec.play = [sec.play, `小節数：${barsCell}`].filter(Boolean).join('\n');
+    out.push(sec);
+  }
+  return out;
+}
+window.stDoPaste = () => {
+  const s = stSong(); if(!s) return;
+  const ta = document.getElementById('st-paste'), msg = document.getElementById('st-paste-msg');
+  const secs = stParseTable(ta ? ta.value : '');
+  if(!secs.length){ if(msg) msg.textContent = 'セクションが見つかりません。各行に「セクション名」と「小節数」が入っているか確認してください。'; return; }
+  const apply = () => { stEnsure(s).sections = secs; stTouch(s); render(); showToast(`${secs.length}セクションを取り込みました`); };
+  if(hasStruct(s)) confirmAction(`「${s.name}」の今の構成（${s.struct.sections.length}セクション）を、貼り付けた構成表で置き換えますか？`, apply, '置き換える');
+  else apply();
+};
+function stToMarkdown(s, e){
+  const cell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
+  const L = [`# ${s.name || '無題の曲'}`, ''];
+  const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
+  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
+  if(info.length){ info.forEach(([k, v]) => L.push(`- ${k}: ${v}`)); L.push(''); }
+  L.push('| 区間 | 小節数 | 回数 | キメ小節 | コード | 歌詞メモ | 演奏メモ | キメ |');
+  L.push('|------|--------|------|----------|--------|----------|----------|------|');
+  ((s.struct && s.struct.sections) || []).forEach(x => L.push(`| ${cell(x.name)} | ${cell(x.bars)} | ${cell(stTimes(x) > 1 ? stTimes(x) : '')} | ${cell(x.kimeBar)} | ${cell(x.chord)} | ${cell(x.vocal)} | ${cell(x.play)} | ${cell(x.kime)} |`));
+  return L.join('\n') + '\n';
+}
+window.stExportMd = () => {
+  const s = stSong(); if(!s) return;
+  const box = document.getElementById('st-md-box'), ta = document.getElementById('st-md');
+  ta.value = stToMarkdown(s, stEntry()); box.hidden = false;
+  document.getElementById('st-md-msg').textContent = '';
+  ta.focus(); ta.select();
+};
+window.stCopyMd = () => {
+  const ta = document.getElementById('st-md'), msg = document.getElementById('st-md-msg');
+  const fallback = () => { ta.focus(); ta.select(); msg.textContent = '選択しました。長押しでコピーしてください。'; };
+  try{ navigator.clipboard.writeText(ta.value).then(() => { msg.textContent = 'コピーしました。'; }, fallback); }catch(e){ fallback(); }
+};
+window.stSaveMd = async () => {
+  const s = stSong(); if(!s) return;
+  const name = String(s.name || '構成').replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+  try{ const d = await getDownloads(); await d.save({filename: `${name}_構成.md`, data: stToMarkdown(s, stEntry()), raw: true, type: 'text/markdown'}); }
+  catch(e){ if(!e || e.code!=='declined') showToast('保存できませんでした。「書き出す」からコピーしてください。'); }
+};
+
+// ---- 構成画面のメトロノーム（曲のテンポで待機。−＋・TAPは一時的な変更で、曲には保存しない） ----
+const stM = {bpm:120, on:false, sound:true, next:0, beat:0, timer:null, taps:[]};
+function stSongBpm(){ const s = stSong(), e = stEntry(); const v = parseInt(s ? effVal(e, s, 'bpm') : '', 10); return v > 0 ? v : 120; }
+function stSetBpm(v){
+  stM.bpm = clampBpm(v);
+  const box = document.getElementById('st-bpm'); if(!box) return;
+  const sv = parseInt(stSong() ? effVal(stEntry(), stSong(), 'bpm') : '', 10);
+  const changed = sv > 0 && sv !== stM.bpm;
+  box.classList.toggle('changed', changed);
+  box.querySelector('span').textContent = stM.bpm;
+  box.querySelector('small').textContent = changed ? `↺ ${sv}` : (sv > 0 ? 'BPM' : 'BPM（仮）');
+  box.setAttribute('aria-label', changed ? `曲のテンポ ${sv} に戻す` : 'テンポ');
+}
+function stTick(){
+  if(!stM.on) return;
+  const ctx = getCtx();
+  while(stM.next < ctx.currentTime + 0.12){
+    const b = stM.beat % 4;
+    if(stM.sound) scheduleClick(stM.next, b===0);
+    const delay = Math.max(0, (stM.next - ctx.currentTime) * 1000);
+    setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k<=b)); }, delay);
+    stM.next += 60 / stM.bpm; stM.beat++;
+  }
+}
+function stMetroStart(){
+  const ctx = getCtx();
+  stM.on = true; stM.beat = 0; stM.next = ctx.currentTime + 0.06;
+  clearInterval(stM.timer); stM.timer = setInterval(stTick, 25); stTick();
+  stGoBtn();
+}
+function stMetroStop(){
+  stM.on = false; clearInterval(stM.timer); stM.timer = null;
+  document.querySelectorAll('#st-dots i').forEach(d => d.classList.remove('on'));
+  stGoBtn();
+}
+function stGoBtn(){
+  const b = document.getElementById('st-go'); if(!b) return;
+  b.classList.toggle('run', stM.on);
+  b.innerHTML = stM.on ? '<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>';
+  b.setAttribute('aria-label', stM.on ? 'メトロノームを止める' : 'メトロノームを開始');
+}
+// 下のバー：構成表の表示中だけ出す。作り直さず使い回す（連打できるように）
+function stMetroBar(show){
+  let el = document.getElementById('st-mbar');
+  if(!show){ if(el) el.hidden = true; return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'st-mbar'; el.className = 'st-mbar';
+    el.innerHTML = `<div class="st-mbar-in">
+      <button type="button" onclick="stSetBpm(stM.bpm-1)" aria-label="テンポを下げる">−</button>
+      <button type="button" class="st-bpm" id="st-bpm" onclick="stSetBpm(stSongBpm())"><span>120</span><small>BPM</small></button>
+      <button type="button" onclick="stSetBpm(stM.bpm+1)" aria-label="テンポを上げる">＋</button>
+      <div class="st-dots" id="st-dots" aria-hidden="true"><i class="acc"></i><i></i><i></i><i></i></div>
+      <button type="button" onclick="stTap()">TAP</button>
+      <button type="button" id="st-sound" aria-pressed="true" aria-label="クリック音" onclick="stToggleSound()">音</button>
+      <button type="button" class="st-go" id="st-go" onclick="stM.on ? stMetroStop() : stMetroStart()"></button>
+    </div>`;
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
+  stSetBpm(stM.bpm); stGoBtn();
+  const snd = document.getElementById('st-sound'); if(snd) snd.setAttribute('aria-pressed', stM.sound);
+}
+window.stSetBpm = stSetBpm; window.stSongBpm = stSongBpm; window.stM = stM;
+window.stMetroStart = stMetroStart; window.stMetroStop = stMetroStop;
+window.stToggleSound = () => { stM.sound = !stM.sound; const b = document.getElementById('st-sound'); if(b) b.setAttribute('aria-pressed', stM.sound); };
+window.stTap = () => {
+  const now = Date.now();
+  stM.taps = stM.taps.filter(t => now - t < 2500); stM.taps.push(now);
+  if(stM.taps.length > 8) stM.taps.shift();
+  if(stM.taps.length >= 2) stSetBpm(60000 / ((stM.taps[stM.taps.length-1] - stM.taps[0]) / (stM.taps.length - 1)));
+};
+// 構成画面以外では、下のバーと余白を片付けて音を止める
+function stCleanupOutside(){
+  if(structOpen) return;
+  if(stM.on) stMetroStop();
+  const el = document.getElementById('st-mbar'); if(el) el.hidden = true;
+  document.body.classList.remove('struct-open');
+}
+
 const main = document.getElementById('main');
-document.getElementById('tab-lives').onclick = () => { returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
-document.getElementById('tab-songs').onclick = () => { returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
-document.getElementById('tab-settings').onclick = () => { returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
+document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
+document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
+document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
 function render(){
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
   document.getElementById('tab-songs').classList.toggle('active', tab==='songs');
   document.getElementById('tab-settings').classList.toggle('active', tab==='settings');
-  if(tab==='lives' && liveEditId) renderLiveEdit();
+  if(structOpen && tab==='lives') renderStruct();
+  else if(tab==='lives' && liveEditId) renderLiveEdit();
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
@@ -1397,6 +1950,7 @@ function render(){
   document.body.classList.toggle('cards-min', cardMode!=='full');
   document.body.classList.toggle('cards-bk', cardMode==='bk');
   if(metroPanel) renderMetroSheet();
+  stCleanupOutside();
 }
 
 // ---------- 曲マスタ ----------
@@ -2256,7 +2810,7 @@ function renderLiveEdit(){
   html += `<div class="list-opts">${viewSegHtml()}</div>`;
   html += totalsCardHtml;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
-  html += `<div class="hint">曲名タップで曲情報とメトロノーム。鉛筆でこのイベント用に変更</div>`;
+  html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表、鉛筆でこのイベント用に変更</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
@@ -2305,6 +2859,7 @@ function renderLiveEdit(){
         <span class="setlist-num mono">${seq}</span>
         <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null)}</span></button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
+        <button type="button" class="row-struct c-only${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
         <button type="button" class="row-edit c-only" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
         ${dragHandleHtml('live')}
@@ -2314,6 +2869,7 @@ function renderLiveEdit(){
         ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
         ${ovB?`<span class="ov-master">←${esc(songVal(s,'bpm'))}</span>`:''}
         ${keyChipHtml(key, ovK ? songVal(s,'key') : null)}
+        <button type="button" class="row-struct${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
         <button type="button" class="row-edit" onclick="openEntryEdit(${i})" aria-label="このイベントの設定を編集" title="編集">${ICON_EDIT}</button>
         <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
       </div>
@@ -2897,8 +3453,8 @@ window.setTheme = (val) => {
 // ファイル書き出し：Claude のアーティファクトではその機能を、ふつうのブラウザ（GitHub Pages など）では
 // スマホは共有シート（ファイルに保存・LINE・AirDrop など）、PC はダウンロードで保存する
 function browserDownloads(){
-  return { save: async ({filename, data, raw}) => {
-    const type = raw ? 'application/json' : 'text/csv';
+  return { save: async ({filename, data, raw, type: forcedType}) => {
+    const type = forcedType || (raw ? 'application/json' : 'text/csv');
     const blob = new Blob([raw ? data : '\ufeff' + data], {type: type + ';charset=utf-8'});  // CSVは先頭のBOMで Excel でも文字化けしない
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
     if(isMobile && typeof File==='function' && navigator.canShare){
@@ -2917,7 +3473,7 @@ function browserDownloads(){
 }
 async function getDownloads(){
   if(window.claude && window.claude.use){
-    try{ const d = await window.claude.use('downloads'); return { save: ({raw, ...o}) => d.save({...o, data: raw ? o.data : '\ufeff' + o.data}) }; }catch(e){}
+    try{ const d = await window.claude.use('downloads'); return { save: ({raw, type, ...o}) => d.save({...o, data: raw ? o.data : '\ufeff' + o.data}) }; }catch(e){}
   }
   return browserDownloads();
 }
@@ -3059,7 +3615,7 @@ function importSongRows(rows){
     };
     if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
     const idx = songs.findIndex(s=>s.id===item.id);
-    if(idx>=0) songs[idx] = item; else songs.push(item);
+    if(idx>=0){ if(songs[idx].struct) item.struct = songs[idx].struct; songs[idx] = item; } else songs.push(item);
     count++;
   });
   if(!count){ showToast('曲名のある行がありませんでした。'); return; }
@@ -3556,6 +4112,7 @@ window.loadSampleData = (kind) => {
   const label = kind==='piano' ? 'ピアノ演奏会' : 'バンド編成';
   confirmAction(`${label}のサンプルデータ（曲${kind==='piano'?5:7}曲・イベント1件）を追加します。よろしいですか？`, () => {
     const sample = kind==='piano' ? buildPianoSample() : buildBandSample();
+    seedStructSamples(sample.songs);
     songs = songs.concat(sample.songs);
     lives = lives.concat(sample.lives);
     saveSongs(); saveLives();
