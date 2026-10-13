@@ -483,6 +483,8 @@ body.struct-open main{padding-bottom:96px;}
 .st-fbtn{border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 12px; font-family:inherit; font-size:13px; color:var(--muted); cursor:pointer;}
 .st-fbtn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700;}
 
+.st-se{display:flex; gap:6px; align-items:baseline; font-size:13px; font-weight:700; color:var(--text);}
+.st-se .lab{flex-shrink:0; font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--bg); background:var(--text); border-radius:3px; padding:2px 6px; white-space:nowrap;}
 .st-cue{display:flex; gap:8px; align-items:baseline; font-size:13px; padding:8px 12px;}
 .st-cue .lab{font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--bg); background:var(--text); border-radius:3px; padding:2px 6px; white-space:nowrap;}
 .st-table{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;}
@@ -601,13 +603,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.3.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.3.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.3.2': [
+    '構成表のはじめかた・おわりかたは、曲情報の内容を最初と最後のセクションに表示（曲情報が優先）',
+    '構成の例で、曲情報のはじめかた・おわりかたと食い違う書き方を修正'
+  ],
   '1.3.1': [
     '構成画面のメトロノーム：−＋を連続で押してもテンポが変わるように。長押しで続けて変わります',
     '構成画面のメトロノームが、iPhone などで鳴らないことがある問題を修正'
@@ -1508,13 +1514,13 @@ const ST_SAMPLES = [
     ST_SEC('Orgソロ', 12, {times:2, chord:'同じ12小節進行', play:'Booker T. Jonesのオルガンソロ。ミュート気味のギター\n小節数：12×2前後', kime:'ソロ終わりでリフに戻るキメ'}),
     ST_SEC('Head', 12, {chord:'同じ12小節進行', play:'メインリフ再現'}),
     ST_SEC('ソロ', 12, {times:2, chord:'同じ12小節進行', play:'Cropperのギターソロ\n小節数：12×2前後', kime:'ソロ終わりでしっかりキメ'}),
-    ST_SEC('Head / Outro', 12, {times:2, chord:'同じ12小節進行', play:'リフを繰り返して終わる\n小節数：12×2前後', kime:'最後を強く締める'})]},
+    ST_SEC('Head / Outro', 12, {times:2, chord:'同じ12小節進行', play:'リフを繰り返す\n小節数：12×2前後'})]},
   {re:/cissy|シシー/i, sections:[
     ST_SEC('A', 8, {chord:'C9 → C9 → Fsus4 → F（繰り返し）', play:'有名な下降リフ。Leo Nocentelliのギターが核\n小節数：8〜16', kime:'リフの終わりで軽くキメ'}),
     ST_SEC('B', 8, {chord:'C9（ほぼ静止）', play:'よりシンプルなグルーヴ。スペースを大事に'}),
     ST_SEC('A', 8, {chord:'C9 → C9 → Fsus4 → F', play:'メインリフに戻る\n小節数：8〜16'}),
     ST_SEC('ソロ', 16, {chord:'C9 中心', play:'オルガンソロやギターソロ。C9でジャム\n小節数：16前後', kime:'ソロ終わりでAに戻るキメ'}),
-    ST_SEC('A / Outro', 8, {chord:'C9 → C9 → Fsus4 → F', play:'リフを繰り返して終わる\n小節数：8〜16', kime:'最後をタイトに締める'})]},
+    ST_SEC('A / Outro', 8, {chord:'C9 → C9 → Fsus4 → F', play:'リフを繰り返す\n小節数：8〜16'})]},
   {re:/get\s*back/i, sections:[
     ST_SEC('Intro', 4, {chord:'A → A → A → A G/A D/A', play:'8分音符のドライブ感。ビリー・プレストンのピアノが効く', kime:'G/A → D/A のアクセント', kimeBar:4}),
     ST_SEC('Verse 1', 8, {chord:'A → A → D → A\n（G D が時々入る）', play:'シンプルなA-D進行。ジョンのリードギターが絡む', kime:'フレーズ終わりのG Dアクセント'}),
@@ -1525,7 +1531,7 @@ const ST_SAMPLES = [
     ST_SEC('Verse 2', 8, {chord:'A → D → A', play:'歌詞が変わるが進行は同じ', kime:'G Dキメ'}),
     ST_SEC('Chorus', 8, {chord:ST_GD, kime:'G Dキメ'}),
     ST_SEC('ソロ', 8, {chord:ST_GD, play:'再度ギターソロ', kime:'G Dキメ'}),
-    ST_SEC('Chorus / Outro', 8, {chord:ST_GD, play:'繰り返して盛り上げ、フェードorライブ感で終わる\n小節数：8〜16', kime:'最後までG Dの強いキメを効かせる'})]},
+    ST_SEC('Chorus / Outro', 8, {chord:ST_GD, play:'繰り返して盛り上げる\n小節数：8〜16', kime:'最後までG Dの強いキメを効かせる'})]},
   {re:/kansas\s*city/i, sections:[
     ST_SEC('Intro', 4, {play:'短い導入'}),
     ST_SEC('Verse 1', 12, {chord:'12小節ブルース'}),
@@ -1535,13 +1541,13 @@ const ST_SAMPLES = [
     ST_SEC('Chorus #2', 12, {vocal:'歌詞が少し変わる'}),
     ST_SEC('Chorus #2 / Coda', 12, {play:'小節数は前後するので合図で終わる'})]},
   {re:/iko\s*iko/i, sections:[
-    ST_SEC('Intro', 4, {chord:'D', play:'ピアノのニューオーリンズ・グルーヴで入る\n小節数：4〜8'}),
+    ST_SEC('Intro', 4, {chord:'D', play:'ニューオーリンズ・グルーヴ\n小節数：4〜8'}),
     ST_SEC('Verse 1', 8, {chord:'D → A7 → D', vocal:'コール＆レスポンス中心', play:'Dr. Johnのボーカルが効く\n小節数：8〜16'}),
     ST_SEC('Chorus', 8, {chord:'D → A7 → D', vocal:'「Hey now」の掛け合い', play:'掛け合いが肝', kime:'軽くアクセントを置く'}),
     ST_SEC('Interlude', 4, {chord:'C7', play:'少しコードが変わるブリッジ的部分'}),
     ST_SEC('Verse 2〜4', 8, {times:3, chord:'D → A7 → D', play:'歌詞が変わるが進行はほぼ同じ\n小節数：各8〜16'}),
     ST_SEC('Chorus', 8, {chord:'D → A7 → D'}),
-    ST_SEC('Coda / Outro', 8, {chord:'C7 → D', vocal:'サビのフレーズを繰り返す', play:'フェードアウト気味に終わることが多い\n小節数：8〜16', kime:'最後までグルーヴを崩さない'})]},
+    ST_SEC('Coda / Outro', 8, {chord:'C7 → D', vocal:'サビのフレーズを繰り返す', play:'小節数：8〜16', kime:'最後までグルーヴを崩さない'})]},
   {re:/summer\s*time|サマータイム/i, sections:[
     ST_SEC('Intro', 8, {chord:'A5 → D → E5（繰り返し）\n最後にG5', play:'パワーコード主体のリフ。Townshendのスラッシュギター\n小節数：8〜12', kime:'リフの最後でG5を強調'}),
     ST_SEC('Verse 1', 16, {chord:'A5 / D / E5\n途中 N.C.', play:'パワーコード＋リフ。ボスのセリフ前で止まる\n小節数：16前後', kime:'N.C.（無音）キメ：ボスのセリフ前で完全に止まる'}),
@@ -1550,9 +1556,9 @@ const ST_SAMPLES = [
     ST_SEC('Chorus', 4, {chord:'A5 → D5 → E5 → A5', play:'小節数：4〜8'}),
     ST_SEC('ソロ', 16, {chord:'A → D → E（×8）\n後半で転調準備', play:'Townshendのソロ。後半でキーが上がる準備\n小節数：16前後', kime:'ソロ終わりでキーアップを予感させる'}),
     ST_SEC('Verse 3', 16, {chord:'B5 → E5 → F♯5', play:'キーが全音上がる（A→B）。より攻撃的に\n小節数：16前後', kime:'N.C.キメ継続'}),
-    ST_SEC('Chorus / Outro', 8, {chord:'B5 → E5 → F♯5', play:'キーを上げたまま締め\n小節数：8〜12', kime:'最後のリフを強く締める'})]},
+    ST_SEC('Chorus / Outro', 8, {chord:'B5 → E5 → F♯5', play:'キーを上げたまま\n小節数：8〜12'})]},
   {re:/don.?t\s*you\s*just\s*know/i, sections:[
-    ST_SEC('Intro', 4, {chord:'G', play:'シンプルなGリフで入る\n小節数：4〜8'}),
+    ST_SEC('Intro', 4, {chord:'G', play:'シンプルなGリフ\n小節数：4〜8'}),
     ST_SEC('Verse 1', 8, {chord:'G', vocal:'コール＆レスポンス（バックコーラスがタイトルを返す）'}),
     ST_SEC('Chorus', 8, {chord:'N.C. → G → C → G\nD → C → G → D', play:'コール＆レスポンスが楽しい部分', kime:'N.C.キメでChorusに入る', kimeBar:1}),
     ST_SEC('Verse 2', 8, {chord:'G', play:'Verse 1と同じノリ'}),
@@ -1560,7 +1566,7 @@ const ST_SAMPLES = [
     ST_SEC('ソロ', 16, {chord:'G → C → G → D（繰り返し）', play:'Wilko Johnson系のカッティング\n小節数：16前後', kime:'ソロ終わりでしっかりキメ'}),
     ST_SEC('Verse 3', 8, {chord:'G'}),
     ST_SEC('Chorus', 8, {chord:'N.C. → G → C → G\nD → C → G → D', kime:'N.C.キメ', kimeBar:1}),
-    ST_SEC('Verse 4 / Outro', 8, {chord:'G → C → G → D', play:'フェードor繰り返しで終わる\n小節数：8〜16', kime:'最後を強く締める'})]}
+    ST_SEC('Verse 4 / Outro', 8, {chord:'G → C → G → D', play:'小節数：8〜16'})]}
 ];
 function stSampleFor(name){
   const hit = ST_SAMPLES.find(x => x.re.test(name || ''));
@@ -1571,6 +1577,23 @@ function seedStructSamples(list){
   let n = 0;
   list.forEach(s => { if(!s.struct || !(s.struct.sections||[]).length){ const t = stSampleFor(s.name); if(t){ s.struct = t; n++; } } });
   return n;
+}
+// 構成の例のうち、曲情報の「はじめかた・おわりかた」と食い違う書き方を直す（例のままの文だけ。自分で書いた文は触らない）
+const ST_SE_FIX = [
+  ['play','リフを繰り返して終わる\n小節数：12×2前後','リフを繰り返す\n小節数：12×2前後'], ['kime','最後を強く締める',''],
+  ['play','リフを繰り返して終わる\n小節数：8〜16','リフを繰り返す\n小節数：8〜16'], ['kime','最後をタイトに締める',''],
+  ['play','繰り返して盛り上げ、フェードorライブ感で終わる\n小節数：8〜16','繰り返して盛り上げる\n小節数：8〜16'],
+  ['play','ピアノのニューオーリンズ・グルーヴで入る\n小節数：4〜8','ニューオーリンズ・グルーヴ\n小節数：4〜8'],
+  ['play','フェードアウト気味に終わることが多い\n小節数：8〜16','小節数：8〜16'],
+  ['play','キーを上げたまま締め\n小節数：8〜12','キーを上げたまま\n小節数：8〜12'], ['kime','最後のリフを強く締める',''],
+  ['play','シンプルなGリフで入る\n小節数：4〜8','シンプルなGリフ\n小節数：4〜8'],
+  ['play','フェードor繰り返しで終わる\n小節数：8〜16','小節数：8〜16']
+];
+if(!store.get('setlist_struct_se_fix1', false)){
+  let ch = false;
+  songs.forEach(s => ((s.struct && s.struct.sections) || []).forEach(x => ST_SE_FIX.forEach(([k, a, b]) => { if(x[k]===a){ x[k] = b; ch = true; } })));
+  if(ch) saveSongs();
+  store.set('setlist_struct_se_fix1', true);
 }
 if(!store.get('setlist_struct_seeded', false)){
   if(seedStructSamples(songs)) saveSongs();
@@ -1685,19 +1708,23 @@ function renderStruct(){
 
   const v = stView(s);
   html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
-  if(start) html += `<div class="st-cue"><span class="lab">はじめかた</span><span>${esc(start)}</span></div>`;
   const secs = (s.struct && s.struct.sections) || [];
+  // はじめかた・おわりかたは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
+  const seLine = (lab, v) => `<div class="st-se"><span class="lab">${lab}</span><span>${esc(v)}</span></div>`;
   if(!secs.length){
+    if(start) html += `<div class="st-cue"><span class="lab">はじめかた</span><span>${esc(start)}</span></div>`;
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
-    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span>メモ</span></div>${secs.map(x => {
+    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span>メモ</span></div>${secs.map((x, si) => {
       const len = stInt(x.bars), t = stTimes(x), kb = stInt(x.kimeBar);
       const lines = [];
+      if(si===0 && start) lines.push(seLine('はじめかた', start));
       if(x.chord) lines.push(`<p class="st-chord">${esc(x.chord)}</p>`);
       if(x.vocal) lines.push(`<p class="st-vocal">${esc(x.vocal)}</p>`);
       if(x.play) lines.push(`<p class="st-play">${esc(x.play)}</p>`);
       if(x.kime || kb) lines.push(`<p class="st-kime">${kb ? kb+'小節目　' : ''}${esc(x.kime)}</p>`);
+      if(si===secs.length-1 && end) lines.push(seLine('おわりかた', end));
       const segs = Array.from({length: Math.min(len, 32)}, (_, i) => `<i class="${kb===i+1 ? 'k' : ''}"></i>`).join('');
       return `<div class="st-row" style="--c:${stColor(x.name)}">
         <div class="st-rhead"><span class="st-nm">${esc(x.name || '—')}</span><span class="st-len"><span class="n">${len || '?'}</span><small>小節</small>${t>1 ? `<span class="x">×${t}</span>` : ''}</span></div>
@@ -1706,7 +1733,7 @@ function renderStruct(){
       </div>`;
     }).join('')}</div>`;
   }
-  if(end) html += `<div class="st-cue"><span class="lab">おわりかた</span><span>${esc(end)}</span></div>`;
+  if(end && !secs.length) html += `<div class="st-cue"><span class="lab">おわりかた</span><span>${esc(end)}</span></div>`;
   main.innerHTML = html;
   stMetroBar(true);
 }
@@ -1736,7 +1763,7 @@ function stEditorHtml(s){
   </div>`).join('');
   const names = ['イントロ','Aメロ','Bメロ','サビ','大サビ','Cメロ','ブリッジ','間奏','ソロ','アウトロ','Intro','Verse','Pre-Chorus','Chorus','Bridge','Solo','Outro','Coda'];
   return `<datalist id="st-sec-names">${names.map(n => `<option value="${n}">`).join('')}</datalist>
-  <p class="hint" style="padding-top:10px;">曲名・キー・BPM・はじめかた・おわりかたは、これまで通り曲マスタ（イベント用の変更は鉛筆）で編集します。構成はこの曲を使うすべてのイベントで共通です。</p>
+  <p class="hint" style="padding-top:10px;">曲名・キー・BPM・はじめかた・おわりかたは、これまで通り曲マスタ（イベント用の変更は鉛筆）で編集します。はじめかた・おわりかたは、構成表の最初と最後のセクションに曲情報から表示します。構成はこの曲を使うすべてのイベントで共通です。</p>
   <div class="panel">
     <div class="section-title" style="margin-top:0;">セクション</div>
     <div id="st-ed-list">${eds || '<p class="st-note">セクションがありません。下のボタンで追加するか、構成表を貼り付けてください。</p>'}</div>
