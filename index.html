@@ -638,13 +638,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.7.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.7.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.7.1': [
+    'イベントから開いた構成表の「編集」に「曲マスタにも反映」ボタン。このイベント用に変えたはじめかた・おわりかた・全体のメモを曲マスタに書き込みます'
+  ],
   '1.7.0': [
     'はじめかたの候補に「ドラムフィルから」を追加',
     '「設定」で、はじめかた・おわりかたの候補を追加・削除・並べ替えできるように',
@@ -1886,13 +1889,27 @@ function stInfoEditorHtml(s){
   const ovNote = e ? ['start','end','notes'].filter(f => isOv(e, s, f)).map(f => `${({start:'はじめかた',end:'おわりかた',notes:'全体のメモ'})[f]}：${esc(songVal(s,f) || '-')}`) : [];
   return `<div class="panel" id="st-info-ed">
     <div class="section-title" style="margin-top:0;">はじめかた・おわりかた・全体のメモ</div>
-    <p class="st-note">${e ? 'このイベント用に保存します（曲マスタは変わりません。鉛筆で直すのと同じです）。' : '曲マスタの曲情報に保存します。この曲を使うイベントにも反映されます（イベント用に変えている場合を除く）。'}</p>
+    <p class="st-note">${e ? 'このイベント用に保存します（曲マスタは変わりません）。曲マスタにも残したいときは、下の「曲マスタにも反映」を押してください。' : '曲マスタの曲情報に保存します。この曲を使うイベントにも反映されます（イベント用に変えている場合を除く）。'}</p>
     ${startEndHtml('st-start', 'はじめかた', v('start'), SE_START_OPTS)}
     ${startEndHtml('st-end', 'おわりかた', v('end'), SE_END_OPTS)}
     <div class="field"><label>全体のメモ（曲のメモ）</label><textarea id="st-notes" rows="3">${esc(v('notes'))}</textarea></div>
     ${ovNote.length ? `<p class="st-note">曲マスタの値　${ovNote.join('　／　')}</p>` : ''}
+    ${e ? `<div class="st-btns" style="margin-top:6px;"><button type="button" class="btn" id="st-info-to-master" onclick="stInfoToMaster()">曲マスタにも反映</button></div>` : ''}
   </div>`;
 }
+// イベント用に変えた はじめかた・おわりかた・全体のメモ を曲マスタに書き込み、イベント用の変更は外す
+window.stInfoToMaster = () => {
+  const s = stSong(), e = stEntry(), live = stLive(); if(!s || !e) return;
+  const fs = ['start','end','notes'].filter(f => isOv(e, s, f));
+  if(!fs.length){ showToast('曲マスタと同じ内容です。'); return; }
+  confirmAction(`「${s.name}」の曲マスタの はじめかた・おわりかた・全体のメモ を、このイベントの内容で上書きします。\nこの曲を使う他のイベントにも反映されます（イベント用に変えている場合を除く）。`, () => {
+    fs.forEach(f => { s[f] = String(e[f]); delete e[f]; });
+    stTouch(s);
+    if(live){ live.updatedAt = Date.now(); saveLives(); }
+    render();
+    showToast(`「${s.name}」の曲マスタに反映しました。`);
+  }, '反映する');
+};
 function stSaveInfo(){
   const s = stSong(); if(!s) return;
   const e = stEntry();
