@@ -194,6 +194,16 @@ select.mini-input{width:64px; padding:5px 2px;}
 .ov{color:var(--accent);}
 .ov-master{font-size:11px; color:var(--muted); font-weight:400; margin-left:4px; white-space:nowrap;}
 .ov-hint{font-size:12px; color:var(--muted); margin-bottom:8px;}
+.se-opt-list{display:flex; flex-direction:column; gap:4px;}
+.se-opt-row{display:flex; align-items:center; gap:4px; padding:4px 4px 4px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface2);}
+.se-opt-name{flex:1; min-width:0; font-size:14px; overflow-wrap:anywhere;}
+.se-opt-btn{flex-shrink:0; width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; cursor:pointer; touch-action:manipulation;}
+.se-opt-btn:disabled{opacity:.35;}
+.se-opt-btn.del{color:var(--danger);}
+.se-opt-add{display:flex; gap:6px; margin-top:6px;}
+.se-opt-add input{flex:1; min-width:0;}
+.se-opt-add .btn{flex-shrink:0;}
+.se-opt-reset{margin-top:6px; border:none; background:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; padding:4px 0;}
 .field-row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;}
 .ov-field{display:flex; gap:4px; align-items:center;}
 .ov-field > :first-child{flex:1; min-width:0;}
@@ -628,13 +638,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.6.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.7.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.7.0': [
+    'はじめかたの候補に「ドラムフィルから」を追加',
+    '「設定」で、はじめかた・おわりかたの候補を追加・削除・並べ替えできるように',
+    'イベントの曲の鉛筆は、曲時間・キー・BPMだけに。はじめかた・おわりかた・メモは「構成」→「編集」で変更します'
+  ],
   '1.6.3': [
     'iPhone で曲の登録などの入力後に画面が拡大されたままになり、右側が切れて見える問題を修正'
   ],
@@ -2276,7 +2291,10 @@ function renderSongs(){
   if(genreFilterSel) genreFilterSel.onchange = function(){ songGenreFilter = this.value; render(); };
 }
 // はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
-const SE_START_OPTS = ['ドラムカウントから','カウント','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
+// 候補は「設定」で追加・削除・並べ替えできる（保存がなければ初期値）
+const SE_START_DEFAULTS = ['ドラムカウントから','ドラムフィルから','カウント','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
+function loadSeOpts(key, def){ const a = store.get(key, null); return Array.isArray(a) && a.length ? a.map(String).filter(Boolean) : def.slice(); }
+let SE_START_OPTS = loadSeOpts('setlist_se_start_opts', SE_START_DEFAULTS);
 const SE_START_DEFAULT = '';  // 新しい曲のはじめかたは「-」（未設定）から
 const RHYTHM_OPTS = ['8ビート','シャッフル','16ビート','16ビート（ハネ）','ファンク','セカンドライン','ハーフタイム','ハーフタイムシャッフル','THE WHO','スウィング','ボサノバ','レゲエ','4つ打ち','6/8拍子','3拍子（ワルツ）'];
 // 小窓の中身（リズム・原曲・開始/終わり・メモ）。セットリストと曲マスタで共通
@@ -2288,7 +2306,48 @@ function songDetailHtml(s, e){
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
 }
-const SE_END_OPTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング'];
+const SE_END_DEFAULTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング'];
+let SE_END_OPTS = loadSeOpts('setlist_se_end_opts', SE_END_DEFAULTS);
+function seOptsRef(which){ return which==='start' ? SE_START_OPTS : SE_END_OPTS; }
+function saveSeOpts(which){
+  if(which==='start') store.set('setlist_se_start_opts', SE_START_OPTS); else store.set('setlist_se_end_opts', SE_END_OPTS);
+}
+window.seOptMove = (which, i, d) => {
+  const a = seOptsRef(which), j = i + d; if(j<0 || j>=a.length) return;
+  [a[i], a[j]] = [a[j], a[i]]; saveSeOpts(which); render();
+};
+window.seOptDel = (which, i) => {
+  const a = seOptsRef(which); if(a.length<=1){ showToast('候補は1つ以上残してください。'); return; }
+  a.splice(i, 1); saveSeOpts(which); render();
+};
+window.seOptAdd = (which) => {
+  const el = document.getElementById(`se-add-${which}`); const v = el ? el.value.trim() : '';
+  if(!v) return;
+  const a = seOptsRef(which);
+  if(a.includes(v)){ showToast('同じ候補がすでにあります。'); return; }
+  a.push(v); saveSeOpts(which); render();
+  const again = document.getElementById(`se-add-${which}`); if(again) again.focus();
+};
+window.seOptReset = (which) => {
+  confirmAction(`${which==='start'?'はじめかた':'おわりかた'}の候補を初期の内容に戻しますか？\n（曲に入っている内容は変わりません）`, () => {
+    const def = which==='start' ? SE_START_DEFAULTS : SE_END_DEFAULTS;
+    const a = seOptsRef(which); a.splice(0, a.length, ...def);
+    saveSeOpts(which); render();
+  }, '初期に戻す');
+};
+function seOptsEditorHtml(which, label){
+  const a = seOptsRef(which);
+  return `<div class="field"><label>${label}</label>
+    <div class="se-opt-list">${a.map((o, i) => `<div class="se-opt-row">
+      <span class="se-opt-name">${esc(o)}</span>
+      <button type="button" class="se-opt-btn" onclick="seOptMove('${which}',${i},-1)" ${i===0?'disabled':''} aria-label="上へ">↑</button>
+      <button type="button" class="se-opt-btn" onclick="seOptMove('${which}',${i},1)" ${i===a.length-1?'disabled':''} aria-label="下へ">↓</button>
+      <button type="button" class="se-opt-btn del" onclick="seOptDel('${which}',${i})" aria-label="削除">✕</button>
+    </div>`).join('')}</div>
+    <div class="se-opt-add"><input id="se-add-${which}" placeholder="候補を追加" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();seOptAdd('${which}')}"><button type="button" class="btn" onclick="seOptAdd('${which}')">追加</button></div>
+    <button type="button" class="se-opt-reset" onclick="seOptReset('${which}')">初期の候補に戻す</button>
+  </div>`;
+}
 function startEndHtml(id, label, value, opts){
   const isFree = !!value && !opts.includes(value);
   const selVal = isFree ? '__free' : (value || '');
@@ -3284,7 +3343,9 @@ document.addEventListener('click', e => {
 }, true);
 // このイベントの曲の編集画面。入力中は下書き（entryDraft）に持ち、「保存」で初めてイベントに反映する
 let entryDraft = null;  // {liveId, idx, d:{上書きする項目}}
-function entryOvSnapshot(e, s){ const d = {}; OV_FIELDS.forEach(f => { if(isOv(e, s, f)) d[f] = String(e[f]); }); return d; }
+// 鉛筆（イベント用の変更）で扱う項目。はじめかた・おわりかた・メモは構成表の「編集」で変える
+const EE_FIELDS = ['duration','key','bpm'];
+function entryOvSnapshot(e, s){ const d = {}; EE_FIELDS.forEach(f => { if(isOv(e, s, f)) d[f] = String(e[f]); }); return d; }
 function entryEditCtx(){
   const live = lives.find(l=>l.id===liveEditId); const e = live && entryEditIdx!==null ? live.setlist[entryEditIdx] : null;
   const s = e && e.type!=='other' ? songs.find(x=>x.id===e.songId) : null;
@@ -3301,8 +3362,6 @@ function readEntryEditDom(s){
     if(!same) d[f] = f==='duration' ? normDurStr(v) : v;
   };
   put('duration', val('ee-duration')); put('key', val('ee-key')); put('bpm', val('ee-bpm'));
-  ['start','end'].forEach(f => { const sv = val(`ee-${f}-sel`); if(sv) put(f, sv==='__free' ? val(`ee-${f}`) : sv); });
-  put('notes', val('ee-notes'));
   return d;
 }
 function entryEditHtml(live, i){
@@ -3312,17 +3371,6 @@ function entryEditHtml(live, i){
   const e = entryDraft.d;
   const dur = effVal(e,s,'duration'), key = effVal(e,s,'key'), bpm = effVal(e,s,'bpm');
   const reset = f => isOv(e,s,f) ? `<button type="button" class="ov-reset" onclick="resetEntryDraft('${f}')" title="曲マスタの値に戻す" aria-label="戻す">↺</button>` : '';
-  // はじめかた・おわりかた：曲マスタどおり／候補／（その他）で、このイベントだけの内容を入力
-  const seHtml = (f, label, opts) => {
-    const ov = isOv(e,s,f), val = effVal(e,s,f), mv = songVal(s,f);
-    const selVal = ov ? (opts.includes(val) ? val : '__free') : '';
-    return `<div class="field"><label>${label}</label><div class="ov-field"><select id="ee-${f}-sel" onchange="onEeSel('${f}', this.value)">
-        <option value="" ${selVal===''?'selected':''}>曲マスタどおり（${esc(mv)||'-'}）</option>
-        ${opts.map(o => `<option value="${esc(o)}" ${o===selVal?'selected':''}>${esc(o)}</option>`).join('')}
-        <option value="__free" ${selVal==='__free'?'selected':''}>（その他）</option>
-      </select>${reset(f)}</div>
-      <input id="ee-${f}" value="${esc(selVal==='__free' ? val : '')}" placeholder="このイベントでの${label}" autocomplete="off" ${selVal==='__free'?'':'hidden'} style="margin-top:6px;"></div>`;
-  };
   return `<div class="entry-edit-head"><button type="button" class="back-btn" onclick="closeEntryEdit()"><span class="back-arrow">←</span>戻る</button></div>
   <div class="section-title" style="margin-top:6px;">${esc(s.name)}</div>
   <div class="ov-hint">このイベントだけに反映されます</div>
@@ -3332,9 +3380,7 @@ function entryEditHtml(live, i){
       <div class="field"><label>キー</label><div class="ov-field"><select id="ee-key">${keyOptionsHtml(key)}</select>${reset('key')}</div></div>
       <div class="field"><label>BPM</label><div class="ov-field"><input id="ee-bpm" class="mono" inputmode="numeric" value="${esc(bpm)}">${reset('bpm')}</div></div>
     </div>
-    ${seHtml('start', 'はじめかた', SE_START_OPTS)}
-    ${seHtml('end', 'おわりかた', SE_END_OPTS)}
-    <div class="field"><label>メモ</label><div class="ov-field"><textarea id="ee-notes" rows="3" placeholder="このイベントだけの進行メモなど">${esc(effVal(e,s,'notes'))}</textarea>${reset('notes')}</div></div>
+    <p class="ov-hint" style="margin:2px 0 8px;">はじめかた・おわりかた・メモは、曲カードの「構成」→「編集」で、このイベント用に変えられます。</p>
     <div class="ov-foot">
       <span class="ov-master-line">曲マスタ：${esc(normDurStr(songVal(s,'duration')))} · ${esc(songVal(s,'key'))||'—'} · ${esc(songVal(s,'bpm'))} BPM</span>
     </div>
@@ -3374,7 +3420,7 @@ window.resetEntryDraft = f => {
 window.saveEntryEdit = () => {
   const {live, e, s} = entryEditCtx(); if(!e || !s) return cancelEntryEdit();
   const d = readEntryEditDom(s);
-  OV_FIELDS.forEach(f => delete e[f]);
+  EE_FIELDS.forEach(f => delete e[f]);
   Object.assign(e, d);
   live.updatedAt = Date.now(); saveLives();
   if(metroPanel && metroPanel.entry===e) setMetroBpm(effVal(e, s, 'bpm'), false);
@@ -3385,7 +3431,7 @@ window.applyOverridesToMaster = () => {
   const {live, e, s} = entryEditCtx(); if(!e || !s) return;
   const d = readEntryEditDom(s);
   Object.keys(d).forEach(f => { s[f] = d[f]; });
-  OV_FIELDS.forEach(f => delete e[f]);
+  EE_FIELDS.forEach(f => delete e[f]);
   s.updatedAt = Date.now(); saveSongs();
   live.updatedAt = Date.now(); saveLives();
   if(metroPanel && metroPanel.entry===e) setMetroBpm(effVal(e, s, 'bpm'), false);
@@ -3609,6 +3655,13 @@ function renderSettings(){
       <input type="file" id="import-lives-input" accept="text/csv,.csv" style="display:none">
     </div>
     <div class="hint">Googleスプレッドシートなどの表計算アプリで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
+  </div>
+
+  <div class="section-title">はじめかた・おわりかたの候補</div>
+  <div class="panel">
+    ${seOptsEditorHtml('start', 'はじめかた')}
+    ${seOptsEditorHtml('end', 'おわりかた')}
+    <div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>
   </div>
 
   <div class="section-title">サンプルデータ</div>
