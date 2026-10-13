@@ -641,13 +641,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.9.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.9.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-14';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.9.2': [
+    'セットリストを絞り込んでいるときも（並べ替えが「番号順」なら）ドラッグで曲順を変えられるように。隠れている曲やMC・SEの位置はそのまま'
+  ],
   '1.9.1': [
     'ご意見・不具合報告の窓口を、X からフォーム（Tally）に変更しました（「設定」の一番下）'
   ],
@@ -3129,7 +3132,7 @@ function renderLiveEdit(){
   html += `<div class="list-opts">${viewSegHtml()}</div>`;
   html += totalsCardHtml;
   const slView = slFilter!=='all' || slSort!=='order';
-  if(slView) html += `<div class="hint sl-view-hint">絞り込み・並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「すべての曲」「番号順」に戻してください。<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
+  if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
   html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表、鉛筆でこのイベント用に変更</div>`;
 
@@ -3210,7 +3213,7 @@ function renderLiveEdit(){
       return {p, name: sg.name, duration: effVal(e, sg, 'duration'), updatedAt: sg.updatedAt || 0};
     }).filter(Boolean);
     const shown = sortSongs(rows, slSort);
-    html += shown.length ? shown.map(r => r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
+    html += shown.length ? shown.map(r => slSort==='order' ? r.p.h : r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
   }
 
   if(live.setlist.length>0){
