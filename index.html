@@ -95,6 +95,9 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .live-venue{font-size:14px; font-weight:700; margin:4px 0 2px;}
 .live-artist{font-size:13px; color:var(--muted);}
 .live-count{font-size:12px; color:var(--muted); margin-top:6px;}
+.live-card-wrap{position:relative;}
+.live-card-wrap .live-card{padding-right:72px;}
+.live-struct-btn{position:absolute; right:12px; bottom:12px; height:34px; padding:0 12px; touch-action:manipulation;}
 
 .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:16px;}
 .field{margin-bottom:10px;}
@@ -615,13 +618,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.4.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.5.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.5.0': [
+    'イベント一覧のイベントカードに「構成」ボタン。そのイベントの1曲目の構成表をすぐ開けます（＜＞でセットリスト順に移動）'
+  ],
   '1.4.0': [
     'ホーム画面に追加すると、Safari のツールバーなしの全画面でアプリとして開けるように（共有ボタン →「ホーム画面に追加」）',
     'ホーム画面版はデータの保存場所が別になるので、「設定」→「データ管理」のバックアップ・復元で移してください'
@@ -1665,6 +1671,17 @@ window.openStruct = (idx) => {
   stSetBpm(stSongBpm());
   render(); scrollToTop();
 };
+// イベント一覧から：そのイベントの1曲目の構成表を直接開く（戻るとイベント一覧へ）
+window.openLiveStruct = (liveId) => {
+  const live = lives.find(l => l.id===liveId); if(!live) return;
+  const idx = live.setlist.findIndex(e => e.type!=='other' && songs.some(x => x.id===e.songId));
+  if(idx<0) return;
+  stopMetro();
+  structOpen = {liveId, idx, fromList: true}; structEdit = false;
+  stMetroStop();
+  stSetBpm(stSongBpm());
+  render(); scrollToTop();
+};
 window.openStockStruct = (id) => {
   if(!songs.some(x => x.id===id)) return;
   stopMetro();
@@ -1675,9 +1692,15 @@ window.openStockStruct = (id) => {
 };
 window.closeStruct = () => {
   const fromStock = stFromStock();
+  const fromList = !!(structOpen && structOpen.fromList), listId = fromList ? structOpen.liveId : null;
   const idx = structOpen ? stCur() : null;
   stMetroStop(); structOpen = null; structEdit = false;
   render();
+  if(fromList){
+    const card = document.querySelector(`.live-card-wrap[data-live-id="${listId}"]`);
+    if(card && card.scrollIntoView){ try{ card.scrollIntoView({block:'center'}); }catch(e){ card.scrollIntoView(); } }
+    return;
+  }
   const row = idx!==null && idx!==undefined && document.querySelector(`.setlist-item[data-drag-list="${fromStock?'stock':'live'}"][data-key="${idx}"]`);
   if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'center'}); }catch(e){ row.scrollIntoView(); } }
 };
@@ -1720,7 +1743,7 @@ function renderStruct(){
   if(dur) chips.push(`<span class="st-chip">曲時間<b>${esc(normDurStr(dur))}</b></span>`);
   const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
   let html = `<div class="st-head">
-    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${stFromStock() ? '曲マスタ' : 'セットリスト'}</button>
+    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${stFromStock() ? '曲マスタ' : structOpen.fromList ? 'イベント一覧' : 'セットリスト'}</button>
     <div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>
   </div>
   <div class="st-title-row">
@@ -2736,13 +2759,13 @@ function renderLives(){
     sorted.forEach(l => {
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
-      html += `<button class="live-card" onclick="openLive('${l.id}')">
+      html += `<div class="live-card-wrap" data-live-id="${l.id}"><button class="live-card" onclick="openLive('${l.id}')">
         <div class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}${stageMinutes(l.startTime, l.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(l.startTime, l.endTime)}分</span>` : ''}</div>
         <div class="live-venue">${esc(l.venue || 'イベント名未設定')}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
         <div class="live-count">${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
-      </button>`;
+      </button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div>`;
     });
   }
   main.innerHTML = html;
