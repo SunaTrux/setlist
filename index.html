@@ -480,6 +480,7 @@ body.struct-open header{display:none;}
 .st-head .back-btn{min-height:34px; padding:4px 12px 4px 8px; font-size:13px; border-radius:8px; gap:4px;}
 .st-info{display:flex; flex-direction:column; gap:4px; padding:6px 2px 10px;}
 .st-info .st-se{font-weight:600;}
+.st-info .st-se .lab{min-width:5.6em; text-align:center; box-sizing:border-box;}
 .st-info .st-memo{font-weight:400; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere;}
 
 .st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
@@ -618,13 +619,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.6.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.6.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-13';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_X = 'DtmerPronk';  // リリース日。CHANGELOG.md と合わせる
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.6.2': [
+    '構成表の「全体メモ」を「全体のメモ」にして、はじめかた・おわりかたとラベルの幅をそろえました'
+  ],
   '1.6.1': [
     '構成表の「編集」のまま＜＞で曲を移動すると、次の曲も編集のまま開くように'
   ],
@@ -1765,11 +1769,11 @@ function renderStruct(){
   const v = stView(s);
   html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
   const secs = (s.struct && s.struct.sections) || [];
-  // はじめかた・おわりかた・全体メモは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
+  // はじめかた・おわりかた・全体のメモは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
   const seLine = (lab, v, cls = '') => `<div class="st-se"><span class="lab">${lab}</span><span class="${cls}">${esc(v)}</span></div>`;
   const memo = stShow(effVal(e, s, 'notes'));
   if(start || end || memo){
-    html += `<div class="st-info">${start ? seLine('はじめかた', start) : ''}${end ? seLine('おわりかた', end) : ''}${memo ? seLine('全体メモ', memo, 'st-memo') : ''}</div>`;
+    html += `<div class="st-info">${start ? seLine('はじめかた', start) : ''}${end ? seLine('おわりかた', end) : ''}${memo ? seLine('全体のメモ', memo, 'st-memo') : ''}</div>`;
   }
   if(!secs.length){
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
@@ -1847,18 +1851,18 @@ function stEditorHtml(s){
     </div>
   </div>`;
 }
-// ---- 曲情報（はじめかた・おわりかた・全体メモ）の編集 ----
+// ---- 曲情報（はじめかた・おわりかた・全体のメモ）の編集 ----
 // 曲マスタから開いたら曲マスタに、イベントから開いたらそのイベント用（鉛筆と同じ上書き）に保存する
 function stInfoEditorHtml(s){
   const e = stEntry();
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
-  const ovNote = e ? ['start','end','notes'].filter(f => isOv(e, s, f)).map(f => `${({start:'はじめかた',end:'おわりかた',notes:'全体メモ'})[f]}：${esc(songVal(s,f) || '-')}`) : [];
+  const ovNote = e ? ['start','end','notes'].filter(f => isOv(e, s, f)).map(f => `${({start:'はじめかた',end:'おわりかた',notes:'全体のメモ'})[f]}：${esc(songVal(s,f) || '-')}`) : [];
   return `<div class="panel" id="st-info-ed">
-    <div class="section-title" style="margin-top:0;">はじめかた・おわりかた・全体メモ</div>
+    <div class="section-title" style="margin-top:0;">はじめかた・おわりかた・全体のメモ</div>
     <p class="st-note">${e ? 'このイベント用に保存します（曲マスタは変わりません。鉛筆で直すのと同じです）。' : '曲マスタの曲情報に保存します。この曲を使うイベントにも反映されます（イベント用に変えている場合を除く）。'}</p>
     ${startEndHtml('st-start', 'はじめかた', v('start'), SE_START_OPTS)}
     ${startEndHtml('st-end', 'おわりかた', v('end'), SE_END_OPTS)}
-    <div class="field"><label>全体メモ（曲のメモ）</label><textarea id="st-notes" rows="3">${esc(v('notes'))}</textarea></div>
+    <div class="field"><label>全体のメモ（曲のメモ）</label><textarea id="st-notes" rows="3">${esc(v('notes'))}</textarea></div>
     ${ovNote.length ? `<p class="st-note">曲マスタの値　${ovNote.join('　／　')}</p>` : ''}
   </div>`;
 }
