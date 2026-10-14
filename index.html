@@ -520,6 +520,15 @@ body.struct-open header{display:none;}
 .st-chip{font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
+.st-chordbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-2px 0 10px;}
+.st-cmode button{padding:5px 10px; font-size:12px;}
+.st-cmode button:disabled{opacity:.4;}
+.st-trans{display:flex; align-items:center; gap:4px; margin-left:auto;}
+.st-trans-lab{font-size:11px; font-weight:700; color:var(--muted); margin-right:2px;}
+.st-tbtn{width:32px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:16px; font-weight:700; cursor:pointer; touch-action:manipulation;}
+.st-tkey{min-width:5.5em; height:30px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; white-space:nowrap;}
+.st-tkey.on{border-color:var(--accent); color:var(--accent);}
+.st-trans-note{margin-left:auto; font-size:11px; color:var(--muted);}
 .st-fbtn{flex:1 1 auto; min-width:0; white-space:nowrap; border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 6px; font-family:inherit; font-size:12.5px; color:var(--muted); cursor:pointer; touch-action:manipulation;}
 .st-fbtn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700;}
 
@@ -650,13 +659,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.11.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.12.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-14';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.12.0': [
+    '構成表のコードを移調して表示（−＋）。イベントでキーを変えた曲は、そのキーに合わせて自動で移調します',
+    '構成表のコードをディグリー表記（I・IV・V7 など）でも表示できるように。マイナーキーの数え方は「設定」で選べます'
+  ],
   '1.11.0': [
     '構成表のセクション名をタップすると、そのセクションの編集欄がすぐ下に開くように（「編集」タブに切り替えなくても直せます）'
   ],
@@ -1631,6 +1644,10 @@ const ST_FILTERS = [['bars','小節数'],['prog','バー'],['chord','コード']
 let structOpen = null;   // イベントから：{liveId, idx}（idx はセットリストの位置）／曲マスタから：{songId}
 let structEdit = false;  // 構成の編集中
 let stOpenSec = null;    // 構成表でセクション名をタップして開いた、その場の編集（セクション番号）
+let stTrans = 0;         // 曲マスタから開いたとき（またはキー未設定のとき）の一時的な移調（半音）
+let stChordMode = store.get('setlist_chord_mode', 'chord');      // 構成表のコード表示：chord / degree
+let stDegreeMinor = store.get('setlist_degree_minor', 'minor');  // マイナーキーのディグリー：minor（主音から）/ relative（同じ調号のメジャーから）
+let stCC = null;  // 描画中のコード表示の設定
 let structBaseView = store.get('setlist_struct_view', null) || {...ST_VIEW_ALL};  // 表示を決めていない曲に使う
 
 // サンプルの構成（曲名で当てる）
@@ -1761,7 +1778,7 @@ function stTouch(s){ s.updatedAt = Date.now(); saveSongs(); }
 window.openStruct = (idx) => {
   const live = lives.find(l => l.id===liveEditId); if(!live) return;
   stopMetro();
-  structOpen = {liveId: live.id, idx}; structEdit = false; stOpenSec = null;
+  structOpen = {liveId: live.id, idx}; structEdit = false; stOpenSec = null; stTrans = 0;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1772,7 +1789,7 @@ window.openLiveStruct = (liveId) => {
   const idx = live.setlist.findIndex(e => e.type!=='other' && songs.some(x => x.id===e.songId));
   if(idx<0) return;
   stopMetro();
-  structOpen = {liveId, idx, fromList: true}; structEdit = false; stOpenSec = null;
+  structOpen = {liveId, idx, fromList: true}; structEdit = false; stOpenSec = null; stTrans = 0;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1780,7 +1797,7 @@ window.openLiveStruct = (liveId) => {
 window.openStockStruct = (id) => {
   if(!songs.some(x => x.id===id)) return;
   stopMetro();
-  structOpen = {songId: id}; structEdit = false; stOpenSec = null;
+  structOpen = {songId: id}; structEdit = false; stOpenSec = null; stTrans = 0;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1789,7 +1806,7 @@ window.closeStruct = () => {
   const fromStock = stFromStock();
   const fromList = !!(structOpen && structOpen.fromList), listId = fromList ? structOpen.liveId : null;
   const idx = structOpen ? stCur() : null;
-  stMetroStop(); structOpen = null; structEdit = false; stOpenSec = null;
+  stMetroStop(); structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0;
   render();
   if(fromList){
     const card = document.querySelector(`.live-card-wrap[data-live-id="${listId}"]`);
@@ -1803,7 +1820,7 @@ window.structNav = d => {
   const seq = stSeq(); const pos = seq.indexOf(stCur());
   const k = seq[pos + d]; if(k===undefined) return;
   if(stFromStock()) structOpen.songId = k; else structOpen.idx = k;
-  stOpenSec = null;
+  stOpenSec = null; stTrans = 0;
   // 編集中なら編集のまま次の曲へ（構成表を見ていたら構成表のまま）
   stSetBpm(stSongBpm());   // 曲が変わったらその曲のテンポに（鳴っていればそのまま新しいテンポで）
   render(); scrollToTop();
@@ -1814,7 +1831,7 @@ window.stToggleSec = si => {
   const ed = document.querySelector('.st-inline-ed');
   if(ed && ed.scrollIntoView){ try{ ed.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(e){ ed.scrollIntoView(false); } }
 };
-window.setStructEdit = on => { structEdit = !!on; stOpenSec = null; render(); scrollToTop(); };
+window.setStructEdit = on => { structEdit = !!on; stOpenSec = null; stTrans = 0; render(); scrollToTop(); };
 window.toggleStructFilter = k => {
   const s = stSong(); if(!s) return;
   const v = stView(s); v[k] = !v[k];
@@ -1830,7 +1847,7 @@ function stShow(v){ return v && v!=='-' ? v : ''; }
 
 function renderStruct(){
   const live = stLive(), e = stEntry(), s = stSong();
-  if((!stFromStock() && !live) || !s){ structOpen = null; structEdit = false; stOpenSec = null; stMetroStop(); render(); return; }
+  if((!stFromStock() && !live) || !s){ structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; stMetroStop(); render(); return; }
   document.body.classList.add('struct-open');
   const seq = stSeq(), pos = seq.indexOf(stCur());
   const key = stShow(effVal(e, s, 'key')), bpm = stShow(effVal(e, s, 'bpm')), dur = stShow(effVal(e, s, 'duration'));
@@ -1859,6 +1876,8 @@ function renderStruct(){
   if(structEdit){ html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
 
   const v = stView(s);
+  stCC = stChordCtx(s, e);
+  const hasChords = ((s.struct && s.struct.sections) || []).some(x => x.chord);
   html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
   const secs = (s.struct && s.struct.sections) || [];
   // はじめかた・おわりかた・全体のメモは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
@@ -1867,6 +1886,7 @@ function renderStruct(){
   if(start || end || memo){
     html += `<div class="st-info">${start ? seLine('はじめかた', start) : ''}${end ? seLine('おわりかた', end) : ''}${memo ? seLine('全体のメモ', memo, 'st-memo') : ''}</div>`;
   }
+  if(hasChords && v.chord) html += stChordBarHtml(s, e, stCC);
   if(!secs.length){
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
   } else {
@@ -1878,11 +1898,92 @@ function renderStruct(){
   stMetroBar(true);
 }
 
+// ---- コードの移調・ディグリー表記（表示だけ。保存されたコードは書き換えない） ----
+const NOTE_PC = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
+const SHARP_N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_N  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const ROMAN   = ['I','♭II','II','♭III','III','IV','♭V','V','♭VI','VI','♭VII','VII'];
+function accOf(a){ return /[#♯]/.test(a) ? 1 : /[b♭]/.test(a) ? -1 : 0; }
+function parseKey(k){
+  const m = /^([A-G])([#♯b♭]?)(m?)$/.exec(String(k || '').trim()); if(!m) return null;
+  return {pc: (NOTE_PC[m[1]] + accOf(m[2]) + 12) % 12, minor: !!m[3]};
+}
+function keyName(pc, minor){ return SHARP_N[((pc % 12) + 12) % 12] + (minor ? 'm' : ''); }
+function keyPrefersFlat(k){ if(!k) return null; return k.minor ? [2,7,0,5,10,3].includes(k.pc) : [5,10,3,8,1].includes(k.pc); }
+function normShift(n){ n = ((n % 12) + 12) % 12; return n > 6 ? n - 12 : n; }
+// コードらしい書き方だけを対象にする（C9, Fsus4, G/A, B♭, F♯5, Am7(♭5) など）。「Aメロ」「N.C.」「Dr.」などは触らない
+const CHORD_RE = /(^|[^A-Za-z0-9#♯♭.])([A-G])([#♯b♭]?)((?:maj|min|dim|aug|sus|add|omit|alt|M|m|ø|°|\+|[0-9]|[#♯b♭](?=[0-9])|\((?=[^)]*\))|\))*)(?:\/([A-G])([#♯b♭]?))?(?![A-Za-z0-9])/g;
+function stChordDisp(text){
+  const c = stCC; if(!c || !text) return text || '';
+  if(c.mode!=='degree' && !c.shift) return text;
+  const uni = /[♭♯]/.test(text);
+  const spell = (pc, origAcc) => {
+    const flat = c.flat!==null ? c.flat : (origAcc < 0);
+    let n = (flat ? FLAT_N : SHARP_N)[((pc % 12) + 12) % 12];
+    if(uni) n = n.replace('b', '♭').replace('#', '♯');
+    return n;
+  };
+  return text.replace(CHORD_RE, (all, pre, root, acc, qual, broot, bacc, off, str) => {
+    const after = str.charAt(off + all.length);
+    if(!qual && !broot && /[぀-ヿ一-鿿]/.test(after)) return all;  // 「Aメロ」など
+    const pc = (NOTE_PC[root] + accOf(acc) + 12) % 12;
+    const bpc = broot ? (NOTE_PC[broot] + accOf(bacc) + 12) % 12 : null;
+    if(c.mode==='degree'){
+      const d = p => ROMAN[((p - c.tonic) % 12 + 12) % 12];
+      return pre + d(pc) + qual + (broot ? '/' + d(bpc) : '');
+    }
+    return pre + spell(pc + c.shift, accOf(acc)) + qual + (broot ? '/' + spell(bpc + c.shift, accOf(bacc)) : '');
+  });
+}
+// 今の曲・イベントから、コード表示の設定を決める
+function stChordCtx(s, e){
+  const mk = parseKey(songVal(s, 'key'));
+  const ek = parseKey(e ? effVal(e, s, 'key') : songVal(s, 'key'));
+  let shift = stTrans, target = mk;
+  if(e && mk && ek){ shift = normShift(ek.pc - mk.pc + stTrans); target = ek; }
+  if(mk && stTrans && !(e && ek)) target = {pc: (mk.pc + stTrans + 12) % 12, minor: mk.minor};
+  if(e && mk && ek && stTrans) target = {pc: (ek.pc + stTrans + 12) % 12, minor: ek.minor};
+  const canDegree = !!mk;
+  const mode = stChordMode==='degree' && canDegree ? 'degree' : 'chord';
+  const tonic = mk ? (mk.minor && stDegreeMinor==='relative' ? (mk.pc + 3) % 12 : mk.pc) : 0;
+  return {mode, shift: normShift(shift), flat: keyPrefersFlat(target), mk, ek, target, tonic, canDegree};
+}
+function stChordBarHtml(s, e, c){
+  const seg = `<div class="pos-seg st-cmode"><button type="button" class="${c.mode==='chord'?'on':''}" onclick="setChordMode('chord')">コード</button><button type="button" class="${c.mode==='degree'?'on':''}" onclick="setChordMode('degree')" ${c.canDegree?'':'disabled title="キーが未設定のため使えません"'}>ディグリー</button></div>`;
+  let tr = '';
+  if(c.mode==='chord'){
+    const lab = c.mk ? (c.shift ? `${keyName(c.mk.pc, c.mk.minor)} → ${keyName(c.target.pc, c.target.minor)}` : `${keyName(c.mk.pc, c.mk.minor)}（元のキー）`) : (c.shift ? `${c.shift>0?'+':''}${c.shift}（半音）` : '移調なし');
+    tr = `<div class="st-trans"><span class="st-trans-lab">移調</span><button type="button" class="st-tbtn" onclick="stTranspose(-1)" aria-label="半音下げる">−</button><button type="button" class="st-tkey${c.shift?' on':''}" onclick="stTranspose(0)" title="元のキーに戻す">${esc(lab)}</button><button type="button" class="st-tbtn" onclick="stTranspose(1)" aria-label="半音上げる">＋</button></div>`;
+  } else {
+    tr = `<span class="st-trans-note">${esc(keyName(c.mk.pc, c.mk.minor))} を基準に表示${c.mk.minor ? (stDegreeMinor==='relative' ? '（同じ調号のメジャーから）' : '（マイナーの主音から）') : ''}</span>`;
+  }
+  return `<div class="st-chordbar">${seg}${tr}</div>`;
+}
+window.setChordMode = m => { stChordMode = m; store.set('setlist_chord_mode', m); render(); };
+// −＋：イベントから開いていて曲マスタのキーがあるときは、このイベントのキーとして保存。それ以外は一時的な移調
+window.stTranspose = d => {
+  const s = stSong(), e = stEntry(); if(!s) return;
+  const mk = parseKey(songVal(s, 'key'));
+  if(e && mk){
+    const live = stLive();
+    if(d===0){ delete e.key; }
+    else {
+      const ek = parseKey(effVal(e, s, 'key')) || mk;
+      const nk = keyName(ek.pc + d, ek.minor);
+      if(nk===songVal(s, 'key')) delete e.key; else e.key = nk;
+    }
+    stTrans = 0;
+    if(live){ live.updatedAt = Date.now(); saveLives(); }
+  } else {
+    stTrans = d===0 ? 0 : normShift(stTrans + d);
+  }
+  render();
+};
 // 構成表の1行
 function stRowHtml(x, si){
       const len = stInt(x.bars), t = stTimes(x), kb = stInt(x.kimeBar);
       const lines = [];
-      if(x.chord) lines.push(`<p class="st-chord">${esc(x.chord)}</p>`);
+      if(x.chord) lines.push(`<p class="st-chord">${esc(stChordDisp(x.chord))}</p>`);
       if(x.vocal) lines.push(`<p class="st-vocal">${esc(x.vocal)}</p>`);
       if(x.play) lines.push(`<p class="st-play">${esc(x.play)}</p>`);
       if(x.kime || kb) lines.push(`<p class="st-kime">${kb ? kb+'小節目　' : ''}${esc(x.kime)}</p>`);
@@ -2120,7 +2221,7 @@ document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('.st-ed [data-act]'); if(!b || !structOpen) return;
   const s = stSong(); if(!s) return;
   const L = stEnsure(s).sections, si = +b.closest('.st-ed').dataset.si, a = b.dataset.act;
-  if(a==='close'){ stOpenSec = null; render(); return; }
+  if(a==='close'){ stOpenSec = null; stTrans = 0; render(); return; }
   if(a==='del' && !b.classList.contains('armed')){
     b.classList.add('armed'); b.textContent = 'もう一度で削除';
     setTimeout(() => { if(b.isConnected){ b.classList.remove('armed'); b.textContent = '削除'; } }, 2500);
@@ -2134,7 +2235,7 @@ document.addEventListener('click', ev => {
     if(a==='up' && si>0) stOpenSec = si-1;
     else if(a==='down' && si<L.length-1) stOpenSec = si+1;
     else if(a==='dup') stOpenSec = si+1;
-    else if(a==='del') stOpenSec = null;
+    else if(a==='del') stOpenSec = null; stTrans = 0;
   }
   stTouch(s); render();
 });
@@ -2336,9 +2437,9 @@ function stCleanupOutside(){
 }
 
 const main = document.getElementById('main');
-document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
-document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
-document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
+document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
+document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
+document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
 function render(){
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
@@ -3014,7 +3115,7 @@ window.setStockPos = (pos, el) => {
 };
 window.toggleSongExpand = id => { songExpandedId = songExpandedId===id ? null : id; render(); };
 window.editSongInStock = (songId) => {
-  if(structOpen && songs.some(x => x.id===songId)){ structEdit = true; stOpenSec = null; render(); scrollToTop(); return; }
+  if(structOpen && songs.some(x => x.id===songId)){ structEdit = true; stOpenSec = null; stTrans = 0; render(); scrollToTop(); return; }
   const song = songs.find(x=>x.id===songId);
   if(!song) return;
   stopMetro(); stopTimerInterval();
@@ -3040,7 +3141,7 @@ window.copySelectedSongOpen = () => {
 // 曲の編集は構成表の「編集」に統合（新しい曲の登録だけフォームを使う）
 window.editSong = id => {
   if(!songs.some(x => x.id===id)) return;
-  openStockStruct(id); structEdit = true; stOpenSec = null; render(); scrollToTop();
+  openStockStruct(id); structEdit = true; stOpenSec = null; stTrans = 0; render(); scrollToTop();
 };
 window.editSongForm_unused = id => {
   songForm = {...songs.find(s=>s.id===id)};
@@ -3860,6 +3961,12 @@ function renderSettings(){
         <button type="button" class="theme-btn ${theme==='dark'?'active':''}" onclick="setTheme('dark')">ダーク</button>
       </div>
     </div>
+    <div class="field" style="margin-bottom:0;"><label>ディグリー表記（マイナーキーの曲）</label>
+      <div class="theme-row">
+        <button type="button" class="theme-btn ${stDegreeMinor==='minor'?'active':''}" onclick="setDegreeMinor('minor')">主音から<br><small>Fm → Im</small></button>
+        <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
+      </div>
+    </div>
   </div>
   <div class="hint" style="margin:-4px 2px 8px;">${(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。ホーム画面から開くとブラウザのツールバーが出ません（データは別になるので、下の「データ管理」のバックアップ・復元で移してください）。'}</div>
 
@@ -3934,6 +4041,7 @@ function renderSettings(){
     this.value = '';
   };
 }
+window.setDegreeMinor = (m) => { stDegreeMinor = m; store.set('setlist_degree_minor', m); render(); };
 window.setTheme = (val) => {
   store.set('setlist_theme', val);
   applyTheme(val);
