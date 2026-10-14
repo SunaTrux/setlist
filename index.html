@@ -531,7 +531,12 @@ body.struct-open header{display:none;}
 .st-thead{display:grid; grid-template-columns:5.2rem 1.9rem minmax(0,1fr); gap:4px; white-space:nowrap; padding:6px 10px; font-size:11px; font-weight:700; color:var(--muted); letter-spacing:0; border-bottom:1px solid var(--border);}
 .st-row{position:relative; display:grid; grid-template-columns:5.2rem 1.9rem minmax(0,1fr); gap:2px 4px; padding:5px 10px 5px; align-items:start;}
 .st-rhead{display:contents;}
-.st-nm{justify-self:start;}
+.st-nm{justify-self:start; border:none; font-family:inherit; text-align:left; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.st-nm.open{box-shadow:0 0 0 2px var(--surface), 0 0 0 4px var(--c);}
+.st-inline-ed{padding:8px 10px 12px; background:var(--surface2); border-top:1px dashed var(--border); border-bottom:1px dashed var(--border);}
+.st-inline-ed .st-ed{padding-left:10px;}
+.st-close{margin-left:auto;}
+.st-tap-hint{font-size:11px; color:var(--muted); margin:6px 2px 0;}
 .st-th-len{text-align:center;}
 .st-nm{font-size:13px; font-weight:700; color:var(--bg); background:var(--c); padding:2px 7px; border-radius:4px; max-width:100%; overflow-wrap:anywhere; line-height:1.3;}
 .st-len{display:flex; flex-direction:column; align-items:center; padding-top:2px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:17px; font-weight:700; line-height:1.05; font-variant-numeric:tabular-nums;}
@@ -645,13 +650,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.10.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.11.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-14';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.11.0': [
+    '構成表のセクション名をタップすると、そのセクションの編集欄がすぐ下に開くように（「編集」タブに切り替えなくても直せます）'
+  ],
   '1.10.0': [
     '曲の編集を「構成」→「編集」にまとめました（鉛筆ボタンはなくなりました）。曲マスタから開くと曲マスタを、イベントから開くと曲時間・キー・BPMなどをこのイベント用に変更できます',
     'イベント一覧のカードに削除ボタン（✕）。スマホは左にスワイプしても削除できます（確認あり）'
@@ -1622,6 +1630,7 @@ const ST_VIEW_ALL = {bars:true, prog:true, chord:true, vocal:true, play:true, ki
 const ST_FILTERS = [['bars','小節数'],['prog','バー'],['chord','コード'],['vocal','歌'],['play','演奏'],['kime','キメ']];
 let structOpen = null;   // イベントから：{liveId, idx}（idx はセットリストの位置）／曲マスタから：{songId}
 let structEdit = false;  // 構成の編集中
+let stOpenSec = null;    // 構成表でセクション名をタップして開いた、その場の編集（セクション番号）
 let structBaseView = store.get('setlist_struct_view', null) || {...ST_VIEW_ALL};  // 表示を決めていない曲に使う
 
 // サンプルの構成（曲名で当てる）
@@ -1752,7 +1761,7 @@ function stTouch(s){ s.updatedAt = Date.now(); saveSongs(); }
 window.openStruct = (idx) => {
   const live = lives.find(l => l.id===liveEditId); if(!live) return;
   stopMetro();
-  structOpen = {liveId: live.id, idx}; structEdit = false;
+  structOpen = {liveId: live.id, idx}; structEdit = false; stOpenSec = null;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1763,7 +1772,7 @@ window.openLiveStruct = (liveId) => {
   const idx = live.setlist.findIndex(e => e.type!=='other' && songs.some(x => x.id===e.songId));
   if(idx<0) return;
   stopMetro();
-  structOpen = {liveId, idx, fromList: true}; structEdit = false;
+  structOpen = {liveId, idx, fromList: true}; structEdit = false; stOpenSec = null;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1771,7 +1780,7 @@ window.openLiveStruct = (liveId) => {
 window.openStockStruct = (id) => {
   if(!songs.some(x => x.id===id)) return;
   stopMetro();
-  structOpen = {songId: id}; structEdit = false;
+  structOpen = {songId: id}; structEdit = false; stOpenSec = null;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -1780,7 +1789,7 @@ window.closeStruct = () => {
   const fromStock = stFromStock();
   const fromList = !!(structOpen && structOpen.fromList), listId = fromList ? structOpen.liveId : null;
   const idx = structOpen ? stCur() : null;
-  stMetroStop(); structOpen = null; structEdit = false;
+  stMetroStop(); structOpen = null; structEdit = false; stOpenSec = null;
   render();
   if(fromList){
     const card = document.querySelector(`.live-card-wrap[data-live-id="${listId}"]`);
@@ -1794,11 +1803,18 @@ window.structNav = d => {
   const seq = stSeq(); const pos = seq.indexOf(stCur());
   const k = seq[pos + d]; if(k===undefined) return;
   if(stFromStock()) structOpen.songId = k; else structOpen.idx = k;
+  stOpenSec = null;
   // 編集中なら編集のまま次の曲へ（構成表を見ていたら構成表のまま）
   stSetBpm(stSongBpm());   // 曲が変わったらその曲のテンポに（鳴っていればそのまま新しいテンポで）
   render(); scrollToTop();
 };
-window.setStructEdit = on => { structEdit = !!on; render(); scrollToTop(); };
+window.stToggleSec = si => {
+  stOpenSec = stOpenSec===si ? null : si;
+  render();
+  const ed = document.querySelector('.st-inline-ed');
+  if(ed && ed.scrollIntoView){ try{ ed.scrollIntoView({block:'nearest', behavior:'smooth'}); }catch(e){ ed.scrollIntoView(false); } }
+};
+window.setStructEdit = on => { structEdit = !!on; stOpenSec = null; render(); scrollToTop(); };
 window.toggleStructFilter = k => {
   const s = stSong(); if(!s) return;
   const v = stView(s); v[k] = !v[k];
@@ -1814,7 +1830,7 @@ function stShow(v){ return v && v!=='-' ? v : ''; }
 
 function renderStruct(){
   const live = stLive(), e = stEntry(), s = stSong();
-  if((!stFromStock() && !live) || !s){ structOpen = null; structEdit = false; stMetroStop(); render(); return; }
+  if((!stFromStock() && !live) || !s){ structOpen = null; structEdit = false; stOpenSec = null; stMetroStop(); render(); return; }
   document.body.classList.add('struct-open');
   const seq = stSeq(), pos = seq.indexOf(stCur());
   const key = stShow(effVal(e, s, 'key')), bpm = stShow(effVal(e, s, 'bpm')), dur = stShow(effVal(e, s, 'duration'));
@@ -1855,7 +1871,15 @@ function renderStruct(){
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
-    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>${secs.map((x, si) => {
+    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>${secs.map((x, si) => stRowHtml(x, si) + (stOpenSec===si ? `<div class="st-inline-ed">${stSecEdHtml(x, si, secs.length, true)}</div>` : '')).join('')}</div>${stSecNamesDatalist()}
+    <p class="st-tap-hint">セクション名をタップすると、そのセクションをここで編集できます。</p>`;
+  }
+  main.innerHTML = html;
+  stMetroBar(true);
+}
+
+// 構成表の1行
+function stRowHtml(x, si){
       const len = stInt(x.bars), t = stTimes(x), kb = stInt(x.kimeBar);
       const lines = [];
       if(x.chord) lines.push(`<p class="st-chord">${esc(x.chord)}</p>`);
@@ -1863,21 +1887,18 @@ function renderStruct(){
       if(x.play) lines.push(`<p class="st-play">${esc(x.play)}</p>`);
       if(x.kime || kb) lines.push(`<p class="st-kime">${kb ? kb+'小節目　' : ''}${esc(x.kime)}</p>`);
       const segs = Array.from({length: Math.min(len, 32)}, (_, i) => `<i class="${kb===i+1 ? 'k' : ''}"></i>`).join('');
-      return `<div class="st-row" style="--c:${stColor(x.name)}">
-        <div class="st-rhead"><span class="st-nm">${esc(x.name || '—')}</span><span class="st-len"><span class="n">${len || '?'}</span>${t>1 ? `<span class="x">×${t}</span>` : ''}</span></div>
+      return `<div class="st-row" data-si="${si}" style="--c:${stColor(x.name)}">
+        <div class="st-rhead"><button type="button" class="st-nm${stOpenSec===si ? ' open' : ''}" onclick="stToggleSec(${si})" aria-expanded="${stOpenSec===si}" title="タップでこのセクションを編集">${esc(x.name || '—')}</button><span class="st-len"><span class="n">${len || '?'}</span>${t>1 ? `<span class="x">×${t}</span>` : ''}</span></div>
         <div class="st-body">${lines.join('') || '<span class="st-empty-memo">メモなし</span>'}</div>
         <div class="st-segs" aria-hidden="true">${segs}</div>
       </div>`;
-    }).join('')}</div>`;
-  }
-  main.innerHTML = html;
-  stMetroBar(true);
 }
-
 // ---- 構成の編集 ----
-function stEditorHtml(s){
-  const secs = stEnsure(s).sections;
-  const eds = secs.map((x, si) => `<div class="st-ed" data-si="${si}" style="--c:${stColor(x.name)}">
+const ST_SEC_NAMES = ['イントロ','Aメロ','Bメロ','サビ','大サビ','Cメロ','ブリッジ','間奏','ソロ','アウトロ','Intro','Verse','Pre-Chorus','Chorus','Bridge','Solo','Outro','Coda'];
+function stSecNamesDatalist(){ return `<datalist id="st-sec-names">${ST_SEC_NAMES.map(n => `<option value="${n}">`).join('')}</datalist>`; }
+// 1つのセクションの編集欄（「編集」タブの一覧と、構成表でセクション名をタップしたときで共通）
+function stSecEdHtml(x, si, n, inline){
+  return `<div class="st-ed" data-si="${si}" style="--c:${stColor(x.name)}">
     <div class="st-ed-top">
       <div class="field"><label>セクション名</label><input list="st-sec-names" data-k="name" value="${esc(x.name)}"></div>
       <div class="field"><label>小節</label><input inputmode="numeric" data-k="bars" value="${esc(x.bars)}"></div>
@@ -1892,13 +1913,17 @@ function stEditorHtml(s){
     </div>
     <div class="st-ed-tools">
       <button type="button" class="st-mini" data-act="up" ${si===0?'disabled':''}>上へ</button>
-      <button type="button" class="st-mini" data-act="down" ${si===secs.length-1?'disabled':''}>下へ</button>
+      <button type="button" class="st-mini" data-act="down" ${si===n-1?'disabled':''}>下へ</button>
       <button type="button" class="st-mini" data-act="dup">複製</button>
       <button type="button" class="st-mini danger" data-act="del">削除</button>
+      ${inline ? `<button type="button" class="st-mini st-close" data-act="close">閉じる</button>` : ''}
     </div>
-  </div>`).join('');
-  const names = ['イントロ','Aメロ','Bメロ','サビ','大サビ','Cメロ','ブリッジ','間奏','ソロ','アウトロ','Intro','Verse','Pre-Chorus','Chorus','Bridge','Solo','Outro','Coda'];
-  return `<datalist id="st-sec-names">${names.map(n => `<option value="${n}">`).join('')}</datalist>
+  </div>`;
+}
+function stEditorHtml(s){
+  const secs = stEnsure(s).sections;
+  const eds = secs.map((x, si) => stSecEdHtml(x, si, secs.length, false)).join('');
+  return `${stSecNamesDatalist()}
   <p class="hint" style="padding-top:10px;">曲情報とセクションをここで編集できます。入力するとすぐ保存されます。</p>
   ${stInfoEditorHtml(s)}
   <div class="panel">
@@ -2078,18 +2103,24 @@ function stSaveField(f){
 
 // 入力欄：画面を作り直さずに保存（入力中のカーソルを保つ）
 document.addEventListener('input', ev => {
-  const t = ev.target; if(!structOpen || !structEdit || !t.dataset || !t.dataset.k) return;
+  const t = ev.target; if(!structOpen || (!structEdit && stOpenSec===null) || !t.dataset || !t.dataset.k) return;
   const ed = t.closest('.st-ed'); if(!ed) return;
   const s = stSong(); if(!s) return;
   const sec = stEnsure(s).sections[+ed.dataset.si]; if(!sec) return;
   sec[t.dataset.k] = t.value;
   if(t.dataset.k==='name') ed.style.setProperty('--c', stColor(t.value));
   stTouch(s);
+  // 構成表の中で開いているときは、上の行の表示もすぐ更新する
+  if(!structEdit){
+    const row = document.querySelector(`.st-row[data-si="${ed.dataset.si}"]`);
+    if(row) row.outerHTML = stRowHtml(sec, +ed.dataset.si);
+  }
 });
 document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('.st-ed [data-act]'); if(!b || !structOpen) return;
   const s = stSong(); if(!s) return;
   const L = stEnsure(s).sections, si = +b.closest('.st-ed').dataset.si, a = b.dataset.act;
+  if(a==='close'){ stOpenSec = null; render(); return; }
   if(a==='del' && !b.classList.contains('armed')){
     b.classList.add('armed'); b.textContent = 'もう一度で削除';
     setTimeout(() => { if(b.isConnected){ b.classList.remove('armed'); b.textContent = '削除'; } }, 2500);
@@ -2099,6 +2130,12 @@ document.addEventListener('click', ev => {
   if(a==='down' && si<L.length-1) [L[si+1], L[si]] = [L[si], L[si+1]];
   if(a==='dup') L.splice(si+1, 0, {...L[si]});
   if(a==='del') L.splice(si, 1);
+  if(stOpenSec!==null){  // その場の編集は、動かしたセクションについていく
+    if(a==='up' && si>0) stOpenSec = si-1;
+    else if(a==='down' && si<L.length-1) stOpenSec = si+1;
+    else if(a==='dup') stOpenSec = si+1;
+    else if(a==='del') stOpenSec = null;
+  }
   stTouch(s); render();
 });
 window.stAddSection = () => {
@@ -2299,9 +2336,9 @@ function stCleanupOutside(){
 }
 
 const main = document.getElementById('main');
-document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
-document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
-document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
+document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
+document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
+document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
 function render(){
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
@@ -2977,7 +3014,7 @@ window.setStockPos = (pos, el) => {
 };
 window.toggleSongExpand = id => { songExpandedId = songExpandedId===id ? null : id; render(); };
 window.editSongInStock = (songId) => {
-  if(structOpen && songs.some(x => x.id===songId)){ structEdit = true; render(); scrollToTop(); return; }
+  if(structOpen && songs.some(x => x.id===songId)){ structEdit = true; stOpenSec = null; render(); scrollToTop(); return; }
   const song = songs.find(x=>x.id===songId);
   if(!song) return;
   stopMetro(); stopTimerInterval();
@@ -3003,7 +3040,7 @@ window.copySelectedSongOpen = () => {
 // 曲の編集は構成表の「編集」に統合（新しい曲の登録だけフォームを使う）
 window.editSong = id => {
   if(!songs.some(x => x.id===id)) return;
-  openStockStruct(id); structEdit = true; render(); scrollToTop();
+  openStockStruct(id); structEdit = true; stOpenSec = null; render(); scrollToTop();
 };
 window.editSongForm_unused = id => {
   songForm = {...songs.find(s=>s.id===id)};
