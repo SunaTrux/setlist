@@ -580,6 +580,17 @@ body.struct-open header{display:none;}
 .st-table.hide-bars .st-len .x{margin-top:0;}
 .st-empty{background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:24px 16px; text-align:center; color:var(--muted); font-size:14px; line-height:1.7;}
 .st-empty .btn{margin-top:10px;}
+.st-empty-paste{margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); text-align:left;}
+.st-empty-or{font-size:12px; color:var(--muted); margin-bottom:6px; text-align:center;}
+.st-empty-paste textarea{width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:14px; font-family:inherit; line-height:1.5; resize:vertical;}
+.st-empty-paste .btn{margin-top:8px;}
+.song-md{margin-bottom:12px;}
+.song-md summary{cursor:pointer; font-size:14px; font-weight:700; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.song-md summary::-webkit-details-marker{display:none;}
+.song-md summary::after{content:'▸'; color:var(--muted); font-weight:400;}
+.song-md[open] summary::after{content:'▾';}
+.song-md .field{margin-top:10px;}
+.song-md-struct{font-size:13px; color:var(--accent); font-weight:700; margin-top:8px;}
 
 /* 構成の編集 */
 .st-ed{border-left:4px solid var(--c); padding-left:10px;}
@@ -674,13 +685,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.14.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-14';
+const APP_VERSION = '1.15.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-15';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.15.0': [
+    '曲マスタの「曲を登録」→「手入力」で、AIなどで作った「曲情報」と「構成表」のMarkdownを貼り付けて、フォームと構成表に一度に取り込めるように',
+    '構成がまだない曲の構成表から、そのままMarkdownを貼り付けて取り込めるように',
+    '構成表の取り込みで「同上」を、同じ種類のセクション（Verse 1 → Verse 2 など）の内容に置き換えるように'
+  ],
   '1.14.0': [
     'リズムパターンに「8ビート（ハネ）」を追加。「設定」でリズムパターンの候補も編集できるように',
     '曲ごとにキーの表記（自動／♯／♭）を選べるように（構成表の「編集」）',
@@ -1940,7 +1956,13 @@ function renderStruct(){
   }
   if(hasChords && v.chord) html += stChordBarHtml(s, e, stCC);
   if(!secs.length){
-    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button></div>`;
+    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>
+      <div class="st-empty-paste">
+        <div class="st-empty-or">または、AIなどで作った構成表（Markdown）を貼り付け</div>
+        <textarea id="st-paste" rows="5" placeholder="| 区間 | バー数 | コード | 歌詞メモ | 演奏メモ | キメ |&#10;| Intro | 8 | G → Am | — | … | — |"></textarea>
+        <button type="button" class="btn" onclick="stDoPaste()">取り込む</button>
+        <div class="st-msg" id="st-paste-msg"></div>
+      </div></div>`;
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
     html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>${secs.map((x, si) => stRowHtml(x, si) + (stOpenSec===si ? `<div class="st-inline-ed">${stSecEdHtml(x, si, secs.length, true)}</div>` : '')).join('')}</div>${stSecNamesDatalist()}
@@ -2118,7 +2140,7 @@ function stEditorHtml(s){
   </div>
   <div class="panel">
     <div class="section-title" style="margin-top:0;">構成表を貼り付けて取り込む</div>
-    <p class="st-note">AIなどで作った構成表をそのまま貼り付けると、セクションに変換します。見出しに「コード」「歌詞」「演奏」「キメ」などの列があれば、それぞれのメモに振り分けます。「（繰り返し）」の行は前の行の回数にまとめます。今のセクションは置き換わります。</p>
+    <p class="st-note">AIなどで作った構成表をそのまま貼り付けると、セクションに変換します。見出しに「コード」「歌詞」「演奏」「キメ」などの列があれば、それぞれのメモに振り分けます。「（繰り返し）」の行は前の行の回数にまとめます。今のセクションは置き換わります。「曲情報」の表があれば、空いている項目（キー・BPMなど）にだけ入れます。</p>
     <div class="field"><textarea id="st-paste" rows="6" placeholder="| 区間 | 小節数 | コード |&#10;| Intro | 4 | C G Am F |"></textarea></div>
     <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
     <div class="st-msg" id="st-paste-msg"></div>
@@ -2389,17 +2411,116 @@ function stParseTable(text){
     const sec = ST_SEC(base || name, dm ? +dm[0] : '', {times: tm ? +tm[0] : 1, kimeBar: km ? +km[0] : ''});
     sec.chord = f.chord; sec.vocal = f.vocal; sec.play = f.play; sec.kime = f.kime;
     if(f.auto){ if(/^[「『"“]/.test(f.auto)) sec.vocal = [sec.vocal, f.auto].filter(Boolean).join('\n'); else sec.play = [sec.play, f.auto].filter(Boolean).join('\n'); }
+    // 「同上」は、同じ種類のセクション（Verse 1 → Verse 2 など）の直前の内容を写す。なければ1つ前の行
+    const kind = n => String(n||'').toLowerCase().replace(/[\s#＃]*\d+$/, '').replace(/\s+/g, ' ').trim();
+    const same = /^(同上|〃|同じ|same(\s+as\s+above)?|ditto)$/i;
+    ['chord','vocal','play','kime'].forEach(k => {
+      if(!same.test(String(sec[k]).trim())) return;
+      const src = [...out].reverse().find(x => kind(x.name)===kind(sec.name)) || out[out.length-1];
+      sec[k] = src ? src[k] : '';
+    });
     if(barsCell && !/^\d+\s*(小節)?$/.test(barsCell)) sec.play = [sec.play, `小節数：${barsCell}`].filter(Boolean).join('\n');
     out.push(sec);
   }
   return out;
 }
+// ---- Markdownの「曲情報」表（項目｜内容）と「構成表」を分けて読む ----
+// 見出し（### 曲情報 / ### 構成表）や、表の見出し「項目｜内容」で、曲情報の部分を見分ける
+function stSplitMd(text){
+  const info = [], struct = []; let mode = 'struct', title = '';
+  for(const raw of String(text).split(/\r?\n/)){
+    const line = raw.trim();
+    const h = line.match(/^(#{1,6})\s*(.+)$/);
+    if(h){
+      const t = h[2].replace(/\*\*/g, '').trim();
+      if(/曲情報|曲の情報|song\s*info|基本情報|情報/i.test(t)) mode = 'info';
+      else if(/構成|structure|form/i.test(t)) mode = 'struct';
+      else if(h[1].length===1 && !title) title = t;   // 「# 曲名」
+      continue;
+    }
+    if(line.includes('|')){
+      const c = stSplitRow(line).map(stCell);
+      if(c.length===2 && /^(項目|item|field)$/i.test(c[0]) && /^(内容|value|値)$/i.test(c[1])){ mode = 'info'; continue; }
+    }
+    if(/^[-*・]\s*[^:：|]+[:：]/.test(line)){ info.push(line); continue; }   // 「- キー: A」
+    (mode==='info' ? info : struct).push(line);
+  }
+  return {info, struct, title};
+}
+const ST_INFO_KEYS = [['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
+  ['duration',/曲時間|演奏時間|長さ|duration|length/i],['genre',/ジャンル|genre/i],['rhythm',/リズム|rhythm/i],['start',/はじめかた|始め方/],['end',/おわりかた|終わり方/],
+  ['url',/url|リファレンス/i],['notes',/^(メモ|備考|全体のメモ|notes?)$/i]];
+const ST_FLAT2SHARP = {Db:'C#', Eb:'D#', Gb:'F#', Ab:'G#', Bb:'A#', Cb:'B', Fb:'E', 'E#':'F', 'B#':'C'};
+function stNormKey(v){
+  const m = String(v).match(/([A-G])\s*([#♯b♭]?)/); if(!m) return '';
+  let root = m[1] + (m[2]==='♯' ? '#' : m[2]==='♭' ? 'b' : m[2]);
+  root = ST_FLAT2SHARP[root] || root;
+  const rest = String(v).slice(m.index + m[0].length).trim();
+  const minor = /^m(?!aj)/.test(rest) || /minor|マイナー|短調/i.test(v);
+  return root + (minor ? 'm' : '');
+}
+function stNormGenre(v){
+  const t = String(v).toLowerCase();
+  if(/funk|ファンク/.test(t)) return 'funk';
+  if(/soul|ソウル/.test(t)) return 'soul';
+  if(/r&b|r＆b|rhythm\s*(&|and)\s*blues/.test(t)) return 'rnb';
+  if(/blues|ブルース/.test(t)) return 'blues';
+  if(/classic|クラシック/.test(t)) return 'classic';
+  if(/latin|ラテン|bossa|salsa/.test(t)) return 'latin';
+  if(/歌謡/.test(t)) return 'kayo';
+  if(/pop|ポップ/.test(t)) return 'pops';
+  if(/rock|ロック/.test(t)) return 'rock';
+  return String(v).trim();
+}
+// 戻り値：{fields:{name, orig, key, ...}, extra:[メモに足す行]}
+function stParseInfo(lines, title){
+  const fields = {}, extra = [];
+  if(title) fields.name = title;
+  for(const line of lines){
+    let k, v;
+    if(line.includes('|')){ const c = stSplitRow(line).map(stCell); if(c.length < 2) continue; k = c[0]; v = c.slice(1).filter(Boolean).join(' / '); }
+    else { const m = line.match(/^[-*・]?\s*([^:：]+?)\s*[:：]\s*(.*)$/); if(!m) continue; k = m[1].replace(/\*\*/g, '').trim(); v = m[2].trim(); }
+    if(!k || !v) continue;
+    const hit = ST_INFO_KEYS.find(([, re]) => re.test(k));
+    if(!hit){ extra.push(`${k}：${v}`); continue; }
+    const f = hit[0];
+    if(f==='key'){ const n = stNormKey(v); if(n) fields.key = n; else extra.push(`${k}：${v}`); }
+    else if(f==='bpm'){ const n = v.match(/\d+(\.\d+)?/); if(n) fields.bpm = String(Math.round(+n[0])); if(!n || !/^\d+(\.\d+)?$/.test(v)) extra.push(`${k}：${v}`); }
+    else if(f==='duration'){ const n = v.match(/\d+:[0-5]\d/); if(n) fields.duration = n[0]; if(!n || n[0]!==v) extra.push(`${k}：${v}`); }
+    else if(f==='genre') fields.genre = stNormGenre(v);
+    else if(f==='notes') extra.unshift(v);
+    else fields[f] = v;
+  }
+  return {fields, extra};
+}
+// Markdown全体を読む：{secs, info:{fields, extra}}
+function stParseMd(text){
+  const parts = stSplitMd(text);
+  return {secs: stParseTable(parts.struct.join('\n')), info: stParseInfo(parts.info, parts.title)};
+}
+// 曲の空いている項目にだけ曲情報を入れる（すでにある値は上書きしない）。入れた項目名を返す
+const ST_INFO_LABEL = {name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
+function stFillEmptyInfo(s, info){
+  const done = [];
+  Object.keys(info.fields).forEach(f => {
+    if(f==='name') return;
+    const cur = String(s[f] || '').trim();
+    if(!cur || cur==='-'){ s[f] = info.fields[f]; done.push(ST_INFO_LABEL[f] || f); }
+  });
+  if(info.extra.length && !String(s.notes || '').trim()){ s.notes = info.extra.join('\n'); done.push('メモ'); }
+  return done;
+}
 window.stDoPaste = () => {
   const s = stSong(); if(!s) return;
   const ta = document.getElementById('st-paste'), msg = document.getElementById('st-paste-msg');
-  const secs = stParseTable(ta ? ta.value : '');
-  if(!secs.length){ if(msg) msg.textContent = 'セクションが見つかりません。各行に「セクション名」と「小節数」が入っているか確認してください。'; return; }
-  const apply = () => { stEnsure(s).sections = secs; stTouch(s); render(); showToast(`${secs.length}セクションを取り込みました`); };
+  const {secs, info} = stParseMd(ta ? ta.value : '');
+  if(!secs.length){ if(msg) msg.textContent = 'セクションが見つかりません。構成表の各行に「セクション名」と「小節数」が入っているか確認してください。'; return; }
+  const apply = () => {
+    stEnsure(s).sections = secs;
+    const filled = stFillEmptyInfo(s, info);
+    stTouch(s); render();
+    showToast(`${secs.length}セクションを取り込みました${filled.length ? `（曲情報：${filled.join('・')}）` : ''}`);
+  };
   if(hasStruct(s)) confirmAction(`「${s.name}」の今の構成（${s.struct.sections.length}セクション）を、貼り付けた構成表で置き換えますか？`, apply, '置き換える');
   else apply();
 };
@@ -2764,8 +2885,18 @@ function songFormHtml(f){
   // 新しい曲：ネット検索・ライブラリはタブのパネル、手入力は下のフォーム
   if(!f.id && stockRegTab !== 'manual') return stockRegPanelHtml();
   const seg = !f.id ? regSegHtml(stockRegTab, 'stock') : '';
+  const nSec = f.struct && f.struct.sections ? f.struct.sections.length : 0;
+  const mdPanel = f.id ? '' : `<details class="panel song-md" ${nSec ? 'open' : ''}>
+    <summary>Markdownから取り込む</summary>
+    <p class="st-note" style="margin-top:8px;">AIなどで作った「曲情報」と「構成表」の表を貼り付けると、下のフォームに曲情報が入り、構成表も一緒に登録されます。内容を確かめてから「保存」してください。</p>
+    <div class="field"><textarea id="song-md-paste" rows="6" placeholder="### 曲情報&#10;| 項目 | 内容 |&#10;| 曲名 | … |&#10;&#10;### 構成表&#10;| 区間 | バー数 | コード | … |"></textarea></div>
+    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="songMdImport()">フォームに入れる</button></div>
+    <div class="st-msg" id="song-md-msg"></div>
+    ${nSec ? `<div class="song-md-struct">構成表 ${nSec}セクションも一緒に登録されます</div>` : ''}
+  </details>`;
   return `${seg}
   ${f.id ? `<div class="ov-hint" style="margin-bottom:8px;">曲マスタの変更は、イベントの曲にも反映されます</div>` : ''}
+  ${mdPanel}
   <form class="panel" id="song-form">
     <div class="field"><label>曲名</label><input id="song-name-input" required value="${esc(f.name)}" autocomplete="off"></div>
     <div class="field-row">
@@ -2830,6 +2961,27 @@ document.addEventListener('submit', e => {
   }
 });
 document.addEventListener('click', e => { if(e.target.id==='song-cancel'){ finishSongEdit(); } });
+// 手入力：Markdownの曲情報をフォームに入れ、構成表は保存時に一緒に登録する
+window.songMdImport = () => {
+  const f = songForm; if(!f) return;
+  const ta = document.getElementById('song-md-paste'), msg = document.getElementById('song-md-msg');
+  const {secs, info} = stParseMd(ta ? ta.value : '');
+  const nInfo = Object.keys(info.fields).length;
+  if(!secs.length && !nInfo){ if(msg) msg.textContent = '曲情報も構成表も見つかりません。「| 項目 | 内容 |」や「| 区間 | バー数 | … |」の表を貼り付けてください。'; return; }
+  // 入力途中の内容を残してから、取り込んだ値で上書き
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  f.name = g('song-name-input'); f.bpm = g('song-bpm'); f.key = g('song-key');
+  if(document.getElementById('song-dur-min')) f.duration = g('song-dur-min') + ':' + String(g('song-dur-sec')).padStart(2,'0');
+  f.start = readStartEnd('song-start'); f.end = readStartEnd('song-end'); f.rhythm = readStartEnd('song-rhythm');
+  f.genre = g('song-genre'); f.orig = g('song-orig'); f.url = g('song-url'); f.notes = g('song-notes');
+  Object.assign(f, info.fields);
+  if(info.extra.length) f.notes = [f.notes, ...info.extra].filter(Boolean).join('\n');
+  if(secs.length) f.struct = {sections: secs};
+  render();
+  const m2 = document.getElementById('song-md-msg');
+  if(m2) m2.textContent = `${nInfo ? '曲情報をフォームに入れました。' : ''}${secs.length ? `構成表 ${secs.length}セクションを読み込みました。` : ''}内容を確かめて「保存」してください。`;
+  const nm = document.getElementById('song-name-input'); if(nm && nm.scrollIntoView) nm.scrollIntoView({block:'center'});
+};
 function finishSongEdit(){
   songForm = null;
   if(returnToLiveId && lives.find(l=>l.id===returnToLiveId)){
