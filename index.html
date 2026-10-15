@@ -615,6 +615,18 @@ body.struct-open header{display:none;}
 .st-mbar{position:fixed; left:0; right:0; bottom:0; z-index:80; background:var(--surface); border-top:1px solid var(--border); padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));}
 .st-mbar, .st-mbar button{touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
 .st-mbar-in{max-width:520px; margin:0 auto; display:flex; align-items:center; gap:6px;}
+/* たたむボタン：バーの右上に出るつまみ */
+.st-mbar .st-fold{position:absolute; right:12px; top:-28px; height:28px; min-width:44px; padding:0 10px; border:1px solid var(--border); border-bottom:none; border-radius:10px 10px 0 0; background:var(--surface); color:var(--muted);}
+.st-mbar .st-fold svg, .st-mbar-tab svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;}
+.st-mbar .st-mbar-tab{display:none;}
+/* たたんだ状態：右下の小さなつまみだけ（テンポと再生中の印） */
+.st-mbar.folded{left:auto; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px)); padding:0; background:none; border:none;}
+.st-mbar.folded .st-mbar-in, .st-mbar.folded .st-fold{display:none;}
+.st-mbar.folded .st-mbar-tab{display:inline-flex; gap:4px; height:40px; padding:0 12px; border-radius:999px; background:var(--surface); border:1px solid var(--border); box-shadow:0 4px 14px rgba(0,0,0,.18); font-size:15px;}
+.st-mbar-tab span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums;}
+.st-mbar-tab i{width:8px; height:8px; border-radius:50%; background:var(--accent); display:none;}
+.st-mbar-tab.run i{display:inline-block;}
+body.struct-open.st-bar-folded main{padding-bottom:72px;}
 .st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
 .st-mbar button svg{width:18px; height:18px; fill:currentColor;}
 .st-mbar .st-bpm{border:0; background:transparent; flex-direction:column; line-height:1; min-width:3.4em; padding:0 2px;}
@@ -685,13 +697,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.15.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.16.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-15';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.16.0': [
+    '構成表の下のテンポ窓を、右上の「﹀」でたたんで隠せるように。たたむと右下に小さなつまみ（テンポと再生中の印）だけが残り、タップで元に戻ります'
+  ],
   '1.15.0': [
     '曲マスタの「曲を登録」→「手入力」で、AIなどで作った「曲情報」と「構成表」のMarkdownを貼り付けて、フォームと構成表に一度に取り込めるように',
     '構成がまだない曲の構成表から、そのままMarkdownを貼り付けて取り込めるように',
@@ -2566,6 +2581,7 @@ function stSetBpm(v){
   box.querySelector('span').textContent = stM.bpm;
   box.querySelector('small').textContent = changed ? `↺ ${sv}` : (sv > 0 ? 'BPM' : 'BPM（仮）');
   box.setAttribute('aria-label', changed ? `曲のテンポ ${sv} に戻す` : 'テンポ');
+  const tb = document.getElementById('st-tab-bpm'); if(tb) tb.textContent = stM.bpm;
 }
 function stTick(){
   if(!stM.on) return;
@@ -2618,7 +2634,16 @@ function stGoBtn(){
   b.classList.toggle('run', stM.on);
   b.innerHTML = stM.on ? '<svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>' : '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>';
   b.setAttribute('aria-label', stM.on ? 'メトロノームを止める' : 'メトロノームを開始');
+  const tab = document.getElementById('st-mbar-tab'); if(tab) tab.classList.toggle('run', stM.on);
 }
+// テンポ窓のたたみ／展開（初期値は展開。状態は覚えておく）
+let stBarFolded = !!store.get('setlist_struct_bar_folded', false);
+function stApplyFold(){
+  const el = document.getElementById('st-mbar'); if(!el) return;
+  el.classList.toggle('folded', stBarFolded);
+  document.body.classList.toggle('st-bar-folded', stBarFolded);
+}
+window.stFoldBar = on => { stBarFolded = !!on; store.set('setlist_struct_bar_folded', stBarFolded); stApplyFold(); };
 // 下のバー：構成表の表示中だけ出す。作り直さず使い回す（連打できるように）
 function stMetroBar(show){
   let el = document.getElementById('st-mbar');
@@ -2626,7 +2651,9 @@ function stMetroBar(show){
   if(!el){
     el = document.createElement('div');
     el.id = 'st-mbar'; el.className = 'st-mbar';
-    el.innerHTML = `<div class="st-mbar-in">
+    el.innerHTML = `<button type="button" class="st-fold" onclick="stFoldBar(true)" aria-label="テンポ窓をたたむ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button type="button" class="st-mbar-tab" id="st-mbar-tab" onclick="stFoldBar(false)" aria-label="テンポ窓を開く"><i></i>♩<span id="st-tab-bpm">120</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+    <div class="st-mbar-in">
       <button type="button" data-step="-1" aria-label="テンポを下げる（長押しで連続）">−</button>
       <button type="button" class="st-bpm" id="st-bpm" onclick="stSetBpm(stSongBpm())"><span>120</span><small>BPM</small></button>
       <button type="button" data-step="1" aria-label="テンポを上げる（長押しで連続）">＋</button>
@@ -2639,6 +2666,7 @@ function stMetroBar(show){
     stBindSteps(el);
   }
   el.hidden = false;
+  stApplyFold();
   stSetBpm(stM.bpm); stGoBtn();
   const snd = document.getElementById('st-sound'); if(snd) snd.setAttribute('aria-pressed', stM.sound);
 }
@@ -2656,7 +2684,7 @@ function stCleanupOutside(){
   if(structOpen) return;
   if(stM.on) stMetroStop();
   const el = document.getElementById('st-mbar'); if(el) el.hidden = true;
-  document.body.classList.remove('struct-open');
+  document.body.classList.remove('struct-open'); document.body.classList.remove('st-bar-folded');
 }
 
 const main = document.getElementById('main');
