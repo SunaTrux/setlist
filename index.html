@@ -626,7 +626,19 @@ body.struct-open header{display:none;}
 .st-mbar-tab span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums;}
 .st-mbar-tab i{width:8px; height:8px; border-radius:50%; background:var(--accent); display:none;}
 .st-mbar-tab.run i{display:inline-block;}
-body.struct-open.st-bar-folded main{padding-bottom:72px;}
+body.struct-open main{padding-bottom:150px;}
+body.struct-open.st-bar-folded main{padding-bottom:84px;}
+/* 左下の「次の曲」：テンポ窓の上（たたんだら画面の下）に大きく */
+.st-next{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; max-width:calc(100% - 140px); min-height:56px; padding:6px 14px 6px 16px; border-radius:14px; border:none; background:var(--accent); color:var(--accent-text); font-family:inherit; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; text-align:left; box-shadow:0 4px 14px rgba(0,0,0,.22); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+body.st-bar-folded .st-next{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.st-next[hidden]{display:none;}
+.st-next-lab{font-size:12px; font-weight:700; opacity:.85;}
+.st-next-lab b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; margin-left:4px;}
+.st-next-name{font-size:18px; font-weight:800; line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:24px;}
+.st-next svg{position:absolute; right:10px; top:50%; transform:translateY(-50%); width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
+.st-next:disabled{background:var(--surface2); color:var(--muted); border:1px solid var(--border); box-shadow:none; min-height:44px; cursor:default;}
+.st-ed-foot{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;}
+.st-ed-foot .btn-block{min-height:48px; font-size:16px;}
 .st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
 .st-mbar button svg{width:18px; height:18px; fill:currentColor;}
 .st-mbar .st-bpm{border:0; background:transparent; flex-direction:column; line-height:1; min-width:3.4em; padding:0 2px;}
@@ -697,13 +709,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.16.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-15';
+const APP_VERSION = '1.17.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.17.0': [
+    '構成表の左下に、大きな「次の曲」ボタン（次の曲名つき）。ライブ中に片手で押しやすく',
+    '構成表の編集画面の一番下に「構成表に戻る」「セットリストに戻る」',
+    '構成表の表示切り替えの「小節数」を「小節」に'
+  ],
   '1.16.0': [
     '構成表の下のテンポ窓を、右上の「﹀」でたたんで隠せるように。たたむと右下に小さなつまみ（テンポと再生中の印）だけが残り、タップで元に戻ります'
   ],
@@ -1723,7 +1740,7 @@ function cleanupEmptyLive(){
 // 構成は曲マスタの曲に持つ：song.struct = {sections:[{name,bars,times,chord,vocal,play,kime,kimeBar}], view:{bars,prog,chord,vocal,play,kime}}
 const ST_SEC = (name, bars, o = {}) => ({name, bars, times: o.times || 1, chord: o.chord || '', vocal: o.vocal || '', play: o.play || '', kime: o.kime || '', kimeBar: o.kimeBar || ''});
 const ST_VIEW_ALL = {bars:true, prog:true, chord:true, vocal:true, play:true, kime:true};
-const ST_FILTERS = [['bars','小節数'],['prog','バー'],['chord','コード'],['vocal','歌'],['play','演奏'],['kime','キメ']];
+const ST_FILTERS = [['bars','小節'],['prog','バー'],['chord','コード'],['vocal','歌'],['play','演奏'],['kime','キメ']];
 let structOpen = null;   // イベントから：{liveId, idx}（idx はセットリストの位置）／曲マスタから：{songId}
 let structEdit = false;  // 構成の編集中
 let stOpenSec = null;    // 構成表でセクション名をタップして開いた、その場の編集（セクション番号）
@@ -2172,6 +2189,10 @@ function stEditorHtml(s){
       <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-with-icon" onclick="stCopyMd()">コピー${COPY_ICON_SVG}</button></div>
       <div class="st-msg" id="st-md-msg"></div>
     </div>
+  </div>
+  <div class="st-ed-foot">
+    <button type="button" class="btn btn-accent btn-block" onclick="setStructEdit(false)">構成表に戻る</button>
+    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${stFromStock() ? '曲マスタ' : structOpen.fromList ? 'イベント一覧' : 'セットリスト'}に戻る</button>
   </div>`;
 }
 // ---- 曲情報（はじめかた・おわりかた・全体のメモ）の編集 ----
@@ -2645,7 +2666,31 @@ function stApplyFold(){
 }
 window.stFoldBar = on => { stBarFolded = !!on; store.set('setlist_struct_bar_folded', stBarFolded); stApplyFold(); };
 // 下のバー：構成表の表示中だけ出す。作り直さず使い回す（連打できるように）
+// 左下の「次の曲」ボタン（ライブ中に押しやすいよう大きく）
+function stNextBtn(show){
+  let b = document.getElementById('st-next');
+  if(!show){ if(b) b.hidden = true; return; }
+  if(!b){
+    b = document.createElement('button');
+    b.type = 'button'; b.id = 'st-next'; b.className = 'st-next';
+    b.onclick = () => structNav(1);
+    document.body.appendChild(b);
+  }
+  const seq = stSeq(), pos = seq.indexOf(stCur()), k = seq[pos + 1];
+  let next = null;
+  if(k!==undefined){
+    if(stFromStock()) next = songs.find(x => x.id===k) || null;
+    else { const l = stLive(), e = l && l.setlist[k]; next = e ? songs.find(x => x.id===e.songId) || null : null; }
+  }
+  b.disabled = !next;
+  b.innerHTML = next
+    ? `<span class="st-next-lab">次の曲 <b>${pos+2}/${seq.length}</b></span><span class="st-next-name">${esc(next.name)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`
+    : `<span class="st-next-lab">最後の曲です</span>`;
+  b.setAttribute('aria-label', next ? `次の曲：${next.name}` : '最後の曲です');
+  b.hidden = false;
+}
 function stMetroBar(show){
+  stNextBtn(show);
   let el = document.getElementById('st-mbar');
   if(!show){ if(el) el.hidden = true; return; }
   if(!el){
@@ -2684,6 +2729,7 @@ function stCleanupOutside(){
   if(structOpen) return;
   if(stM.on) stMetroStop();
   const el = document.getElementById('st-mbar'); if(el) el.hidden = true;
+  stNextBtn(false);
   document.body.classList.remove('struct-open'); document.body.classList.remove('st-bar-folded');
 }
 
