@@ -515,6 +515,12 @@ body.struct-open main{padding-bottom:96px; padding-top:calc(10px + env(safe-area
 body.struct-open header{display:none;}
 .st-head .back-btn{min-height:34px; padding:4px 12px 4px 8px; font-size:13px; border-radius:8px; gap:4px;}
 .st-info{display:flex; flex-direction:column; gap:4px; padding:6px 2px 10px;}
+.st-info-row{display:flex; align-items:flex-start; gap:8px;}
+.st-info-row .st-info{flex:1; min-width:0;}
+.st-min-btn{flex-shrink:0; margin-top:4px; height:30px; padding:0 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
+.st-min-btn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg);}
+.st-se-min{display:block; font-size:14px; overflow-wrap:anywhere;}
+.st-se-min.st-memo{font-weight:500; color:var(--muted); font-size:13px;}
 .st-info .st-se{font-weight:600;}
 .st-info .st-se .lab{min-width:5.6em; text-align:center; box-sizing:border-box;}
 .st-info .st-memo{font-weight:400; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere;}
@@ -709,13 +715,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.17.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.18.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.18.0': [
+    '構成表に「最小」表示。はじめかたの行の右端のボタンで切り替え。曲情報のチップ・列名・コード／ディグリーと移調の切り替えを隠し、はじめかた → おわりかたを1行に'
+  ],
   '1.17.0': [
     '構成表の左下に、大きな「次の曲」ボタン（次の曲名つき）。ライブ中に片手で押しやすく',
     '構成表の編集画面の一番下に「構成表に戻る」「セットリストに戻る」',
@@ -1945,6 +1954,9 @@ window.toggleStructFilter = k => {
 function stTotalBars(s){ return ((s.struct && s.struct.sections) || []).reduce((a, x) => a + stInt(x.bars) * stTimes(x), 0); }
 function stShow(v){ return v && v!=='-' ? v : ''; }
 
+// 最小表示：チップ・列名・コード／ディグリーと移調の切り替えを隠し、はじめかた→おわりかたを1行に（状態は覚えておく）
+let stMin = !!store.get('setlist_struct_min', false);
+window.toggleStructMin = () => { stMin = !stMin; store.set('setlist_struct_min', stMin); render(); };
 function renderStruct(){
   const live = stLive(), e = stEntry(), s = stSong();
   if((!stFromStock() && !live) || !s){ structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; stMetroStop(); render(); return; }
@@ -1972,7 +1984,7 @@ function renderStruct(){
       <button type="button" onclick="structNav(1)" ${pos>=seq.length-1?'disabled':''} aria-label="次の曲">${arrow('M9 5l7 7-7 7')}</button>
     </div>
   </div>
-  <div class="st-meta">${chips.join('')}</div>`;
+  ${structEdit || !stMin ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;
   if(structEdit){ html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
 
   const v = stView(s);
@@ -1983,10 +1995,12 @@ function renderStruct(){
   // はじめかた・おわりかた・全体のメモは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
   const seLine = (lab, v, cls = '') => `<div class="st-se"><span class="lab">${lab}</span><span class="${cls}">${esc(v)}</span></div>`;
   const memo = stShow(effVal(e, s, 'notes'));
-  if(start || end || memo){
-    html += `<div class="st-info">${start ? seLine('はじめかた', start) : ''}${end ? seLine('おわりかた', end) : ''}${memo ? seLine('全体のメモ', memo, 'st-memo') : ''}</div>`;
-  }
-  if(hasChords && v.chord) html += stChordBarHtml(s, e, stCC);
+  const minBtn = `<button type="button" class="st-min-btn" aria-pressed="${stMin}" onclick="toggleStructMin()">${stMin ? '標準' : '最小'}</button>`;
+  const infoInner = stMin
+    ? `${(start || end) ? `<div class="st-se st-se-min">${esc(start || '-')} → ${esc(end || '-')}</div>` : ''}${memo ? `<div class="st-se st-se-min st-memo">${esc(memo)}</div>` : ''}`
+    : `${start ? seLine('はじめかた', start) : ''}${end ? seLine('おわりかた', end) : ''}${memo ? seLine('全体のメモ', memo, 'st-memo') : ''}`;
+  html += `<div class="st-info-row"><div class="st-info">${infoInner}</div>${minBtn}</div>`;
+  if(hasChords && v.chord && !stMin) html += stChordBarHtml(s, e, stCC);
   if(!secs.length){
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>
       <div class="st-empty-paste">
@@ -1997,8 +2011,8 @@ function renderStruct(){
       </div></div>`;
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
-    html += `<div class="st-table ${hide}" id="st-table"><div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>${secs.map((x, si) => stRowHtml(x, si) + (stOpenSec===si ? `<div class="st-inline-ed">${stSecEdHtml(x, si, secs.length, true)}</div>` : '')).join('')}</div>${stSecNamesDatalist()}
-    <p class="st-tap-hint">セクション名をタップすると、そのセクションをここで編集できます。</p>`;
+    html += `<div class="st-table ${hide}" id="st-table">${stMin ? '' : `<div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>`}${secs.map((x, si) => stRowHtml(x, si) + (stOpenSec===si ? `<div class="st-inline-ed">${stSecEdHtml(x, si, secs.length, true)}</div>` : '')).join('')}</div>${stSecNamesDatalist()}
+    ${stMin ? '' : '<p class="st-tap-hint">セクション名をタップすると、そのセクションをここで編集できます。</p>'}`;
   }
   main.innerHTML = html;
   stMetroBar(true);
