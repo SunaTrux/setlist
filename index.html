@@ -762,13 +762,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.23.5';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-16';
+const APP_VERSION = '1.24.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.24.0': [
+    '構成表の曲送りが一周するように：最後の曲の次は先頭の曲、先頭の曲の前は最後の曲へ（一周したときは画面の真ん中でお知らせ）'
+  ],
   '1.23.2': [
     '構成表のチップから「曲順」を外しました（曲名の前の「3/7」と同じ内容のため）'
   ],
@@ -2003,14 +2006,20 @@ window.closeStruct = () => {
   const row = idx!==null && idx!==undefined && document.querySelector(`.setlist-item[data-drag-list="${fromStock?'stock':'live'}"][data-key="${idx}"]`);
   if(row && row.scrollIntoView){ try{ row.scrollIntoView({block:'center'}); }catch(e){ row.scrollIntoView(); } }
 };
+// 曲送りは一周する：最後の曲の次は先頭の曲、先頭の曲の前は最後の曲
 window.structNav = d => {
   const seq = stSeq(); const pos = seq.indexOf(stCur());
-  const k = seq[pos + d]; if(k===undefined) return;
+  if(seq.length < 2 || pos < 0) return false;
+  const np = (pos + d + seq.length) % seq.length;
+  const wrapped = (pos + d) !== np;
+  const k = seq[np];
   if(stFromStock()) structOpen.songId = k; else structOpen.idx = k;
   stOpenSec = null; stTrans = 0;
   // 編集中なら編集のまま次の曲へ（構成表を見ていたら構成表のまま）
   stSetBpm(stSongBpm());   // 曲が変わったらその曲のテンポに（鳴っていればそのまま新しいテンポで）
   render(); scrollToTop();
+  if(wrapped){ const s = stSong(); stFlash(s ? s.name : '', d > 0 ? `先頭の曲に戻りました　1/${seq.length}` : `最後の曲へ　${seq.length}/${seq.length}`); }
+  return {wrapped, pos: np, len: seq.length};
 };
 window.stToggleSec = si => {
   stOpenSec = stOpenSec===si ? null : si;
@@ -2793,14 +2802,15 @@ function stNextBtn(show){
     if(stFromStock()) return songs.find(x => x.id===k) || null;
     const l = stLive(), e = l && l.setlist[k]; return e ? songs.find(x => x.id===e.songId) || null : null;
   };
-  const prev = songAt(seq[pos - 1]), next = songAt(seq[pos + 1]);
+  const n = seq.length, ring = n > 1 && pos >= 0;
+  const prev = ring ? songAt(seq[(pos - 1 + n) % n]) : null, next = ring ? songAt(seq[(pos + 1) % n]) : null;
   const pb = g.querySelector('#st-prev'), nb = g.querySelector('#st-next');
   pb.disabled = !prev;
   pb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
-  pb.setAttribute('aria-label', prev ? `前の曲：${prev.name}` : '最初の曲です');
+  pb.setAttribute('aria-label', prev ? `前の曲：${prev.name}` : '前の曲はありません');
   nb.disabled = !next;
   nb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`;
-  nb.setAttribute('aria-label', next ? `次の曲：${next.name}` : '最後の曲です');
+  nb.setAttribute('aria-label', next ? `${pos === n - 1 ? '先頭の曲に戻る' : '次の曲'}：${next.name}` : '次の曲はありません');
   g.hidden = false;
 }
 function stMetroBar(show){
@@ -2867,11 +2877,10 @@ document.addEventListener('touchend', e => {
   const need = Math.max(80, window.innerWidth * 0.25);
   if(Math.abs(dx) < need || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - sw.t > 700) return;
   const d = dx < 0 ? 1 : -1;
-  const seq = stSeq(), pos = seq.indexOf(stCur());
-  if(seq[pos + d] === undefined){ stFlash(d > 0 ? '最後の曲です' : '最初の曲です', ''); return; }
-  structNav(d);
+  const r = structNav(d);
+  if(!r || r.wrapped) return;   // 一周したときは structNav 側でお知らせを出す
   const s = stSong();
-  stFlash(s ? s.name : '', `${d > 0 ? '次の曲' : '前の曲'}　${pos + d + 1}/${seq.length}`);
+  stFlash(s ? s.name : '', `${d > 0 ? '次の曲' : '前の曲'}　${r.pos + 1}/${r.len}`);
 }, {passive: true});
 document.addEventListener('touchcancel', () => { stSw = null; }, {passive: true});
 // 切り替わった曲名を画面の真ん中に一瞬大きく出す
