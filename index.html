@@ -761,7 +761,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.23.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.23.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
@@ -2044,7 +2044,6 @@ function renderStruct(){
   const tb = stTotalBars(s), nb = parseInt(bpm, 10);
   const chips = [];
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
-  if(bpm) chips.push(`<span class="st-chip">BPM<b>${esc(bpm)}</b></span>`);
   if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
   if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
   if(dur) chips.push(`<span class="st-chip st-chip-plain" aria-label="曲時間 ${esc(normDurStr(dur))}"><b>${esc(normDurStr(dur))}</b></span>`);
