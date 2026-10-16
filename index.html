@@ -664,6 +664,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 /* 1拍目は同じ色で大きく光らせて区別する */
 .st-dots i.on.acc{background:var(--accent); transform:scale(1.45); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);}
 .st-mbar button[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg);}
+.st-mbar button[hidden]{display:none;}
 .st-mbar .st-go{width:52px; background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .st-mbar .st-go.run{background:var(--text); border-color:var(--text); color:var(--bg);}
 
@@ -762,13 +763,19 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.24.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.25.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.25.0': [
+    '曲ごとに「拍子」（自動・4/4・3/4・6/8）。自動はリズムパターン（3拍子・ワルツ・6/8など）から判断',
+    'メトロノームが拍子に合わせて鳴るように：3拍子は3つ、6/8は付点4分音符の大きな2拍（点も2つ）',
+    '6/8では構成表のテンポ窓の「♪」で、間の8分音符も小さく鳴らせます',
+    '構成表のチップに、4/4以外のときだけ拍子を表示'
+  ],
   '1.24.0': [
     '構成表の曲送りが一周するように：最後の曲の次は先頭の曲、先頭の曲の前は最後の曲へ（一周したときは画面の真ん中でお知らせ）'
   ],
@@ -1505,6 +1512,38 @@ function applyDragOrder(list, keys){
 let metro = {playing:false, timer:null, nextTime:0, beat:0};
 let metroPanel = null;  // {source:'stock'|'live', songId, liveId, entry, name, bpm}
 let metroTaps = [];
+// ---- 拍子：曲ごとに「自動（リズムパターンから判断）・4/4・3/4・6/8」 ----
+const METERS = ['4/4','3/4','6/8'];
+function meterFromRhythm(r){
+  const t = String(r || '');
+  if(/6\s*\/\s*8/.test(t)) return '6/8';
+  if(/3\s*拍子|ワルツ|waltz|3\s*\/\s*4/i.test(t)) return '3/4';
+  return '4/4';
+}
+function songMeter(s){ return s && METERS.includes(s.meter) ? s.meter : meterFromRhythm(s && s.rhythm); }
+// 6/8 は BPM を付点4分音符（大きな2拍）で数える。細かい8分音符を鳴らすかは設定で切り替え
+let metroSub68 = !!store.get('setlist_metro_sub68', false);
+function meterPlan(m){
+  if(m==='3/4') return {beats:3, subs:1};
+  if(m==='6/8') return {beats:2, subs: metroSub68 ? 3 : 1};
+  return {beats:4, subs:1};
+}
+// level 2：1拍目　1：拍の頭　0：細かい8分音符（小さく）
+function scheduleLevelClick(time, level){
+  const ctx = getCtx();
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.frequency.value = level===2 ? 1600 : level===1 ? 1000 : 1300;
+  gain.gain.setValueAtTime(0.0001, time);
+  gain.gain.exponentialRampToValueAtTime(level===2 ? 0.6 : level===1 ? 0.4 : 0.12, time+0.002);
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + (level===0 ? 0.03 : 0.05));
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(time); osc.stop(time+0.06);
+}
+function meterOptionsHtml(cur, rhythm){
+  const auto = meterFromRhythm(rhythm);
+  return `<option value="" ${!METERS.includes(cur)?'selected':''}>自動（リズムパターンから：${auto}）</option>` +
+    METERS.map(m => `<option value="${m}" ${cur===m?'selected':''}>${m}${m==='6/8'?'（付点4分で2拍）':''}</option>`).join('');
+}
 function scheduleClick(time, accent){
   const ctx = getCtx();
   const osc = ctx.createOscillator(), gain = ctx.createGain();
@@ -1515,6 +1554,17 @@ function scheduleClick(time, accent){
   osc.connect(gain).connect(ctx.destination);
   osc.start(time); osc.stop(time+0.06);
 }
+function metroPanelSong(){
+  const p = metroPanel; if(!p) return null;
+  if(p.source==='stock') return songs.find(x=>x.id===p.songId) || null;
+  return p.entry ? songs.find(x=>x.id===p.entry.songId) || null : null;
+}
+function metroPanelPlan(){ return meterPlan(songMeter(metroPanelSong())); }
+function syncPanelDots(){
+  const bd = document.querySelector('#metro-sheet .metro-beats'); if(!bd) return;
+  const n = metroPanelPlan().beats;
+  if(bd.children.length !== n) bd.innerHTML = '<span></span>'.repeat(n);
+}
 function flashBeat(n, delaySec){
   setTimeout(() => {
     const dots = document.querySelectorAll('#metro-sheet .metro-beats span');
@@ -1524,10 +1574,13 @@ function flashBeat(n, delaySec){
 function metroTick(){
   if(!metro.playing || !metroPanel) return;
   const ctx = getCtx();
+  const pl = metroPanelPlan();
   while(metro.nextTime < ctx.currentTime + 0.12){
-    scheduleClick(metro.nextTime, metro.beat%4===0);
-    flashBeat(metro.beat%4, metro.nextTime - ctx.currentTime);
-    metro.nextTime += 60 / metroPanel.bpm;
+    // metro.beat は細かい刻みも含めた通し番号
+    const onBeat = metro.beat % pl.subs === 0, bi = Math.floor(metro.beat / pl.subs) % pl.beats;
+    scheduleLevelClick(metro.nextTime, onBeat ? (bi===0 ? 2 : 1) : 0);
+    if(onBeat) flashBeat(bi, metro.nextTime - ctx.currentTime);
+    metro.nextTime += 60 / metroPanel.bpm / pl.subs;
     metro.beat++;
   }
 }
@@ -1634,6 +1687,7 @@ function renderMetroSheet(){
     const pb = document.getElementById('metro-play'); const lbl = metro.playing ? '■ 停止' : '▶ 再生'; if(pb && pb.textContent !== lbl) pb.textContent = lbl;
     const n = document.getElementById('metro-info'); if(n && el.dataset.song !== String(pos)+s.id){ n.scrollTop = 0; }
     el.dataset.song = String(pos)+s.id;
+    syncPanelDots();
     return;
   }
   if(!el){
@@ -1653,7 +1707,7 @@ function renderMetroSheet(){
     </div>
     <div class="metro-timer" id="metro-timer">${parts['metro-timer']}</div>
     <div class="metro-info" id="metro-info">${parts['metro-info']}</div>
-    <div class="metro-beats" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div class="metro-beats" aria-hidden="true">${'<span></span>'.repeat(meterPlan(songMeter(s)).beats)}</div>
     <div class="metro-bpm-row">
       <button type="button" class="metro-step" onclick="stepMetroBpm(-1)" aria-label="テンポを1下げる">−</button>
       <div class="metro-bpm"><span id="metro-bpm-val" class="mono">${p.bpm}</span><small>BPM</small></div>
@@ -2055,6 +2109,7 @@ function renderStruct(){
   const chips = [];
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
   if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
+  { const m = songMeter(s); if(m !== '4/4') chips.push(`<span class="st-chip st-chip-plain" aria-label="拍子 ${m}"><b>${m}</b></span>`); }
   if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
   if(dur) chips.push(`<span class="st-chip st-chip-plain" aria-label="曲時間 ${esc(normDurStr(dur))}"><b>${esc(normDurStr(dur))}</b></span>`);
   const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -2338,6 +2393,8 @@ function stMasterOnlyHtml(s){
       <div class="field"><label>ジャンル</label><select id="st-f-genre">${genreOptionsHtml(s.genre)}</select></div>
       ${startEndHtml('st-f-rhythm', 'リズムパターン', s.rhythm, RHYTHM_OPTS)}
     </div>
+    <div class="field"><label>拍子（メトロノーム）</label><select id="st-f-meter">${meterOptionsHtml(s.meter, s.rhythm)}</select>
+      <div class="st-note" style="margin:4px 0 0;">6/8 は BPM を付点4分音符（大きな2拍）で数えます</div></div>
     <div class="field"><label>キーの表記（♯・♭）</label><select id="st-f-acc">
       <option value="" ${!s.acc?'selected':''}>自動（キーに合わせる）</option>
       <option value="#" ${s.acc==='#'?'selected':''}>♯で表記（C♯・F♯・A♯…）</option>
@@ -2418,6 +2475,7 @@ function stFieldFromId(id){
   if(id==='st-f-orig') return 'orig';
   if(id==='st-f-url') return 'url';
   if(id==='st-f-acc') return 'acc';
+  if(id==='st-f-meter') return 'meter';
   return null;
 }
 function stReadField(f){
@@ -2427,7 +2485,7 @@ function stReadField(f){
   if(f==='end') return readStartEnd('st-end');
   if(f==='rhythm') return readStartEnd('st-f-rhythm');
   if(f==='notes') return val('st-notes').replace(/\s+$/, '');
-  return String(({bpm:val('st-f-bpm'), key:val('st-f-key'), name:val('st-f-name'), genre:val('st-f-genre'), orig:val('st-f-orig'), url:val('st-f-url'), acc:val('st-f-acc')})[f] || '').trim();
+  return String(({bpm:val('st-f-bpm'), key:val('st-f-key'), name:val('st-f-name'), genre:val('st-f-genre'), orig:val('st-f-orig'), url:val('st-f-url'), acc:val('st-f-acc'), meter:val('st-f-meter')})[f] || '').trim();
 }
 function stSaveField(f){
   const s = stSong(); if(!s || !f) return;
@@ -2438,6 +2496,11 @@ function stSaveField(f){
     const old = s[f];
     s[f] = f==='name' ? v.trim() : v;
     stTouch(s);
+    if(f==='rhythm' || f==='meter'){
+      const ms = document.getElementById('st-f-meter');
+      if(ms){ const cur = ms.value; ms.innerHTML = meterOptionsHtml(cur, s.rhythm); ms.value = cur; }
+      stSyncMeter();
+    }
     if(f==='acc'){ const ks = document.getElementById('st-f-key'); if(ks){ const cur = ks.value; ks.innerHTML = keyOptionsHtml(cur, s); ks.value = cur; } }
     // 曲マスタのキーを変えたら、コードも合わせて移調するか選べる
     if(f==='key' && !e && stHasChords(s)){
@@ -2595,13 +2658,15 @@ function stSplitMd(text){
     if(line.includes('|')){
       const c = stSplitRow(line).map(stCell);
       if(c.length===2 && /^(項目|item|field)$/i.test(c[0]) && /^(内容|value|値)$/i.test(c[1])){ mode = 'info'; continue; }
+      // 見出しなしで構成表の表が始まったら（「区間｜小節数…」のような見出し行）、構成表として読む
+      if(mode==='info' && !c.some(x => /\d/.test(x)) && c.map(x => (ST_COLS.find(([, re]) => re.test(x)) || [null])[0]).filter(Boolean).length >= 2) mode = 'struct';
     }
     if(/^[-*・]\s*[^:：|]+[:：]/.test(line)){ info.push(line); continue; }   // 「- キー: A」
     (mode==='info' ? info : struct).push(line);
   }
   return {info, struct, title};
 }
-const ST_INFO_KEYS = [['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
+const ST_INFO_KEYS = [['meter',/^(拍子|time\s*signature|meter)$/i],['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
   ['duration',/曲時間|演奏時間|長さ|duration|length/i],['genre',/ジャンル|genre/i],['rhythm',/リズム|rhythm/i],['start',/はじめかた|始め方/],['end',/おわりかた|終わり方/],
   ['url',/url|リファレンス/i],['notes',/^(メモ|備考|全体のメモ|notes?)$/i]];
 const ST_FLAT2SHARP = {Db:'C#', Eb:'D#', Gb:'F#', Ab:'G#', Bb:'A#', Cb:'B', Fb:'E', 'E#':'F', 'B#':'C'};
@@ -2638,6 +2703,7 @@ function stParseInfo(lines, title){
     const hit = ST_INFO_KEYS.find(([, re]) => re.test(k));
     if(!hit){ extra.push(`${k}：${v}`); continue; }
     const f = hit[0];
+    if(f==='meter'){ const mm = v.match(/(\d+)\s*\/\s*(\d+)/); const n = mm ? mm[1]+'/'+mm[2] : ''; if(METERS.includes(n)) fields.meter = n; else extra.push(`${k}：${v}`); continue; }
     if(f==='key'){ const n = stNormKey(v); if(n) fields.key = n; else extra.push(`${k}：${v}`); }
     else if(f==='bpm'){ const n = v.match(/\d+(\.\d+)?/); if(n) fields.bpm = String(Math.round(+n[0])); if(!n || !/^\d+(\.\d+)?$/.test(v)) extra.push(`${k}：${v}`); }
     else if(f==='duration'){ const n = v.match(/\d+:[0-5]\d/); if(n) fields.duration = n[0]; if(!n || n[0]!==v) extra.push(`${k}：${v}`); }
@@ -2653,7 +2719,7 @@ function stParseMd(text){
   return {secs: stParseTable(parts.struct.join('\n')), info: stParseInfo(parts.info, parts.title)};
 }
 // 曲の空いている項目にだけ曲情報を入れる（すでにある値は上書きしない）。入れた項目名を返す
-const ST_INFO_LABEL = {name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
+const ST_INFO_LABEL = {meter:'拍子', name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
 function stFillEmptyInfo(s, info){
   const done = [];
   Object.keys(info.fields).forEach(f => {
@@ -2682,7 +2748,7 @@ function stToMarkdown(s, e){
   const cell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
   const L = [`# ${s.name || '無題の曲'}`, ''];
   const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
-  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
+  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['拍子', METERS.includes(s.meter) ? s.meter : ''], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
   if(info.length){ info.forEach(([k, v]) => L.push(`- ${k}: ${v}`)); L.push(''); }
   L.push('| 区間 | 小節数 | 回数 | キメ小節 | コード | 歌詞メモ | 演奏メモ | キメ |');
   L.push('|------|--------|------|----------|--------|----------|----------|------|');
@@ -2725,12 +2791,16 @@ function stSetBpm(v){
 function stTick(){
   if(!stM.on) return;
   const ctx = getCtx();
+  const pl = meterPlan(songMeter(stSong()));
   while(stM.next < ctx.currentTime + 0.12){
-    const b = stM.beat % 4;
-    if(stM.sound) scheduleClick(stM.next, b===0);
-    const delay = Math.max(0, (stM.next - ctx.currentTime) * 1000);
-    setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k===b)); }, delay);   // 今の拍だけ光らせる
-    stM.next += 60 / stM.bpm; stM.beat++;
+    // stM.beat は細かい刻み（6/8 の8分音符）も含めた通し番号
+    const onBeat = stM.beat % pl.subs === 0, b = Math.floor(stM.beat / pl.subs) % pl.beats;
+    if(stM.sound) scheduleLevelClick(stM.next, onBeat ? (b===0 ? 2 : 1) : 0);
+    if(onBeat){
+      const delay = Math.max(0, (stM.next - ctx.currentTime) * 1000);
+      setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k===b)); }, delay);   // 今の拍だけ光らせる
+    }
+    stM.next += 60 / stM.bpm / pl.subs; stM.beat++;
   }
 }
 function stMetroStart(){
@@ -2827,6 +2897,7 @@ function stMetroBar(show){
       <button type="button" class="st-bpm" id="st-bpm" onclick="stSetBpm(stSongBpm())"><span>120</span><small>BPM</small></button>
       <button type="button" data-step="1" aria-label="テンポを上げる（長押しで連続）">＋</button>
       <div class="st-dots" id="st-dots" aria-hidden="true"><i class="acc"></i><i></i><i></i><i></i></div>
+      <button type="button" id="st-sub" class="st-sub" aria-pressed="false" aria-label="8分音符も鳴らす" onclick="stToggleSub()" hidden>♪</button>
       <button type="button" onclick="stTap()">TAP</button>
       <button type="button" id="st-sound" aria-pressed="true" aria-label="クリック音" onclick="stToggleSound()">音</button>
       <button type="button" class="st-go" id="st-go" onclick="stM.on ? stMetroStop() : stMetroStart()"></button>
@@ -2836,9 +2907,19 @@ function stMetroBar(show){
   }
   el.hidden = false;
   stApplyFold();
+  stSyncMeter();
   stSetBpm(stM.bpm); stGoBtn();
   const snd = document.getElementById('st-sound'); if(snd) snd.setAttribute('aria-pressed', stM.sound);
 }
+// 曲の拍子に合わせて、点の数と「♪（8分音符）」ボタンをそろえる
+function stSyncMeter(){
+  const m = songMeter(stSong()), pl = meterPlan(m);
+  const dots = document.getElementById('st-dots');
+  if(dots && dots.children.length !== pl.beats) dots.innerHTML = '<i class="acc"></i>' + '<i></i>'.repeat(pl.beats - 1);
+  const sb = document.getElementById('st-sub');
+  if(sb){ sb.hidden = m !== '6/8'; sb.setAttribute('aria-pressed', metroSub68); }
+}
+window.stToggleSub = () => { metroSub68 = !metroSub68; store.set('setlist_metro_sub68', metroSub68); stSyncMeter(); };
 window.stSetBpm = stSetBpm; window.stSongBpm = stSongBpm; window.stM = stM;
 window.stMetroStart = stMetroStart; window.stMetroStop = stMetroStop;
 window.stToggleSound = () => { stM.sound = !stM.sound; const b = document.getElementById('st-sound'); if(b) b.setAttribute('aria-pressed', stM.sound); };
@@ -3152,6 +3233,7 @@ function songFormHtml(f){
       <div class="field"><label>ジャンル</label><select id="song-genre">${genreOptionsHtml(f.genre)}</select></div>
       ${startEndHtml('song-rhythm', 'リズムパターン', f.rhythm, RHYTHM_OPTS)}
     </div>
+    <div class="field"><label>拍子（メトロノーム）</label><select id="song-meter">${meterOptionsHtml(f.meter, f.rhythm)}</select></div>
     ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
     ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
@@ -3179,6 +3261,7 @@ document.addEventListener('submit', e => {
     f.notes = document.getElementById('song-notes').value.trim();
     f.genre = document.getElementById('song-genre').value;
     f.rhythm = readStartEnd('song-rhythm');
+    f.meter = (document.getElementById('song-meter') || {}).value || '';
     f.orig = document.getElementById('song-orig').value.trim();
     if(!f.name) return;
     f.updatedAt = Date.now();
@@ -3205,7 +3288,7 @@ window.songMdImport = () => {
   const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   f.name = g('song-name-input'); f.bpm = g('song-bpm'); f.key = g('song-key');
   if(document.getElementById('song-dur-min')) f.duration = g('song-dur-min') + ':' + String(g('song-dur-sec')).padStart(2,'0');
-  f.start = readStartEnd('song-start'); f.end = readStartEnd('song-end'); f.rhythm = readStartEnd('song-rhythm');
+  f.start = readStartEnd('song-start'); f.end = readStartEnd('song-end'); f.rhythm = readStartEnd('song-rhythm'); f.meter = g('song-meter');
   f.genre = g('song-genre'); f.orig = g('song-orig'); f.url = g('song-url'); f.notes = g('song-notes');
   Object.assign(f, info.fields);
   if(info.extra.length) f.notes = [f.notes, ...info.extra].filter(Boolean).join('\n');
@@ -4655,13 +4738,13 @@ function parseCSV(text){
 }
 
 // 人が読む列を左に、アプリ用の列（更新日時・ID）を右端に。読み込みは列名で判断するので順番は自由
-const SONG_CSV_HEADERS = ['name','bpm','key','duration','start','end','url','notes','genre','rhythm','orig','hidden','updatedAt','id'];
+const SONG_CSV_HEADERS = ['name','bpm','key','duration','start','end','url','notes','genre','rhythm','meter','orig','hidden','updatedAt','id'];
 const EVENT_CSV_HEADERS = ['event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','entry_type','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end','event_updated_at','event_id','entry_song_id'];
 
 window.exportSongs = async () => {
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', orig:s.orig||'', hidden:s.hidden?'1':'', updatedAt:s.updatedAt||''}));
+  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', meter:s.meter||'', orig:s.orig||'', hidden:s.hidden?'1':'', updatedAt:s.updatedAt||''}));
   try{ await dl.save({filename:'曲マスタ.csv', data: toCSV(SONG_CSV_HEADERS, rows)}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
@@ -4746,7 +4829,15 @@ function importSongRows(rows){
     };
     if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
     const idx = songs.findIndex(s=>s.id===item.id);
-    if(idx>=0){ if(songs[idx].struct) item.struct = songs[idx].struct; songs[idx] = item; } else songs.push(item);
+    if(row.meter!==undefined){ if(METERS.includes(String(row.meter).trim())) item.meter = String(row.meter).trim(); }
+    if(idx>=0){
+      const old = songs[idx];
+      // CSVにない項目（構成・キーの表記・拍子の列がない古いCSV）は、今の曲の値を残す
+      if(old.struct) item.struct = old.struct;
+      if(old.acc) item.acc = old.acc;
+      if(row.meter===undefined && old.meter) item.meter = old.meter;
+      songs[idx] = item;
+    } else songs.push(item);
     count++;
   });
   if(!count){ showToast('曲名のある行がありませんでした。'); return; }
