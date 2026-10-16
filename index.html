@@ -659,9 +659,10 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 .st-bpm small{font-size:10px; color:var(--muted); font-weight:700; margin-top:2px; white-space:nowrap;}
 .st-bpm.changed span{color:var(--accent);}
 .st-dots{display:flex; gap:5px; margin-inline:auto;}
-.st-dots i{width:10px; height:10px; border-radius:50%; background:var(--border);}
+.st-dots i{width:10px; height:10px; border-radius:50%; background:var(--border); transition:transform .06s ease;}
 .st-dots i.on{background:var(--accent);}
-.st-dots i.on.acc{background:var(--text);}
+/* 1拍目は同じ色で大きく光らせて区別する */
+.st-dots i.on.acc{background:var(--accent); transform:scale(1.45); box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);}
 .st-mbar button[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg);}
 .st-mbar .st-go{width:52px; background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .st-mbar .st-go.run{background:var(--text); border-color:var(--text); color:var(--bg);}
@@ -761,7 +762,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.23.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.23.5';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
@@ -2719,7 +2720,7 @@ function stTick(){
     const b = stM.beat % 4;
     if(stM.sound) scheduleClick(stM.next, b===0);
     const delay = Math.max(0, (stM.next - ctx.currentTime) * 1000);
-    setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k<=b)); }, delay);
+    setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k===b)); }, delay);   // 今の拍だけ光らせる
     stM.next += 60 / stM.bpm; stM.beat++;
   }
 }
