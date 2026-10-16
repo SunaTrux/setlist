@@ -635,6 +635,11 @@ body.struct-open header{display:none;}
 body.struct-open main{padding-bottom:150px;}
 body.struct-open.st-bar-folded main{padding-bottom:84px;}
 /* 左下の「次の曲」：テンポ窓の上（たたんだら画面の下）に大きく */
+.st-flash{position:fixed; left:50%; top:42%; transform:translate(-50%,-50%) scale(.96); z-index:120; max-width:84%; padding:14px 22px; border-radius:16px; background:var(--text); color:var(--bg); text-align:center; box-shadow:0 8px 28px rgba(0,0,0,.3); opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease;}
+.st-flash.show{opacity:1; transform:translate(-50%,-50%) scale(1);}
+.st-flash small{display:block; font-size:12px; font-weight:700; opacity:.75; margin-bottom:2px;}
+.st-flash b{display:block; font-size:22px; font-weight:800; line-height:1.25; overflow-wrap:anywhere;}
+@media (prefers-reduced-motion: reduce){ .st-flash{transition:none;} }
 .st-navgrp{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; max-width:calc(100% - 140px); display:flex; align-items:stretch; gap:8px;}
 body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
 .st-navgrp[hidden]{display:none;}
@@ -722,13 +727,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.20.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.21.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.21.0': [
+    '構成表で画面を左右にスワイプして曲を変えられるように（左へ＝次の曲、右へ＝前の曲）。切り替えると曲名を画面の真ん中に一瞬表示',
+    '誤操作を防ぐため、はっきり横に大きく払ったときだけ反応。画面の端から始めた指や、下のボタンの上では反応しません'
+  ],
   '1.20.0': [
     '構成表のセクションの色：「Chorus / Outro」のように2つ並ぶ名前は、先に書いた方の色に（この例なら赤）',
     '「B」「B Section」をBメロと同じ緑に（「A」の青と区別）'
@@ -2769,6 +2778,42 @@ function stCleanupOutside(){
   const el = document.getElementById('st-mbar'); if(el) el.hidden = true;
   stNextBtn(false);
   document.body.classList.remove('struct-open'); document.body.classList.remove('st-bar-folded');
+}
+
+// ---- 構成表：画面の左右スワイプで曲を変える（左へ＝次の曲、右へ＝前の曲） ----
+// 誤操作を防ぐため：画面の端から始めた指（iPhoneの「戻る」と重なる）、入力欄・下のボタン類の上、
+// 横の動きが小さい・縦の動きが大きい・ゆっくりした動きでは反応しない。編集中も反応しない
+let stSw = null;
+document.addEventListener('touchstart', e => {
+  stSw = null;
+  if(!structOpen || structEdit || e.touches.length !== 1) return;
+  const t = e.touches[0], w = window.innerWidth, edge = 28;
+  if(t.clientX < edge || t.clientX > w - edge) return;
+  if(e.target.closest && e.target.closest('input, textarea, select, .st-mbar, #st-navgrp, .st-inline-ed, .modal-overlay')) return;
+  stSw = {x: t.clientX, y: t.clientY, t: Date.now()};
+}, {passive: true});
+document.addEventListener('touchend', e => {
+  const sw = stSw; stSw = null;
+  if(!sw || !structOpen || structEdit) return;
+  const t = e.changedTouches[0]; if(!t) return;
+  const dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+  const need = Math.max(80, window.innerWidth * 0.25);
+  if(Math.abs(dx) < need || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - sw.t > 700) return;
+  const d = dx < 0 ? 1 : -1;
+  const seq = stSeq(), pos = seq.indexOf(stCur());
+  if(seq[pos + d] === undefined){ stFlash(d > 0 ? '最後の曲です' : '最初の曲です', ''); return; }
+  structNav(d);
+  const s = stSong();
+  stFlash(s ? s.name : '', `${d > 0 ? '次の曲' : '前の曲'}　${pos + d + 1}/${seq.length}`);
+}, {passive: true});
+document.addEventListener('touchcancel', () => { stSw = null; }, {passive: true});
+// 切り替わった曲名を画面の真ん中に一瞬大きく出す
+function stFlash(title, sub){
+  let el = document.getElementById('st-flash');
+  if(!el){ el = document.createElement('div'); el.id = 'st-flash'; el.className = 'st-flash'; el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+  el.innerHTML = `${sub ? `<small>${esc(sub)}</small>` : ''}<b>${esc(title)}</b>`;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(stFlash.tm); stFlash.tm = setTimeout(() => el.classList.remove('show'), 900);
 }
 
 const main = document.getElementById('main');
