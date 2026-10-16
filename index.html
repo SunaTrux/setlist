@@ -635,14 +635,21 @@ body.struct-open header{display:none;}
 body.struct-open main{padding-bottom:150px;}
 body.struct-open.st-bar-folded main{padding-bottom:84px;}
 /* 左下の「次の曲」：テンポ窓の上（たたんだら画面の下）に大きく */
-.st-next{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; max-width:calc(100% - 140px); min-height:56px; padding:6px 14px 6px 16px; border-radius:14px; border:none; background:var(--accent); color:var(--accent-text); font-family:inherit; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; text-align:left; box-shadow:0 4px 14px rgba(0,0,0,.22); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
-body.st-bar-folded .st-next{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
-.st-next[hidden]{display:none;}
+.st-navgrp{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; max-width:calc(100% - 140px); display:flex; align-items:stretch; gap:8px;}
+body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.st-navgrp[hidden]{display:none;}
+.st-navgrp button{touch-action:manipulation; -webkit-tap-highlight-color:transparent; font-family:inherit; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.22);}
+/* 前の曲：押し間違えにくいよう控えめで小さめ */
+.st-prev{flex:none; width:56px; min-height:56px; padding:4px 0; border-radius:14px; border:1px solid var(--border); background:var(--surface); color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;}
+.st-prev svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
+.st-prev span{font-size:10px; font-weight:700; color:var(--muted); white-space:nowrap;}
+.st-prev:disabled{opacity:.35; box-shadow:none; cursor:default;}
+.st-next{position:relative; flex:1 1 auto; min-width:0; min-height:56px; padding:6px 14px 6px 16px; border-radius:14px; border:none; background:var(--accent); color:var(--accent-text); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; text-align:left;}
 .st-next-lab{font-size:12px; font-weight:700; opacity:.85;}
 .st-next-lab b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; margin-left:4px;}
 .st-next-name{font-size:18px; font-weight:800; line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:24px;}
 .st-next svg{position:absolute; right:10px; top:50%; transform:translateY(-50%); width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
-.st-next:disabled{background:var(--surface2); color:var(--muted); border:1px solid var(--border); box-shadow:none; min-height:44px; cursor:default;}
+.st-next:disabled{background:var(--surface2); color:var(--muted); border:1px solid var(--border); box-shadow:none; cursor:default;}
 .st-ed-foot{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;}
 .st-ed-foot .btn-block{min-height:48px; font-size:16px;}
 .st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
@@ -715,13 +722,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.18.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.19.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.19.0': [
+    '構成表の左下の「次の曲」の隣に「前の曲」ボタン（押し間違えにくいよう小さめ）'
+  ],
   '1.18.0': [
     '構成表に「最小」表示。はじめかたの行の右端のボタンで切り替え。曲情報のチップ・列名・コード／ディグリーと移調の切り替えを隠し、はじめかた → おわりかたを1行に'
   ],
@@ -2682,26 +2692,33 @@ window.stFoldBar = on => { stBarFolded = !!on; store.set('setlist_struct_bar_fol
 // 下のバー：構成表の表示中だけ出す。作り直さず使い回す（連打できるように）
 // 左下の「次の曲」ボタン（ライブ中に押しやすいよう大きく）
 function stNextBtn(show){
-  let b = document.getElementById('st-next');
-  if(!show){ if(b) b.hidden = true; return; }
-  if(!b){
-    b = document.createElement('button');
-    b.type = 'button'; b.id = 'st-next'; b.className = 'st-next';
-    b.onclick = () => structNav(1);
-    document.body.appendChild(b);
+  let g = document.getElementById('st-navgrp');
+  if(!show){ if(g) g.hidden = true; return; }
+  if(!g){
+    g = document.createElement('div');
+    g.id = 'st-navgrp'; g.className = 'st-navgrp';
+    g.innerHTML = `<button type="button" id="st-prev" class="st-prev"></button><button type="button" id="st-next" class="st-next"></button>`;
+    document.body.appendChild(g);
+    g.querySelector('#st-prev').onclick = () => structNav(-1);
+    g.querySelector('#st-next').onclick = () => structNav(1);
   }
-  const seq = stSeq(), pos = seq.indexOf(stCur()), k = seq[pos + 1];
-  let next = null;
-  if(k!==undefined){
-    if(stFromStock()) next = songs.find(x => x.id===k) || null;
-    else { const l = stLive(), e = l && l.setlist[k]; next = e ? songs.find(x => x.id===e.songId) || null : null; }
-  }
-  b.disabled = !next;
-  b.innerHTML = next
+  const seq = stSeq(), pos = seq.indexOf(stCur());
+  const songAt = k => {
+    if(k===undefined) return null;
+    if(stFromStock()) return songs.find(x => x.id===k) || null;
+    const l = stLive(), e = l && l.setlist[k]; return e ? songs.find(x => x.id===e.songId) || null : null;
+  };
+  const prev = songAt(seq[pos - 1]), next = songAt(seq[pos + 1]);
+  const pb = g.querySelector('#st-prev'), nb = g.querySelector('#st-next');
+  pb.disabled = !prev;
+  pb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>前の曲</span>`;
+  pb.setAttribute('aria-label', prev ? `前の曲：${prev.name}` : '最初の曲です');
+  nb.disabled = !next;
+  nb.innerHTML = next
     ? `<span class="st-next-lab">次の曲 <b>${pos+2}/${seq.length}</b></span><span class="st-next-name">${esc(next.name)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`
     : `<span class="st-next-lab">最後の曲です</span>`;
-  b.setAttribute('aria-label', next ? `次の曲：${next.name}` : '最後の曲です');
-  b.hidden = false;
+  nb.setAttribute('aria-label', next ? `次の曲：${next.name}` : '最後の曲です');
+  g.hidden = false;
 }
 function stMetroBar(show){
   stNextBtn(show);
