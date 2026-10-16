@@ -640,21 +640,13 @@ body.struct-open.st-bar-folded main{padding-bottom:84px;}
 .st-flash small{display:block; font-size:12px; font-weight:700; opacity:.75; margin-bottom:2px;}
 .st-flash b{display:block; font-size:22px; font-weight:800; line-height:1.25; overflow-wrap:anywhere;}
 @media (prefers-reduced-motion: reduce){ .st-flash{transition:none;} }
-.st-navgrp{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; max-width:calc(100% - 140px); display:flex; align-items:stretch; gap:8px;}
+.st-navgrp{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; display:flex; gap:8px;}
 body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
 .st-navgrp[hidden]{display:none;}
-.st-navgrp button{touch-action:manipulation; -webkit-tap-highlight-color:transparent; font-family:inherit; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.22);}
-/* 前の曲：押し間違えにくいよう控えめで小さめ */
-.st-prev{flex:none; width:56px; min-height:56px; padding:4px 0; border-radius:14px; border:1px solid var(--border); background:var(--surface); color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;}
-.st-prev svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
-.st-prev span{font-size:10px; font-weight:700; color:var(--muted); white-space:nowrap;}
-.st-prev:disabled{opacity:.35; box-shadow:none; cursor:default;}
-.st-next{position:relative; flex:1 1 auto; min-width:0; min-height:56px; padding:6px 14px 6px 16px; border-radius:14px; border:none; background:var(--accent); color:var(--accent-text); display:flex; flex-direction:column; align-items:flex-start; justify-content:center; text-align:left;}
-.st-next-lab{font-size:12px; font-weight:700; opacity:.85;}
-.st-next-lab b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; margin-left:4px;}
-.st-next-name{font-size:18px; font-weight:800; line-height:1.2; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:24px;}
-.st-next svg{position:absolute; right:10px; top:50%; transform:translateY(-50%); width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
-.st-next:disabled{background:var(--surface2); color:var(--muted); border:1px solid var(--border); box-shadow:none; cursor:default;}
+/* 前後の曲：小さくシンプルな矢印だけ（曲の切り替えは左右スワイプでもできる） */
+.st-navgrp button{width:44px; height:44px; padding:0; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.15); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.st-navgrp button svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
+.st-navgrp button:disabled{opacity:.35; box-shadow:none; cursor:default;}
 .st-ed-foot{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;}
 .st-ed-foot .btn-block{min-height:48px; font-size:16px;}
 .st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
@@ -727,13 +719,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.21.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.21.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.21.1': [
+    '構成表の左下の前後の曲ボタンを、小さな矢印だけのシンプルな形に（曲の切り替えは左右スワイプでも）'
+  ],
   '1.21.0': [
     '構成表で画面を左右にスワイプして曲を変えられるように（左へ＝次の曲、右へ＝前の曲）。切り替えると曲名を画面の真ん中に一瞬表示',
     '誤操作を防ぐため、はっきり横に大きく払ったときだけ反応。画面の端から始めた指や、下のボタンの上では反応しません'
@@ -2727,12 +2722,10 @@ function stNextBtn(show){
   const prev = songAt(seq[pos - 1]), next = songAt(seq[pos + 1]);
   const pb = g.querySelector('#st-prev'), nb = g.querySelector('#st-next');
   pb.disabled = !prev;
-  pb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>前の曲</span>`;
+  pb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>`;
   pb.setAttribute('aria-label', prev ? `前の曲：${prev.name}` : '最初の曲です');
   nb.disabled = !next;
-  nb.innerHTML = next
-    ? `<span class="st-next-lab">次の曲 <b>${pos+2}/${seq.length}</b></span><span class="st-next-name">${esc(next.name)}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`
-    : `<span class="st-next-lab">最後の曲です</span>`;
+  nb.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`;
   nb.setAttribute('aria-label', next ? `次の曲：${next.name}` : '最後の曲です');
   g.hidden = false;
 }
