@@ -760,13 +760,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.23.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.23.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.23.2': [
+    '構成表のチップから「曲順」を外しました（曲名の前の「3/7」と同じ内容のため）'
+  ],
   '1.23.1': [
     '構成表の曲名の曲順に母数（例：3/7）',
     '曲名の右の＜＞をなくしてすっきり。曲の切り替えは左下の矢印か左右スワイプで（横向きでは矢印は右下）'
@@ -2039,7 +2042,6 @@ function renderStruct(){
   const start = stShow(effVal(e, s, 'start')), end = stShow(effVal(e, s, 'end'));
   const tb = stTotalBars(s), nb = parseInt(bpm, 10);
   const chips = [];
-  chips.push(`<span class="st-chip">曲順<b>${pos+1}/${seq.length}</b></span>`);
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
   if(bpm) chips.push(`<span class="st-chip">BPM<b>${esc(bpm)}</b></span>`);
   if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
