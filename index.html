@@ -539,6 +539,7 @@ body.struct-open header{display:none;}
 .st-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
 .st-chip{display:inline-flex; align-items:center; justify-content:center; line-height:1.3; font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
+.st-chip-plain b{margin-left:0;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
 .st-chordbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-2px 0 10px;}
 .st-cmode button{padding:5px 10px; font-size:12px;}
@@ -760,7 +761,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.23.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.23.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
@@ -2045,8 +2046,8 @@ function renderStruct(){
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
   if(bpm) chips.push(`<span class="st-chip">BPM<b>${esc(bpm)}</b></span>`);
   if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
-  if(tb) chips.push(`<span class="st-chip">全体<b>${tb}小節</b></span>`);
-  if(dur) chips.push(`<span class="st-chip">曲時間<b>${esc(normDurStr(dur))}</b></span>`);
+  if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
+  if(dur) chips.push(`<span class="st-chip st-chip-plain" aria-label="曲時間 ${esc(normDurStr(dur))}"><b>${esc(normDurStr(dur))}</b></span>`);
   const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
   let html = `<div class="st-head">
     <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${stFromStock() ? '曲マスタ' : structOpen.fromList ? 'イベント一覧' : 'セットリスト'}</button>
