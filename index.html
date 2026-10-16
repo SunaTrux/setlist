@@ -535,7 +535,7 @@ body.struct-open header{display:none;}
 .st-nav button:disabled{opacity:.35; cursor:default;}
 .st-nav svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;}
 .st-meta{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
-.st-chip{font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
+.st-chip{display:inline-flex; align-items:center; justify-content:center; line-height:1.3; font-size:12px; border:1px solid var(--border); border-radius:999px; padding:2px 9px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap;}
 .st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
 .st-chordbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-2px 0 10px;}
@@ -550,7 +550,7 @@ body.struct-open header{display:none;}
 .st-commit span{margin-right:auto; min-width:0;}
 .st-commit .btn{flex-shrink:0; white-space:nowrap; padding:6px 14px; font-size:13px;}
 .st-trans-note{margin-left:auto; font-size:11px; color:var(--muted);}
-.st-fbtn{flex:1 1 auto; min-width:0; white-space:nowrap; border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 6px; font-family:inherit; font-size:12.5px; color:var(--muted); cursor:pointer; touch-action:manipulation;}
+.st-fbtn{display:inline-flex; align-items:center; justify-content:center; text-align:center; line-height:1; flex:1 1 auto; min-width:0; white-space:nowrap; border:1px solid var(--border); background:transparent; border-radius:999px; height:30px; padding:0 6px; font-family:inherit; font-size:12.5px; color:var(--muted); cursor:pointer; touch-action:manipulation;}
 .st-fbtn[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg); font-weight:700;}
 
 .st-se{display:flex; gap:6px; align-items:baseline; font-size:13px; font-weight:700; color:var(--text);}
@@ -681,9 +681,9 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   body.st-viewing .st-title{font-size:18px;}
   body.st-viewing .st-nav button{width:36px; height:36px;}
   body.st-viewing .st-meta{gap:4px; margin-top:4px;}
-  body.st-viewing .st-chip{font-size:11px; padding:1px 7px;}
+  body.st-viewing .st-chip{font-size:11px; padding:2px 7px; line-height:1.3;}
   body.st-viewing .st-filters{gap:4px; margin:8px 0;}
-  body.st-viewing .st-fbtn{height:26px; padding:0 9px; font-size:12px;}
+  body.st-viewing .st-fbtn{height:28px; padding:0 8px; font-size:12px; line-height:1;}
   body.st-viewing .st-info-row{margin-bottom:6px;}
   body.st-viewing .st-se{font-size:12px;}
   /* テンポ窓は左の列の下に2段で収める。前後の曲ボタンは左の列の＜＞を使う */
@@ -757,7 +757,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.22.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.22.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-16';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
