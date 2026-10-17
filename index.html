@@ -841,13 +841,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.46.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.47.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.47.0': [
+    '書き出すファイル（曲マスタ・イベント一覧・1イベントのCSV、構成表の.md）の名前に、場所・日時・バージョンを入れるように（例：setlist-events_iPhone-Safari_20261018-0838_v1.47.0.csv）',
+    'CSVを読み込む前に、ファイル名・作成場所・日時と、上書き／新規の件数を確認するように',
+    '曲マスタの一番下の「曲順をテキストで書き出し」は、「🔍 検索」で選んで書き出す形にまとめて削除'
+  ],
   '1.46.2': [
     'イベント一覧のカードも、イベント名の横にアーティスト名を表示。日付の横のステージ時間（○分）は外しました（下の曲数・合計時間はそのまま）'
   ],
@@ -3161,7 +3166,7 @@ window.stCopyMd = () => {
 window.stSaveMd = async () => {
   const s = stSong(); if(!s) return;
   const name = String(s.name || '構成').replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
-  try{ const d = await getDownloads(); await d.save({filename: `${name}_構成.md`, data: stToMarkdown(s, stEntry()), raw: true, type: 'text/markdown'}); }
+  try{ const d = await getDownloads(); await d.save({filename: `setlist-struct_${fileTag()}.md`, data: stToMarkdown(s, stEntry()), raw: true, type: 'text/markdown'}); }
   catch(e){ if(!e || e.code!=='declined') showToast('保存できませんでした。「書き出す」からコピーしてください。'); }
 };
 
@@ -3501,7 +3506,7 @@ function stockBodyHtml(){
       </div>`;
     });
     if(filteredSongs.length && !songForm && !stockSelectMode){
-      html += `<button type="button" class="btn btn-block btn-with-icon" style="margin-top:6px;" onclick="copyStockText()">曲順をテキストで書き出し${TEXT_ICON_SVG}</button>`;
+      // 曲順のテキスト書き出しは「🔍 検索」で曲を選んで「テキストで書き出し」から
     }
     if(stockSelectMode){
       const n = stockSelected.size;
@@ -3799,7 +3804,7 @@ const TPL_ALIASES = {
 window.downloadSongTemplate = async () => {
   const dl = await getDownloads();
   const rows = [Object.fromEntries(TPL_HEADERS.map((h,k) => [h, TPL_EXAMPLE[k]]))];
-  try{ await dl.save({filename:'曲の一括登録フォーマット.csv', data: toCSV(TPL_HEADERS, rows)}); }
+  try{ await dl.save({filename:'setlist-song-template.csv', data: toCSV(TPL_HEADERS, rows)}); }
   catch(err){ if(!err || err.code!=='declined') showToast('ダウンロードに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
 // Excel が「3:45」を時刻「3:45:00」に変えてしまっても、分:秒として読む
@@ -5294,7 +5299,7 @@ window.exportSongs = async () => {
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
   const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', meter:s.meter||'', capo:songCapo(s)?String(songCapo(s)):'', orig:s.orig||'', hidden:s.hidden?'1':'', pinned:s.pinned?'1':'', updatedAt:s.updatedAt||''}));
-  try{ await dl.save({filename:'曲マスタ.csv', data: toCSV(SONG_CSV_HEADERS, rows)}); }
+  try{ await dl.save({filename:`setlist-songs_${fileTag()}.csv`, data: toCSV(SONG_CSV_HEADERS, rows)}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
 function buildEventRows(liveList){
@@ -5320,7 +5325,7 @@ function buildEventRows(liveList){
 window.exportLives = async () => {
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  try{ await dl.save({filename:'イベント一覧.csv', data: toCSV(EVENT_CSV_HEADERS, buildEventRows(lives))}); }
+  try{ await dl.save({filename:`setlist-events_${fileTag()}.csv`, data: toCSV(EVENT_CSV_HEADERS, buildEventRows(lives))}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
 window.exportSingleEvent = async () => {
@@ -5328,7 +5333,7 @@ window.exportSingleEvent = async () => {
   if(!live) return;
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  const filename = (live.venue || 'イベント').replace(/[\\/:*?"<>|]/g,'_') + '.csv';
+  const filename = `setlist-event_${fileTag()}.csv`;   // 日本語のファイル名は一部のブラウザ（iOSのBraveなど）で崩れるので英数字に
   try{ await dl.save({filename, data: toCSV(EVENT_CSV_HEADERS, buildEventRows([live]))}); showToast('このイベントをCSVで書き出しました。'); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
@@ -5339,7 +5344,7 @@ function readCsvFile(file, done){
     let rows;
     try{ rows = parseCSV(decodeCsvBuffer(reader.result)); }catch(e){ showToast('CSVの読み込みに失敗しました。ファイル形式を確認してください。'); return; }
     if(!Array.isArray(rows)){ showToast('CSVの形式が正しくありません。'); return; }
-    done(rows);
+    done(rows, file && file.name);
   };
   reader.readAsArrayBuffer(file);
 }
@@ -5353,16 +5358,27 @@ function csvKind(rows){
   return 'unknown';
 }
 const CSV_WRONG_FILE = '曲マスタ・イベント一覧のCSVではないようです。1行目の見出しを確認してください。';
-window.handleSongImport = (file) => readCsvFile(file, rows => {
+// 読み込む前の確認：ファイル名・作成場所・日時と、上書き／新規の件数
+function confirmSongCsv(rows, fname){
+  const named = rows.filter(r => String(r.name||'').trim());
+  const over = named.filter(r => r.id && songs.some(x => x.id===r.id)).length;
+  confirmAction(`この曲マスタのCSVを読み込みますか？\nファイル：${fname || '-'}\n${fileOriginText(fname)}内容：曲${named.length}件（上書き${over}件・新規${named.length - over}件）\n\n同じIDの曲は、CSVの内容で上書きされます。`, () => importSongRows(rows), '読み込む');
+}
+function confirmLiveCsv(rows, fname){
+  const ids = new Set(), over = new Set();
+  rows.forEach(r => { const id = r.event_id || ('csv:' + normName(r.event_date) + '|' + normName(r.event_venue)); if(!r.event_id && !String(r.event_venue||r.event_date||'').trim() && !r.entry_type) return; ids.add(id); if(r.event_id && lives.some(l => l.id===r.event_id)) over.add(id); });
+  confirmAction(`このイベント一覧のCSVを読み込みますか？\nファイル：${fname || '-'}\n${fileOriginText(fname)}内容：イベント${ids.size}件（上書き${over.size}件・新規${ids.size - over.size}件）\n\n同じIDのイベントは、CSVの内容で上書きされます（セットリストも置き換わります）。曲マスタにない曲は自動で追加します。`, () => importLiveRows(rows), '読み込む');
+}
+window.handleSongImport = (file) => readCsvFile(file, (rows, fname) => {
   const kind = csvKind(rows);
-  if(kind==='song') return importSongRows(rows);
+  if(kind==='song') return confirmSongCsv(rows, fname);
   if(kind==='template') return importTemplateRows(rows);
   if(kind==='event') return confirmAction('このファイルはイベント一覧のCSVのようです。\nイベント一覧として読み込みますか？', () => importLiveRows(rows), 'イベントとして読み込む');
   showToast(kind==='empty' ? '読み込める行がありません。' : CSV_WRONG_FILE);
 });
-window.handleLiveImport = (file) => readCsvFile(file, rows => {
+window.handleLiveImport = (file) => readCsvFile(file, (rows, fname) => {
   const kind = csvKind(rows);
-  if(kind==='event') return importLiveRows(rows);
+  if(kind==='event') return confirmLiveCsv(rows, fname);
   if(kind==='song' || kind==='template') return confirmAction('このファイルは曲のCSVのようです（イベントの情報がありません）。\n曲マスタに読み込みますか？', () => kind==='song' ? importSongRows(rows) : importTemplateRows(rows), '曲マスタに読み込む');
   showToast(kind==='empty' ? '読み込める行がありません。' : CSV_WRONG_FILE);
 });
@@ -5904,6 +5920,14 @@ function backupKeys(){
     }
   }catch(e){}
   return keys.sort();
+}
+// 書き出すファイル名に付ける「場所_日時_バージョン」（例：iPhone-Safari_20261018-0838_v1.46.3）
+function fileTag(){ return `${placeSlug()}_${backupStamp()}_v${APP_VERSION}`; }
+// ファイル名から「どこで・いつ・どの版で」書き出したかを読み取る（読み込み前の確認用）
+function fileOriginText(name){
+  const m = /_([A-Za-z]+-[A-Za-z]+)_(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})_v([\d.]+)\.\w+$/.exec(String(name || ''));
+  if(!m) return '';
+  return `作成場所：${m[1]}\n作成日時：${+m[2]}/${+m[3]}/${+m[4]} ${m[5]}:${m[6]}（v${m[7]}）\n`;
 }
 function backupStamp(){
   const d = new Date(), z = n => String(n).padStart(2,'0');
