@@ -542,7 +542,7 @@ body.struct-open header{display:none;}
 .st-chip-plain b{margin-left:0;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
 .st-chordbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-2px 0 10px;}
-.st-cmode button{padding:5px 10px; font-size:12px;}
+.st-cmode button, .st-capo button{padding:5px 10px; font-size:12px;}
 .st-cmode button:disabled{opacity:.4;}
 .st-trans{display:flex; align-items:center; gap:4px; margin-left:auto;}
 .st-trans-lab{font-size:11px; font-weight:700; color:var(--muted); margin-right:2px;}
@@ -763,13 +763,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.25.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.26.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.26.0': [
+    '曲ごとに「カポ」（ギター）を設定できるように。構成表のチップに「Capo3」',
+    '構成表で「実音／Capo」を切り替え：Capoにすると、コードを押さえ方の表記（例：Capo3（G表記））で表示。切り替えは端末ごとに覚えます',
+    '「コード（Capo3・G表記）」のような構成表を取り込むと、コードを実音に直して保存し、カポも設定します'
+  ],
   '1.25.0': [
     '曲ごとに「拍子」（自動・4/4・3/4・6/8）。自動はリズムパターン（3拍子・ワルツ・6/8など）から判断',
     'メトロノームが拍子に合わせて鳴るように：3拍子は3つ、6/8は付点4分音符の大きな2拍（点も2つ）',
@@ -1886,6 +1891,9 @@ let structOpen = null;   // イベントから：{liveId, idx}（idx はセッ�
 let structEdit = false;  // 構成の編集中
 let stOpenSec = null;    // 構成表でセクション名をタップして開いた、その場の編集（セクション番号）
 let stTrans = 0;         // 曲マスタから開いたとき（またはキー未設定のとき）の一時的な移調（半音）
+let stCapoView = !!store.get('setlist_capo_view', false);  // カポのある曲で、コードを押さえ方（Capo表記）で見せるか（端末ごとに覚える）
+function songCapo(s){ const n = parseInt(s && s.capo, 10); return n > 0 && n < 12 ? n : 0; }
+function capoOptionsHtml(cur){ const c = parseInt(cur, 10) || 0; let h = `<option value="" ${!c?'selected':''}>なし</option>`; for(let i=1;i<12;i++) h += `<option value="${i}" ${c===i?'selected':''}>Capo ${i}</option>`; return h; }
 let stChordMode = store.get('setlist_chord_mode', 'chord');      // 構成表のコード表示：chord / degree
 let stDegreeMinor = store.get('setlist_degree_minor', 'minor');  // マイナーキーのディグリー：minor（主音から）/ relative（同じ調号のメジャーから）
 let stCC = null;  // 描画中のコード表示の設定
@@ -2108,6 +2116,7 @@ function renderStruct(){
   const tb = stTotalBars(s), nb = parseInt(bpm, 10);
   const chips = [];
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
+  if(songCapo(s)) chips.push(`<span class="st-chip st-chip-plain" aria-label="カポ ${songCapo(s)}"><b>Capo${songCapo(s)}</b></span>`);
   if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
   { const m = songMeter(s); if(m !== '4/4') chips.push(`<span class="st-chip st-chip-plain" aria-label="拍子 ${m}"><b>${m}</b></span>`); }
   if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
@@ -2225,22 +2234,34 @@ function stChordCtx(s, e){
   const canDegree = !!mk;
   const mode = stChordMode==='degree' && canDegree ? 'degree' : 'chord';
   const tonic = mk ? (mk.minor && stDegreeMinor==='relative' ? (mk.pc + 3) % 12 : mk.pc) : 0;
-  const flat = s.acc==='b' ? true : s.acc==='#' ? false : keyPrefersFlat(target);
-  return {mode, shift: normShift(shift), flat, respell: !!s.acc, mk, ek, target, tonic, canDegree};
+  // カポの押さえ方で見せるときは、カポの分だけ下げる（保存されたコードは実音のまま）
+  const capo = songCapo(s), capoOn = !!capo && stCapoView && mode==='chord';
+  const shapeKey = capoOn && target ? {pc: (target.pc - capo + 12) % 12, minor: target.minor} : null;
+  const keyShift = normShift(shift);   // 移調だけの量（カポ分は含めない）
+  if(capoOn) shift = shift - capo;
+  const flat = s.acc==='b' ? true : s.acc==='#' ? false : keyPrefersFlat(capoOn ? shapeKey : target);
+  return {mode, shift: normShift(shift), keyShift, flat, respell: !!s.acc, mk, ek, target, tonic, canDegree, capo, capoOn, shapeKey};
 }
 function stChordBarHtml(s, e, c){
   const seg = `<div class="pos-seg st-cmode"><button type="button" class="${c.mode==='chord'?'on':''}" onclick="setChordMode('chord')">コード</button><button type="button" class="${c.mode==='degree'?'on':''}" onclick="setChordMode('degree')" ${c.canDegree?'':'disabled title="キーが未設定のため使えません"'}>ディグリー</button></div>`;
   let tr = '';
   if(c.mode==='chord'){
     const kd = (pc, mi) => keyDisp(keyName(pc, mi), s);
-    const lab = c.mk ? (c.shift ? `${kd(c.mk.pc, c.mk.minor)} → ${kd(c.target.pc, c.target.minor)}` : `${kd(c.mk.pc, c.mk.minor)}（元のキー）`) : (c.shift ? `${c.shift>0?'+':''}${c.shift}（半音）` : '移調なし');
-    tr = `<div class="st-trans"><span class="st-trans-lab">移調</span><button type="button" class="st-tbtn" onclick="stTranspose(-1)" aria-label="半音下げる">−</button><button type="button" class="st-tkey${c.shift?' on':''}" onclick="stTranspose(0)" title="元のキーに戻す">${esc(lab)}</button><button type="button" class="st-tbtn" onclick="stTranspose(1)" aria-label="半音上げる">＋</button></div>`;
+    const ks = c.keyShift;
+    const lab = c.mk ? (ks ? `${kd(c.mk.pc, c.mk.minor)} → ${kd(c.target.pc, c.target.minor)}` : `${kd(c.mk.pc, c.mk.minor)}（元のキー）`) : (ks ? `${ks>0?'+':''}${ks}（半音）` : '移調なし');
+    tr = `<div class="st-trans"><span class="st-trans-lab">移調</span><button type="button" class="st-tbtn" onclick="stTranspose(-1)" aria-label="半音下げる">−</button><button type="button" class="st-tkey${c.keyShift?' on':''}" onclick="stTranspose(0)" title="元のキーに戻す">${esc(lab)}</button><button type="button" class="st-tbtn" onclick="stTranspose(1)" aria-label="半音上げる">＋</button></div>`;
     if(!e && stTrans) tr += `<div class="st-commit"><span>曲マスタはまだ変わっていません（試し表示）</span><button type="button" class="btn btn-accent" onclick="stCommitTrans()">確定</button><button type="button" class="btn" onclick="stTranspose(0)">取消</button></div>`;
   } else {
     tr = `<span class="st-trans-note">${esc(keyDisp(keyName(c.mk.pc, c.mk.minor), s))} を基準に表示${c.mk.minor ? (stDegreeMinor==='relative' ? '（同じ調号のメジャーから）' : '（マイナーの主音から）') : ''}</span>`;
   }
-  return `<div class="st-chordbar">${seg}${tr}</div>`;
+  let cp = '';
+  if(c.capo && c.mode==='chord'){
+    const sk = c.shapeKey ? `（${esc(keyDisp(keyName(c.shapeKey.pc, c.shapeKey.minor), s))}表記）` : '';
+    cp = `<div class="pos-seg st-capo"><button type="button" class="${c.capoOn?'':'on'}" onclick="setCapoView(false)">実音</button><button type="button" class="${c.capoOn?'on':''}" onclick="setCapoView(true)">Capo${c.capo}${c.capoOn ? sk : ''}</button></div>`;
+  }
+  return `<div class="st-chordbar">${seg}${cp}${tr}</div>`;
 }
+window.setCapoView = on => { stCapoView = !!on; store.set('setlist_capo_view', stCapoView); render(); };
 // 保存されたコードを書き換える（曲マスタでキーを確定するとき）
 function stTransposeText(text, shift, targetKey, acc){
   const keep = stCC;
@@ -2393,6 +2414,8 @@ function stMasterOnlyHtml(s){
       <div class="field"><label>ジャンル</label><select id="st-f-genre">${genreOptionsHtml(s.genre)}</select></div>
       ${startEndHtml('st-f-rhythm', 'リズムパターン', s.rhythm, RHYTHM_OPTS)}
     </div>
+    <div class="field"><label>カポ（ギター）</label><select id="st-f-capo">${capoOptionsHtml(s.capo)}</select>
+      <div class="st-note" style="margin:4px 0 0;">コードは実音で保存します。構成表の「Capo」で押さえ方の表記に切り替えられます</div></div>
     <div class="field"><label>拍子（メトロノーム）</label><select id="st-f-meter">${meterOptionsHtml(s.meter, s.rhythm)}</select>
       <div class="st-note" style="margin:4px 0 0;">6/8 は BPM を付点4分音符（大きな2拍）で数えます</div></div>
     <div class="field"><label>キーの表記（♯・♭）</label><select id="st-f-acc">
@@ -2476,6 +2499,7 @@ function stFieldFromId(id){
   if(id==='st-f-url') return 'url';
   if(id==='st-f-acc') return 'acc';
   if(id==='st-f-meter') return 'meter';
+  if(id==='st-f-capo') return 'capo';
   return null;
 }
 function stReadField(f){
@@ -2485,7 +2509,7 @@ function stReadField(f){
   if(f==='end') return readStartEnd('st-end');
   if(f==='rhythm') return readStartEnd('st-f-rhythm');
   if(f==='notes') return val('st-notes').replace(/\s+$/, '');
-  return String(({bpm:val('st-f-bpm'), key:val('st-f-key'), name:val('st-f-name'), genre:val('st-f-genre'), orig:val('st-f-orig'), url:val('st-f-url'), acc:val('st-f-acc'), meter:val('st-f-meter')})[f] || '').trim();
+  return String(({bpm:val('st-f-bpm'), key:val('st-f-key'), name:val('st-f-name'), genre:val('st-f-genre'), orig:val('st-f-orig'), url:val('st-f-url'), acc:val('st-f-acc'), meter:val('st-f-meter'), capo:val('st-f-capo')})[f] || '').trim();
 }
 function stSaveField(f){
   const s = stSong(); if(!s || !f) return;
@@ -2610,7 +2634,16 @@ function stParseTable(text){
     if(!line.includes('|') && !line.includes('\t') && (/^#{1,3}\s/.test(line) || /^[-*・]\s*[^:：]+[:：]/.test(line))) continue;  // 曲名・曲情報の行は読み飛ばす
     const cells = stSplitRow(line).map(stCell);
     if(cells.length < 2) continue;
-    { const hm = stHeaderMap(cells); if(hm){ if(!hm.includes('name')) hm[0] = 'name'; map = hm; continue; } }
+    { const hm = stHeaderMap(cells); if(hm){
+      if(!hm.includes('name')) hm[0] = 'name'; map = hm;
+      // 「コード（Capo3・G表記）」のように、コードの見出しにカポがあれば覚えておく（取り込み時に実音へ直す）
+      const ci = hm.indexOf('chord'), cm = ci >= 0 && String(cells[ci]).match(/(?:capo|カポ)\s*[:：]?\s*(\d{1,2})/i);
+      if(cm && +cm[1] > 0 && +cm[1] < 12){
+        out.capo = +cm[1];
+        const km = String(cells[ci]).match(/([A-G][#♯b♭]?m?)\s*(?:表記|shape|フォーム)/i);
+        if(km) out.capoShape = km[1].replace('♯','#').replace('♭','b');
+      }
+      continue; } }
     let name, barsCell, timesCell = '', kbCell = '';
     const f = {chord:'', vocal:'', play:'', kime:'', auto:''};
     if(map){
@@ -2670,7 +2703,7 @@ function stSplitMd(text){
   }
   return {info, struct, title};
 }
-const ST_INFO_KEYS = [['meter',/^(拍子|time\s*signature|meter)$/i],['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
+const ST_INFO_KEYS = [['capo',/^(カポ|capo)$/i],['meter',/^(拍子|time\s*signature|meter)$/i],['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
   ['duration',/曲時間|演奏時間|長さ|duration|length/i],['genre',/ジャンル|genre/i],['rhythm',/リズム|rhythm/i],['start',/はじめかた|始め方/],['end',/おわりかた|終わり方/],
   ['url',/url|リファレンス/i],['notes',/^(メモ|備考|全体のメモ|notes?)$/i]];
 const ST_FLAT2SHARP = {Db:'C#', Eb:'D#', Gb:'F#', Ab:'G#', Bb:'A#', Cb:'B', Fb:'E', 'E#':'F', 'B#':'C'};
@@ -2707,6 +2740,7 @@ function stParseInfo(lines, title){
     const hit = ST_INFO_KEYS.find(([, re]) => re.test(k));
     if(!hit){ extra.push(`${k}：${v}`); continue; }
     const f = hit[0];
+    if(f==='capo'){ const n = parseInt(String(v).replace(/[^0-9]/g, ''), 10); if(n > 0 && n < 12) fields.capo = String(n); else if(!/なし|0|none/i.test(v)) extra.push(`${k}：${v}`); continue; }
     if(f==='meter'){ const mm = v.match(/(\d+)\s*\/\s*(\d+)/); const n = mm ? mm[1]+'/'+mm[2] : ''; if(METERS.includes(n)) fields.meter = n; else extra.push(`${k}：${v}`); continue; }
     if(f==='key'){ const n = stNormKey(v); if(n) fields.key = n; else extra.push(`${k}：${v}`); }
     else if(f==='bpm'){ const n = v.match(/\d+(\.\d+)?/); if(n) fields.bpm = String(Math.round(+n[0])); if(!n || !/^\d+(\.\d+)?$/.test(v)) extra.push(`${k}：${v}`); }
@@ -2720,10 +2754,21 @@ function stParseInfo(lines, title){
 // Markdown全体を読む：{secs, info:{fields, extra}}
 function stParseMd(text){
   const parts = stSplitMd(text);
-  return {secs: stParseTable(parts.struct.join('\n')), info: stParseInfo(parts.info, parts.title)};
+  const secs = stParseTable(parts.struct.join('\n')), info = stParseInfo(parts.info, parts.title);
+  // コードの見出しにカポがあれば、押さえ方の表記なので実音（＋カポ）に直す
+  const hc = secs.capo || 0;
+  if(hc){
+    // ♯／♭の書き方は実音のキーに合わせる（「G表記」があればそこから、なければ最初のコードから推測）
+    let shape = parseKey(secs.capoShape || '');
+    if(!shape){ const fc = (secs.find(x => x.chord) || {}).chord || ''; const m = fc.match(/([A-G][#♯b♭]?)(m(?!aj))?/); if(m) shape = parseKey(m[1].replace('♯','#').replace('♭','b') + (m[2] ? 'm' : '')); }
+    const real = shape ? {pc: (shape.pc + hc) % 12, minor: shape.minor} : null;
+    secs.forEach(x => { if(x.chord) x.chord = stTransposeText(x.chord, hc, real, ''); });
+    info.fields.capo = String(hc);
+  }
+  return {secs: [...secs], info, capoFixed: hc};
 }
 // 曲の空いている項目にだけ曲情報を入れる（すでにある値は上書きしない）。入れた項目名を返す
-const ST_INFO_LABEL = {meter:'拍子', name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
+const ST_INFO_LABEL = {capo:'カポ', meter:'拍子', name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
 function stFillEmptyInfo(s, info){
   const done = [];
   Object.keys(info.fields).forEach(f => {
@@ -2737,13 +2782,14 @@ function stFillEmptyInfo(s, info){
 window.stDoPaste = () => {
   const s = stSong(); if(!s) return;
   const ta = document.getElementById('st-paste'), msg = document.getElementById('st-paste-msg');
-  const {secs, info} = stParseMd(ta ? ta.value : '');
+  const {secs, info, capoFixed} = stParseMd(ta ? ta.value : '');
   if(!secs.length){ if(msg) msg.textContent = 'セクションが見つかりません。構成表の各行に「セクション名」と「小節数」が入っているか確認してください。'; return; }
   const apply = () => {
     stEnsure(s).sections = secs;
+    if(info.fields.capo){ s.capo = info.fields.capo; delete info.fields.capo; }
     const filled = stFillEmptyInfo(s, info);
     stTouch(s); render();
-    showToast(`${secs.length}セクションを取り込みました${filled.length ? `（曲情報：${filled.join('・')}）` : ''}`);
+    showToast(`${secs.length}セクションを取り込みました${capoFixed ? `（Capo${capoFixed}の表記を実音に直しました）` : ''}${filled.length ? `（曲情報：${filled.join('・')}）` : ''}`);
   };
   if(hasStruct(s)) confirmAction(`「${s.name}」の今の構成（${s.struct.sections.length}セクション）を、貼り付けた構成表で置き換えますか？`, apply, '置き換える');
   else apply();
@@ -2752,7 +2798,7 @@ function stToMarkdown(s, e){
   const cell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
   const L = [`# ${s.name || '無題の曲'}`, ''];
   const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
-  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['拍子', METERS.includes(s.meter) ? s.meter : ''], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
+  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['拍子', METERS.includes(s.meter) ? s.meter : ''], ['カポ', songCapo(s) ? String(songCapo(s)) : ''], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
   if(info.length){ info.forEach(([k, v]) => L.push(`- ${k}: ${v}`)); L.push(''); }
   L.push('| 区間 | 小節数 | 回数 | キメ小節 | コード | 歌詞メモ | 演奏メモ | キメ |');
   L.push('|------|--------|------|----------|--------|----------|----------|------|');
@@ -3237,7 +3283,10 @@ function songFormHtml(f){
       <div class="field"><label>ジャンル</label><select id="song-genre">${genreOptionsHtml(f.genre)}</select></div>
       ${startEndHtml('song-rhythm', 'リズムパターン', f.rhythm, RHYTHM_OPTS)}
     </div>
-    <div class="field"><label>拍子（メトロノーム）</label><select id="song-meter">${meterOptionsHtml(f.meter, f.rhythm)}</select></div>
+    <div class="field-row">
+      <div class="field"><label>拍子（メトロノーム）</label><select id="song-meter">${meterOptionsHtml(f.meter, f.rhythm)}</select></div>
+      <div class="field"><label>カポ（ギター）</label><select id="song-capo">${capoOptionsHtml(f.capo)}</select></div>
+    </div>
     ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
     ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
@@ -3266,6 +3315,7 @@ document.addEventListener('submit', e => {
     f.genre = document.getElementById('song-genre').value;
     f.rhythm = readStartEnd('song-rhythm');
     f.meter = (document.getElementById('song-meter') || {}).value || '';
+    f.capo = (document.getElementById('song-capo') || {}).value || '';
     f.orig = document.getElementById('song-orig').value.trim();
     if(!f.name) return;
     f.updatedAt = Date.now();
@@ -3285,21 +3335,21 @@ document.addEventListener('click', e => { if(e.target.id==='song-cancel'){ finis
 window.songMdImport = () => {
   const f = songForm; if(!f) return;
   const ta = document.getElementById('song-md-paste'), msg = document.getElementById('song-md-msg');
-  const {secs, info} = stParseMd(ta ? ta.value : '');
+  const {secs, info, capoFixed} = stParseMd(ta ? ta.value : '');
   const nInfo = Object.keys(info.fields).length;
   if(!secs.length && !nInfo){ if(msg) msg.textContent = '曲情報も構成表も見つかりません。「| 項目 | 内容 |」や「| 区間 | バー数 | … |」の表を貼り付けてください。'; return; }
   // 入力途中の内容を残してから、取り込んだ値で上書き
   const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
   f.name = g('song-name-input'); f.bpm = g('song-bpm'); f.key = g('song-key');
   if(document.getElementById('song-dur-min')) f.duration = g('song-dur-min') + ':' + String(g('song-dur-sec')).padStart(2,'0');
-  f.start = readStartEnd('song-start'); f.end = readStartEnd('song-end'); f.rhythm = readStartEnd('song-rhythm'); f.meter = g('song-meter');
+  f.start = readStartEnd('song-start'); f.end = readStartEnd('song-end'); f.rhythm = readStartEnd('song-rhythm'); f.meter = g('song-meter'); f.capo = g('song-capo');
   f.genre = g('song-genre'); f.orig = g('song-orig'); f.url = g('song-url'); f.notes = g('song-notes');
   Object.assign(f, info.fields);
   if(info.extra.length) f.notes = [f.notes, ...info.extra].filter(Boolean).join('\n');
   if(secs.length) f.struct = {sections: secs};
   render();
   const m2 = document.getElementById('song-md-msg');
-  if(m2) m2.textContent = `${nInfo ? '曲情報をフォームに入れました。' : ''}${secs.length ? `構成表 ${secs.length}セクションを読み込みました。` : ''}内容を確かめて「保存」してください。`;
+  if(m2) m2.textContent = `${nInfo ? '曲情報をフォームに入れました。' : ''}${secs.length ? `構成表 ${secs.length}セクションを読み込みました。` : ''}${capoFixed ? `Capo${capoFixed}の表記のコードは実音に直しました。` : ''}内容を確かめて「保存」してください。`;
   const nm = document.getElementById('song-name-input'); if(nm && nm.scrollIntoView) nm.scrollIntoView({block:'center'});
 };
 function finishSongEdit(){
@@ -4742,13 +4792,13 @@ function parseCSV(text){
 }
 
 // 人が読む列を左に、アプリ用の列（更新日時・ID）を右端に。読み込みは列名で判断するので順番は自由
-const SONG_CSV_HEADERS = ['name','bpm','key','duration','start','end','url','notes','genre','rhythm','meter','orig','hidden','updatedAt','id'];
+const SONG_CSV_HEADERS = ['name','bpm','key','duration','start','end','url','notes','genre','rhythm','meter','capo','orig','hidden','updatedAt','id'];
 const EVENT_CSV_HEADERS = ['event_date','event_venue','event_place','event_artist','event_start_time','event_end_time','event_memo','entry_type','entry_label','entry_bpm','entry_key','entry_duration','entry_notes','entry_numbered','entry_song_name','entry_song_duration','entry_song_start','entry_song_end','entry_song_url','entry_song_notes','entry_song_genre','entry_song_rhythm','entry_song_orig','entry_start','entry_end','event_updated_at','event_id','entry_song_id'];
 
 window.exportSongs = async () => {
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', meter:s.meter||'', orig:s.orig||'', hidden:s.hidden?'1':'', updatedAt:s.updatedAt||''}));
+  const rows = songs.map(s => ({id:s.id, name:s.name, bpm:s.bpm||'', key:s.key||'', duration:s.duration||'', start:s.start||'', end:s.end||'', url:s.url||'', notes:s.notes||'', genre:s.genre||'', rhythm:s.rhythm||'', meter:s.meter||'', capo:songCapo(s)?String(songCapo(s)):'', orig:s.orig||'', hidden:s.hidden?'1':'', updatedAt:s.updatedAt||''}));
   try{ await dl.save({filename:'曲マスタ.csv', data: toCSV(SONG_CSV_HEADERS, rows)}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
@@ -4834,12 +4884,14 @@ function importSongRows(rows){
     if(row.hidden==='1' || row.hidden==='true') item.hidden = true;
     const idx = songs.findIndex(s=>s.id===item.id);
     if(row.meter!==undefined){ if(METERS.includes(String(row.meter).trim())) item.meter = String(row.meter).trim(); }
+    if(row.capo!==undefined){ const n = parseInt(row.capo, 10); if(n > 0 && n < 12) item.capo = String(n); }
     if(idx>=0){
       const old = songs[idx];
       // CSVにない項目（構成・キーの表記・拍子の列がない古いCSV）は、今の曲の値を残す
       if(old.struct) item.struct = old.struct;
       if(old.acc) item.acc = old.acc;
       if(row.meter===undefined && old.meter) item.meter = old.meter;
+      if(row.capo===undefined && old.capo) item.capo = old.capo;
       songs[idx] = item;
     } else songs.push(item);
     count++;
