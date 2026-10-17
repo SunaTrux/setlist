@@ -331,9 +331,14 @@ select.mini-input{width:64px; padding:5px 2px;}
 .export-head .pos-seg button{padding:8px 14px; font-size:13px;}
 .action-group{margin-top:20px; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);}
 .action-group + .action-group{margin-top:12px;}
-.action-group-title{font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em; margin:0 0 10px;}
-.action-group > button{margin:0;}
-.action-group > button + button{margin-top:8px;}
+.action-group{padding:0;}
+.action-group-head{display:flex; align-items:center; gap:8px; width:100%; padding:10px 12px; border:none; background:none; color:var(--text); font-family:inherit; text-align:left; cursor:pointer;}
+.action-group-title{font-size:12px; font-weight:700; color:var(--muted); letter-spacing:.06em; flex:none;}
+.action-group-sub{font-size:12px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.action-group-head .fold-toggle{margin-left:auto;}
+.action-group-body{padding:0 12px 12px;}
+.action-group-body > button{margin:0;}
+.action-group-body > button + button{margin-top:8px;}
 .modal-text{width:100%; margin-bottom:14px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; line-height:1.7; font-family:inherit; resize:none;}
 .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:999px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:200; max-width:88%; text-align:center;}
 
@@ -542,15 +547,15 @@ body.cards-min .setlist-row1{padding:8px 12px;}
 .other-icon{vertical-align:-2px; margin-right:2px;}
 /* ---- 構成表（曲カードの「構成」から開く） ---- */
 :root{
-  --kime:#B8323A; --c-intro:#6E6658; --c-a:#2F64B8; --c-b:#24855A; --c-sabi:#C2452C; --c-bridge:#7350B5; --c-solo:#16808A; --c-big:#AE3478;
+  --kime:#B8323A; --c-intro:#6E6658; --c-a:#2F64B8; --c-b:#24855A; --c-sabi:#C2452C; --c-bridge:#7350B5; --c-solo:#16808A; --c-big:#AE3478; --c-drop:#A86A00;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE;
+    --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE; --c-drop:#F2B43C;
   }
 }
 :root[data-theme="dark"]{
-  --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE;
+  --kime:#FF6670; --c-intro:#9A917F; --c-a:#6B9CF0; --c-b:#4FC48B; --c-sabi:#FF7559; --c-bridge:#A688F0; --c-solo:#3DBDC4; --c-big:#EC66AE; --c-drop:#F2B43C;
 }
 .row-struct{flex-shrink:0; height:34px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap;}
 .row-struct.has{color:var(--accent); border-color:var(--accent);}
@@ -809,13 +814,19 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.36.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.37.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.37.0': [
+    'イベント画面の下の「セットリスト操作」「イベント操作」を、見出しを押して開く形に（最初は閉じています）',
+    'ピアノ演奏会のサンプル曲（エリーゼのために・トルコ行進曲・月光・乙女の祈り・別れの曲）にも構成表の例を入れました',
+    'はじめかたの候補に「カウントでオールイン」「ドラムのカウントフィル」、おわりかたの候補に「ブレイク」を追加',
+    '構成表で「Drop」「ドロップ」「[drop]」のセクションは山吹色で表示'
+  ],
   '1.36.0': [
     'アプリのアイコンを「Set-li」のデザインに変更。ホーム画面に追加したときの名前は「セットリスト」です（すでに追加している場合は、いったん削除して追加し直すと新しいアイコンになります）'
   ],
@@ -1117,7 +1128,7 @@ function buildPianoSample(){
   const s6={id:uid(), name:'エリーゼのために', bpm:'72', key:'Am', duration:'3:00', start:'静かなタッチで主題から入る', end:'最後の低音を優しく響かせて終わる', url:'', notes:'中間部でテンポを少し動かす\n左手の分散和音は粒を揃える（ベートーヴェン）', genre:'classic'};
   const s7={id:uid(), name:'トルコ行進曲', bpm:'108', key:'A', duration:'3:20', start:'軽快なタッチで元気よく入る', end:'最後は勢いよく締める', url:'', notes:'中間部の転調に注意、推進力を保つ（モーツァルト）', genre:'classic'};
   const s8={id:uid(), name:'月光 第1楽章', bpm:'60', key:'C#m', duration:'5:30', start:'ペダルを踏みながら静かに始める', end:'最後の和音を長く伸ばして静かに終わる', url:'', notes:'全体を通して音量は抑えめに、三連符を均一に（ベートーヴェン）', genre:'classic'};
-  const s9={id:uid(), name:'乙女の祈り', bpm:'80', key:'Bb', duration:'4:00', start:'優しいアルペジオから入る', end:'祈るように静かに終わる', url:'', notes:'サロン風の優雅な雰囲気を意識（バダジェフスカ）', genre:'classic'};
+  const s9={id:uid(), name:'乙女の祈り', bpm:'80', key:'D#', duration:'4:00', start:'優しいアルペジオから入る', end:'祈るように静かに終わる', url:'', notes:'サロン風の優雅な雰囲気を意識（バダジェフスカ）', genre:'classic'};
   const s10={id:uid(), name:'別れの曲', bpm:'100', key:'E', duration:'4:30', start:'歌うようなメロディから入る', end:'最後のフレーズを噛み締めて終わる', url:'', notes:'中間部は情熱的に、冒頭と終わりは抒情的に（ショパン）', genre:'classic'};
   const sampleSongs = [s6,s7,s8,s9,s10];
   const now = Date.now();
@@ -2079,6 +2090,38 @@ const ST_SAMPLES = [
     ST_SEC('ソロ', 16, {chord:'A → D → E（×8）\n後半で転調準備', play:'Townshendのソロ。後半でキーが上がる準備\n小節数：16前後', kime:'ソロ終わりでキーアップを予感させる'}),
     ST_SEC('Verse 3', 16, {chord:'B5 → E5 → F♯5', play:'キーが全音上がる（A→B）。より攻撃的に\n小節数：16前後', kime:'N.C.キメ継続'}),
     ST_SEC('Chorus / Outro', 8, {chord:'B5 → E5 → F♯5', play:'キーを上げたまま\n小節数：8〜12'})]},
+  // ピアノ演奏会のサンプル（小節数は目安）
+  {re:/エリーゼ|für\s*elise|fur\s*elise/i, sections:[
+    ST_SEC('A 主題', 22, {chord:'Am ↔ E', play:'有名な主題。左手の分散和音は軽く'}),
+    ST_SEC('B', 15, {chord:'C → G → Am → E', play:'明るく。右手の16分音符を流れるように'}),
+    ST_SEC('A 主題', 22, {chord:'Am ↔ E', play:'主題に戻る'}),
+    ST_SEC('C', 23, {chord:'A（低音の連打）→ 減七', play:'左手の連打に乗せて緊張感。テンポを少し動かす'}),
+    ST_SEC('A 主題', 21, {chord:'Am ↔ E', play:'静かに主題を再現'})]},
+  {re:/トルコ行進曲|alla\s*turca|turkish\s*march/i, sections:[
+    ST_SEC('A 主題', 24, {chord:'Am', play:'軽快なスタッカートで'}),
+    ST_SEC('リフレイン', 8, {chord:'A', play:'左手の分散和音でトルコ軍楽風に力強く', kime:'和音のアクセント'}),
+    ST_SEC('中間部', 24, {chord:'F♯m → A', play:'16分音符を均一に'}),
+    ST_SEC('リフレイン', 8, {chord:'A', kime:'和音のアクセント'}),
+    ST_SEC('A 主題', 24, {chord:'Am', play:'主題に戻る'}),
+    ST_SEC('Coda', 24, {chord:'A', play:'リフレインの和音で盛り上げる'})]},
+  {re:/月光|moonlight/i, sections:[
+    ST_SEC('序奏', 4, {chord:'C♯m（三連符の分散和音）', play:'ペダルで和音をつなぐ'}),
+    ST_SEC('主題', 23, {chord:'C♯m → E', play:'右手の旋律を三連符の上に浮かせる'}),
+    ST_SEC('展開部', 20, {chord:'G♯7 が続く', play:'低音の属音の上で緊張を保つ'}),
+    ST_SEC('再現', 15, {chord:'C♯m', play:'主題を再現'}),
+    ST_SEC('Coda', 7, {chord:'C♯m', play:'低音で静かに'})]},
+  {re:/乙女の祈り|maiden.?s\s*prayer/i, sections:[
+    ST_SEC('序奏', 4, {play:'アルペジオでゆったり'}),
+    ST_SEC('主題', 16, {play:'旋律を歌わせる'}),
+    ST_SEC('変奏1', 16, {play:'オクターブで華やかに'}),
+    ST_SEC('変奏2', 16, {play:'分散和音を軽やかに'}),
+    ST_SEC('変奏3', 16, {play:'装飾音を軽く、旋律を埋もれさせない'}),
+    ST_SEC('Coda', 8, {play:'テンポを落ち着かせる'})]},
+  {re:/別れの曲|chopin.*10.*3|tristesse/i, sections:[
+    ST_SEC('A', 20, {chord:'E', play:'旋律をレガートで歌う。内声は控えめに'}),
+    ST_SEC('B', 41, {chord:'減七の和音が続く', play:'情熱的に盛り上げる。両手の重音に注意'}),
+    ST_SEC('A', 12, {chord:'E', play:'冒頭の旋律に戻る'}),
+    ST_SEC('Coda', 4, {chord:'E', play:'静かに'})]},
   {re:/don.?t\s*you\s*just\s*know/i, sections:[
     ST_SEC('Intro', 4, {chord:'G', play:'シンプルなGリフ\n小節数：4〜8'}),
     ST_SEC('Verse 1', 8, {chord:'G', vocal:'コール＆レスポンス（バックコーラスがタイトルを返す）'}),
@@ -2117,7 +2160,13 @@ if(!store.get('setlist_struct_se_fix1', false)){
   if(ch) saveSongs();
   store.set('setlist_struct_se_fix1', true);
 }
+// 1.37.0 でピアノのサンプルにも構成を足したので、構成のない曲にはもう一度だけ入れる
+if(store.get('setlist_struct_seeded', false) && !store.get('setlist_struct_seeded2', false)){
+  if(seedStructSamples(songs)) saveSongs();
+  store.set('setlist_struct_seeded2', true);
+}
 if(!store.get('setlist_struct_seeded', false)){
+  store.set('setlist_struct_seeded2', true);
   if(seedStructSamples(songs)) saveSongs();
   store.set('setlist_struct_seeded', true);
 }
@@ -2126,6 +2175,7 @@ function stColor(name){
   // 「Chorus / Outro」「サビ3〜Ending」のように並んでいるときは、先に書いた方で決める
   const first = String(name || '').split(/\s*(?:\/|／|→|〜|~|、|,|＆|&|\+|＋)\s*/).find(t => t.trim()) || '';
   const n = first.toLowerCase().trim();
+  if(/ドロップ|drop/.test(n)) return 'var(--c-drop)';   // 「Drop」「ドロップ」「[drop]」「［drop］」
   if(/大サビ|last/.test(n)) return 'var(--c-big)';
   if(/イントロ|intro|アウトロ|outro|エンディング|ending|coda|コーダ/.test(n)) return 'var(--c-intro)';
   if(/プレ|pre|bメロ/.test(n)) return 'var(--c-b)';
@@ -3334,7 +3384,7 @@ function renderSongs(){
 }
 // はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
 // 候補は「設定」で追加・削除・並べ替えできる（保存がなければ初期値）
-const SE_START_DEFAULTS = ['ドラムカウントから','ドラムフィルから','カウント','ギターから','ベースから','ボーカルから','指揮者から','フィーリング','未定'];
+const SE_START_DEFAULTS = ['ドラムカウントから','ドラムフィルから','カウント','ギターから','ベースから','ボーカルから','指揮者から','カウントでオールイン','ドラムのカウントフィル','フィーリング','未定'];
 function loadSeOpts(key, def){ const a = store.get(key, null); return Array.isArray(a) && a.length ? a.map(String).filter(Boolean) : def.slice(); }
 let SE_START_OPTS = loadSeOpts('setlist_se_start_opts', SE_START_DEFAULTS);
 const SE_START_DEFAULT = '';  // 新しい曲のはじめかたは「-」（未設定）から
@@ -3349,7 +3399,7 @@ function songDetailHtml(s, e){
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
 }
-const SE_END_DEFAULTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','だんだんゆっくりになって終わる','フェルマータ','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング','未定'];
+const SE_END_DEFAULTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','だんだんゆっくりになって終わる','フェルマータ','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','ブレイク','フィーリング','未定'];
 let SE_END_OPTS = loadSeOpts('setlist_se_end_opts', SE_END_DEFAULTS);
 // あとから増えた候補を、候補を自分で編集済みの人にも一度だけ末尾に足す（消した後は戻さない）
 function seOptsAddOnce(flag, key, list, items){
@@ -3364,6 +3414,8 @@ function seOptsAddOnce(flag, key, list, items){
 seOptsAddOnce('setlist_se_end_add_1270', 'setlist_se_end_opts', SE_END_OPTS, ['だんだんゆっくりになって終わる','フェルマータ']);
 seOptsAddOnce('setlist_se_start_add_1290', 'setlist_se_start_opts', SE_START_OPTS, ['未定']);
 seOptsAddOnce('setlist_se_end_add_1290', 'setlist_se_end_opts', SE_END_OPTS, ['未定']);
+seOptsAddOnce('setlist_se_start_add_1370', 'setlist_se_start_opts', SE_START_OPTS, ['カウントでオールイン','ドラムのカウントフィル']);
+seOptsAddOnce('setlist_se_end_add_1370', 'setlist_se_end_opts', SE_END_OPTS, ['ブレイク']);
 function seOptsRef(which){ return which==='start' ? SE_START_OPTS : which==='rhythm' ? RHYTHM_OPTS : SE_END_OPTS; }
 const SE_OPT_LABEL = {start:'はじめかた', end:'おわりかた', rhythm:'リズムパターン'};
 function saveSeOpts(which){
@@ -4073,8 +4125,11 @@ function renderLives(){
   if(artistSel) artistSel.onchange = function(){ liveArtistFilter = this.value; store.set('setlist_live_artist', liveArtistFilter); render(); };
 }
 window.setHidePast = on => { hidePast = !!on; store.set('setlist_hide_past', hidePast); render(); };
+let actOpen = {sl:false, ev:false};   // イベント画面の下の「セットリスト操作」「イベント操作」（イベントを開くたびに閉じる）
+window.toggleActGroup = k => { actOpen[k] = !actOpen[k]; render(); };
 window.resetSlView = () => { slFilter = 'all'; slSort = 'order'; render(); };
 window.openLive = id => {
+  actOpen = {sl:false, ev:false};
   slFilter = 'all'; slSort = 'order';
   entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
   const l = lives.find(x=>x.id===id);
@@ -4335,19 +4390,19 @@ function renderLiveEdit(){
     html += shown.length ? shown.map(r => slSort==='order' ? r.p.h : r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
   }
 
+  // 画面下の操作は見出しだけ出して、押したら開く（初期値は閉じる）
+  const actGroup = (key, title, sub, inner) => `<div class="action-group${actOpen[key] ? ' open' : ''}">
+    <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
+    ${actOpen[key] ? `<div class="action-group-body">${inner}</div>` : ''}</div>`;
   if(live.setlist.length>0){
-    html += `<div class="action-group">
-      <div class="action-group-title">セットリスト操作</div>
+    html += actGroup('sl', 'セットリスト操作', 'テキストで書き出し・全て削除', `
       <button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>
-      <button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>
-    </div>`;
+      <button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>`);
   }
-  html += `<div class="action-group">
-    <div class="action-group-title">イベント操作</div>
+  html += actGroup('ev', 'イベント操作', 'コピー・CSV・削除', `
     <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
     <button type="button" class="btn btn-block btn-with-icon" onclick="exportSingleEvent()">CSVで書き出す${EXPORT_ICON_SVG}</button>
-    <button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>
-  </div>`;
+    <button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`);
 
   main.innerHTML = html;
   if(timer.running && !timer.intervalId){ timer.intervalId = setInterval(tickTimer, 1000); }
