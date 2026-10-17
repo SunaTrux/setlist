@@ -841,13 +841,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.46.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.46.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.46.1': [
+    'イベント画面の情報カードの日付は年を省略（10/17(土)。今年以外は年も表示）',
+    'セットリストの最小表示では「曲名タップで曲情報と…」の説明を出さないように'
+  ],
   '1.46.0': [
     'MC・SEなど曲以外を追加したとき「セットリストの最後（「○○」の後）に追加しました」と場所を表示し、追加した行を少し光らせるように',
     '「曲以外を表示」スイッチをなくし、表示切り替えに統合：フル・標準は曲以外も表示、最小は曲だけ。表示切り替えは左に、ロックは同じ行の右に',
@@ -1325,6 +1329,12 @@ function liveDateStatus(date){
   return {kind:'past', label:'終了'};
 }
 function liveStatusBadge(st){ return st && st.kind!=='none' ? `<span class="st-badge st-${st.kind}">${esc(st.label)}</span>` : ''; }
+// 年を省いた日付（10/17）。今年以外の日付だけ年を付ける（2025/10/17）
+function shortDate(d){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || '')); if(!m) return d || '';
+  const md = `${+m[2]}/${+m[3]}`;
+  return +m[1]===new Date().getFullYear() ? md : `${m[1]}/${md}`;
+}
 function dowLabel(dateStr){
   if(!dateStr) return '';
   const d = new Date(dateStr+'T00:00:00');
@@ -4381,7 +4391,7 @@ function renderLiveEdit(){
     <div class="fold-head-main">${liveInfoOpen
       ? `<div class="fold-title">イベント情報</div>`
       : `<div class="live-title-line"><span class="live-venue">${esc(live.venue || 'イベント名未設定')}</span>${live.artist ? `<span class="live-artist">${esc(live.artist)}</span>` : ''}</div>
-        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>`}
+        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(shortDate(live.date))+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
@@ -4485,7 +4495,7 @@ function renderLiveEdit(){
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">最小表示では曲以外（${otherCount}件）は出しません。合計時間には含まれています。</div>`;
-  html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表と曲情報の編集（「編集」でこのイベント用の変更も）</div>`;
+  if(cardMode!=='min') html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表と曲情報の編集（「編集」でこのイベント用の変更も）</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
