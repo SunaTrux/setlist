@@ -27,7 +27,7 @@
 :root{
   --bg:#EDE8DE; --surface:#F8F5EC; --surface2:#FFFFFF; --text:#211D16; --muted:#6B6355;
   --accent:#C98A2C; --accent-text:#211D16; --border:#D8D0BF; --danger:#A84432; --radius:10px;
-  --future:#2F6DB5; --today:#C2452C; --pin:#2F7D5B;
+  --teal:#3F726C; --teal-dim:#DCEBE8; --teal-text:#3F726C; --pin:#2F7D5B;
   color-scheme:light dark;
 }
 :root[data-theme="light"]{color-scheme:only light;}
@@ -36,13 +36,13 @@
   :root:not([data-theme="light"]){
     --bg:#14120F; --surface:#1E1A15; --surface2:#262019; --text:#F2EDE4; --muted:#A79E8C;
     --accent:#E8A33D; --accent-text:#14120F; --border:#332C22; --danger:#C4664A;
-    --future:#6FA6EE; --today:#FF7559; --pin:#4FB98A;
+    --teal:#4F8C85; --teal-dim:#2F524D; --teal-text:#BFE3DD; --pin:#4FB98A;
   }
 }
 :root[data-theme="dark"]{
   --bg:#14120F; --surface:#1E1A15; --surface2:#262019; --text:#F2EDE4; --muted:#A79E8C;
   --accent:#E8A33D; --accent-text:#14120F; --border:#332C22; --danger:#C4664A;
-  --future:#6FA6EE; --today:#FF7559; --pin:#4FB98A;
+  --teal:#4F8C85; --teal-dim:#2F524D; --teal-text:#BFE3DD; --pin:#4FB98A;
 }
 *{box-sizing:border-box;}
 html,body{height:100%;}
@@ -104,12 +104,15 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 
 .live-card{display:block; width:100%; text-align:left; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:10px; cursor:pointer; color:var(--text);}
 .live-date{font-size:12px; color:var(--accent); font-weight:700; letter-spacing:.03em;}
-.live-date.is-future{color:var(--future);}
-.live-date.is-today{color:var(--today);}
-.live-date.is-past{color:var(--muted); font-weight:600;}
-.live-when{display:inline-block; margin-right:6px; padding:0 6px; border-radius:4px; font-size:10px; font-weight:700; line-height:16px; vertical-align:1px; font-family:inherit; letter-spacing:.04em;}
-.is-today .live-when{background:var(--today); color:#fff;}
-.live-card-wrap.is-past-live .live-venue{color:var(--muted);}
+/* 日付の状態（バンドマン持ち物リストと同じ：今日＝オレンジ、これから＝緑、過去＝グレー） */
+.st-badge{display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:0 8px; line-height:17px; margin-right:6px; vertical-align:1px; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; letter-spacing:0;}
+.st-today{background:var(--accent); color:#fff;}
+.st-future{background:var(--teal-dim); color:var(--teal-text); border:1px solid var(--teal); line-height:15px;}
+.st-past{background:transparent; color:var(--muted); border:1px solid var(--border); line-height:15px;}
+.live-card-wrap.st-card-today .live-card, .fold-card.st-card-today{box-shadow:inset 4px 0 0 var(--accent);}
+.live-card-wrap.st-card-future .live-card, .fold-card.st-card-future{box-shadow:inset 4px 0 0 var(--teal);}
+.live-card-wrap.st-card-past .live-card, .fold-card.st-card-past{box-shadow:inset 4px 0 0 var(--border);}
+.live-card-wrap.st-card-past .live-date, .live-card-wrap.st-card-past .live-venue, .live-card-wrap.st-card-past .live-count{opacity:.6;}
 .live-venue{font-size:14px; font-weight:700; margin:4px 0 2px;}
 .live-artist{font-size:13px; color:var(--muted);}
 .live-count{font-size:12px; color:var(--muted); margin-top:6px;}
@@ -797,13 +800,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.33.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.34.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.34.0': [
+    'イベントの日付の色分けを「バンドマン持ち物リスト」とそろえました：今日はオレンジ、これからは緑（「明日」「あと○日」）、終わったものはグレー（「終了」）。カードの左端にも色の線',
+    '「設定」の「候補の編集」を「プレイ情報の初期値設定」に'
+  ],
   '1.33.1': [
     'イベント一覧の「セットリスト」ボタン：曲があるイベントは「セットリスト作成」を閉じたまま、セットリストの先頭から表示'
   ],
@@ -1178,6 +1185,17 @@ function durMinOptionsHtml(min){ let h=''; for(let i=0;i<=20;i++) h+=`<option va
 function durSecOptionsHtml(sec){ let h=''; for(let i=0;i<60;i+=5) h+=`<option value="${i}" ${i===sec?'selected':''}>${String(i).padStart(2,'0')}</option>`; return h; }
 // 今日の日付（端末の時刻で YYYY-MM-DD）
 function todayYmd(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// 日付の状態：今日／これから（明日・あと○日）／過去（終了）。バンドマン持ち物リストと同じ見せ方
+function liveDateStatus(date){
+  if(!date) return {kind:'none'};
+  const t = todayYmd();
+  if(date===t) return {kind:'today', label:'今日'};
+  const diff = Math.round((new Date(date+'T00:00:00') - new Date(t+'T00:00:00')) / 86400000);
+  if(isNaN(diff)) return {kind:'none'};
+  if(diff > 0) return {kind:'future', label: diff===1 ? '明日' : `あと${diff}日`};
+  return {kind:'past', label:'終了'};
+}
+function liveStatusBadge(st){ return st && st.kind!=='none' ? `<span class="st-badge st-${st.kind}">${esc(st.label)}</span>` : ''; }
 function dowLabel(dateStr){
   if(!dateStr) return '';
   const d = new Date(dateStr+'T00:00:00');
@@ -3979,7 +3997,6 @@ function renderLives(){
   const sorted0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
   const sorted = [...sorted0.filter(l => l.pinned), ...sorted0.filter(l => !l.pinned)];
   const nPinL = sorted.filter(l => l.pinned).length;
-  const today = todayYmd();
   if(lives.length===0){
     html += `<div class="empty">まだイベントが登録されていません。<br>「新しいイベント」から作成しましょう。</div>`;
   } else if(sorted.length===0){
@@ -3988,11 +4005,11 @@ function renderLives(){
     sorted.forEach((l, li) => {
       if(nPinL && li===0) html += `<div class="pin-head">📌 ピン留め</div>`;
       if(nPinL && li===nPinL) html += `<div class="pin-sep"></div>`;
-      const when = !l.date ? '' : l.date < today ? 'past' : l.date===today ? 'today' : 'future';
+      const st = liveDateStatus(l.date);
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
-      html += `<div class="live-card-wrap${when==='past' ? ' is-past-live' : ''}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div><div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
-        <div class="live-date mono${when ? ' is-'+when : ''}">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${when==='today' ? '<span class="live-when">今日</span>' : ''}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}${stageMinutes(l.startTime, l.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(l.startTime, l.endTime)}分</span>` : ''}</div>
+      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div><div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
+        <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}${stageMinutes(l.startTime, l.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(l.startTime, l.endTime)}分</span>` : ''}</div>
         <div class="live-venue">${esc(l.venue || 'イベント名未設定')}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
@@ -4083,12 +4100,13 @@ function renderLiveEdit(){
   if(justCopiedId===live.id){
     html += `<div class="new-copy-note">コピーから作った新しいイベントです。イベント名や日付を変更してください。</div>`;
   }
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveInfo()">
+  const liveSt = liveDateStatus(live.date);
+  html += `<div class="fold-card st-card-${liveSt.kind}"><button type="button" class="fold-head" onclick="toggleLiveInfo()">
     <div class="fold-head-main">${liveInfoOpen
       ? `<div class="fold-title">イベント情報</div>`
       : `<div class="live-venue">${esc(live.venue || 'イベント名未設定')}</div>
         ${live.artist ? `<div class="live-artist">${esc(live.artist)}</div>` : ''}
-        <div class="live-date mono summary-date">${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}</div>`}
+        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}</div>`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
@@ -4829,7 +4847,7 @@ function renderSettings(){
     </div>
     <div class="hint">Googleスプレッドシートなどの表計算アプリで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
 `)}
-  <div class="section-title">候補の編集</div>
+  <div class="section-title">プレイ情報の初期値設定</div>
   ${acc('opt-start', 'はじめかたの候補', `${SE_START_OPTS.length}件`, `${seOptsEditorHtml('start', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
