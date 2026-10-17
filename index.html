@@ -151,6 +151,12 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .dur-sep{font-size:13px; color:var(--muted);}
 .form-actions{display:flex; gap:8px; margin-top:4px;}
 
+.data-place{background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; line-height:1.65; color:var(--text);}
+.data-place p{margin:6px 0 0;}
+.data-place ul{margin:4px 0 0; padding-left:1.3em;}
+.data-place-now{font-size:13px;}
+.data-place-now b{color:var(--accent);}
+.data-place-warn{color:var(--muted);}
 .set-acc{padding:0; margin-bottom:8px;}
 .set-acc > summary{list-style:none; cursor:pointer; display:flex; align-items:baseline; gap:10px; padding:14px; min-height:48px; box-sizing:border-box;}
 .set-acc > summary::-webkit-details-marker{display:none;}
@@ -802,13 +808,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.35.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.35.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.35.1': [
+    '「設定」→「バックアップ・CSV」に、データの保存場所の説明を追加。今どこにデータがあるか（例：iPhoneの Safari／ホーム画面のアプリ）と、ブラウザ・ホーム画面のアプリごとにデータが別になること、移し方をまとめました'
+  ],
   '1.35.0': [
     'イベント一覧を「日付順（今日→これから→過去）」で並べるように（並び替えで今までの順にも戻せます）',
     'イベント一覧に「過去のイベントを隠す」チェック。ピン留めしたイベントは隠しません'
@@ -4820,6 +4829,24 @@ window.copyLive = () => {
 };
 
 // ---------- 設定 ----------
+// 今どこで開いているか（データはこの「場所」ごとに別々に保存される）
+function isStandaloneApp(){ return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); }
+function currentPlaceLabel(){
+  const ua = navigator.userAgent || '';
+  const dev = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(ua) ? 'Android' : 'この端末';
+  if(isStandaloneApp()) return `${dev}のホーム画面のアプリ`;
+  const br = /EdgA?\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
+  return `${dev}の ${br}`;
+}
+function dataPlaceHtml(){
+  return `<div class="data-place">
+    <div class="data-place-now">今のデータの保存場所：<b>${esc(currentPlaceLabel())}</b></div>
+    <p>データはインターネット上ではなく、<b>開いている場所ごと</b>に保存されます。同じスマホでも、次の3つはそれぞれ別のデータで、自動ではつながりません。</p>
+    <ul><li>Safari で開いたとき</li><li>Chrome など、別のブラウザで開いたとき</li><li>ホーム画面のアイコンから開いたとき</li></ul>
+    <p><b>移すとき</b>：今の場所で「バックアップ」→ 移したい場所でアプリを開いて「復元」</p>
+    <p class="data-place-warn">ブラウザの履歴・データを消去したり、機種変更したりすると消えてしまうので、ときどきバックアップしておくと安心です。</p>
+  </div>`;
+}
 let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
@@ -4841,10 +4868,11 @@ function renderSettings(){
         <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
       </div>
     </div>
-    <div class="hint" style="margin-top:12px;">${(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。ホーム画面から開くとブラウザのツールバーが出ません（データは別になるので、「バックアップ・CSV」のバックアップ・復元で移してください）。'}</div>
+    <div class="hint" style="margin-top:12px;">${isStandaloneApp() ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。<br>※ホーム画面のアプリは、ブラウザとは別にデータを持ちます。今のデータを使うときは「バックアップ・CSV」で移してください。'}</div>
 
 `)}
   ${acc('data', 'バックアップ・CSV', '全データ・曲マスタ・イベント一覧', `
+    ${dataPlaceHtml()}
     <div class="field">
       <label>全データ</label>
       <div class="settings-btn-row">
@@ -4852,7 +4880,7 @@ function renderSettings(){
         <button type="button" class="btn btn-with-icon" onclick="document.getElementById('backup-input').click()">復元${IMPORT_ICON_SVG}</button>
       </div>
       <input type="file" id="backup-input" accept=".json,application/json" style="display:none">
-      <div class="hint">データはこの端末のブラウザの中にだけ保存されています。ブラウザのデータ消去や機種変更に備えて、ときどきバックアップしておくと安心です。曲マスタ・イベント一覧・表示などの設定を1つのファイル（setlist-backup-日付.json）に保存し、復元すると今のデータと丸ごと置き換わります。</div>
+      <div class="hint">曲マスタ・イベント一覧・設定を、1つのファイル（setlist-backup-日付.json）に保存します。復元すると、その場所のデータが丸ごとファイルの内容に置き換わります。</div>
     </div>
     <div class="field">
       <label>曲マスタ</label>
