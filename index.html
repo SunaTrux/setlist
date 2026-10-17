@@ -797,13 +797,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.33.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.33.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.33.1': [
+    'イベント一覧の「セットリスト」ボタン：曲があるイベントは「セットリスト作成」を閉じたまま、セットリストの先頭から表示'
+  ],
   '1.33.0': [
     'イベント詳細の「セットリスト作成」（曲を登録・曲以外を追加）を開閉できるように。ふだんは閉じて、セットリストを大きく見られます（曲がまだないイベントと「セットリスト」ボタンからは開いた状態）'
   ],
@@ -4023,11 +4026,14 @@ window.openLive = id => {
   render();
   scrollToTop();
 };
-// イベント一覧の「セットリスト」：イベントを開いて、セットリスト作成のところまで送る
+// イベント一覧の「セットリスト」：曲があればセットリストの先頭へ、まだなければ「セットリスト作成」を開いてそこへ
 window.openLiveSetlist = id => {
   openLive(id);
-  if(!liveCreateOpen){ liveCreateOpen = true; liveRegisterOpen = true; render(); }
-  const el = document.getElementById('setlist-section');
+  const l = lives.find(x => x.id===id);
+  const hasSongs = l && l.setlist.some(e => e.type!=='other');
+  if(hasSongs){ if(liveCreateOpen){ liveCreateOpen = false; render(); } }
+  else if(!liveCreateOpen){ liveCreateOpen = true; liveRegisterOpen = true; render(); }
+  const el = document.getElementById(hasSongs ? 'setlist-main' : 'setlist-section');
   if(el) requestAnimationFrame(() => el.scrollIntoView({block:'start'}));
 };
 window.toggleLiveInfo = () => {
@@ -4174,7 +4180,7 @@ function renderLiveEdit(){
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
   // ---- セットリストエリア ----
-  html += `<div class="setlist-head">
+  html += `<div class="setlist-head" id="setlist-main" style="scroll-margin-top:8px;">
     <div class="section-title" style="margin:0;">セットリスト</div>
     <div class="head-toggles">
     ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
