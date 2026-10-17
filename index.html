@@ -763,13 +763,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.28.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.29.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.29.0': [
+    'はじめかた・おわりかたの候補の一番下に「未定」を追加（候補を自分で編集していた場合も末尾に追加）'
+  ],
   '1.28.0': [
     'Markdownの取り込み欄に「テンプレをコピー」。AIに曲名と一緒に渡すか、自分で埋めて貼り付けるだけで、曲情報と構成表がまとめて入ります',
     '書き出し・取り込み・テンプレの形をそろえました：曲情報は「項目｜内容」の表、構成表は「区間｜小節数｜回数｜コード｜歌｜演奏｜キメ｜キメ小節」',
@@ -3212,7 +3215,7 @@ function renderSongs(){
 }
 // はじめかた・おわりかた：候補から選ぶ、または「（その他）」で自由に書く
 // 候補は「設定」で追加・削除・並べ替えできる（保存がなければ初期値）
-const SE_START_DEFAULTS = ['ドラムカウントから','ドラムフィルから','カウント','ギターから','ベースから','ボーカルから','指揮者から','フィーリング'];
+const SE_START_DEFAULTS = ['ドラムカウントから','ドラムフィルから','カウント','ギターから','ベースから','ボーカルから','指揮者から','フィーリング','未定'];
 function loadSeOpts(key, def){ const a = store.get(key, null); return Array.isArray(a) && a.length ? a.map(String).filter(Boolean) : def.slice(); }
 let SE_START_OPTS = loadSeOpts('setlist_se_start_opts', SE_START_DEFAULTS);
 const SE_START_DEFAULT = '';  // 新しい曲のはじめかたは「-」（未設定）から
@@ -3227,17 +3230,21 @@ function songDetailHtml(s, e){
   lines.push(notes ? `<div class="detail-note">${esc(notes)}</div>` : `<div class="detail-line muted">メモなし</div>`);
   return lines.join('');
 }
-const SE_END_DEFAULTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','だんだんゆっくりになって終わる','フェルマータ','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング'];
+const SE_END_DEFAULTS = ['キメで全員ピタッと止める','ブレイクからジャーンで締める','最後のコードを伸ばして止める','だんだんゆっくりになって終わる','フェルマータ','全員でジャーンと締める','MCへつなげる','ブルーズ進行ブレイク','フィーリング','未定'];
 let SE_END_OPTS = loadSeOpts('setlist_se_end_opts', SE_END_DEFAULTS);
-// 1.27.0 で増えた候補を、候補を自分で編集済みの人にも一度だけ足す（消した後は戻さない）
-if(!store.get('setlist_se_end_add_1270', false)){
-  const saved = store.get('setlist_se_end_opts', null);
+// あとから増えた候補を、候補を自分で編集済みの人にも一度だけ末尾に足す（消した後は戻さない）
+function seOptsAddOnce(flag, key, list, items){
+  if(store.get(flag, false)) return;
+  const saved = store.get(key, null);
   if(Array.isArray(saved) && saved.length){
-    ['だんだんゆっくりになって終わる','フェルマータ'].forEach(t => { if(!SE_END_OPTS.includes(t)) SE_END_OPTS.push(t); });
-    store.set('setlist_se_end_opts', SE_END_OPTS);
+    items.forEach(t => { if(!list.includes(t)) list.push(t); });
+    store.set(key, list);
   }
-  store.set('setlist_se_end_add_1270', true);
+  store.set(flag, true);
 }
+seOptsAddOnce('setlist_se_end_add_1270', 'setlist_se_end_opts', SE_END_OPTS, ['だんだんゆっくりになって終わる','フェルマータ']);
+seOptsAddOnce('setlist_se_start_add_1290', 'setlist_se_start_opts', SE_START_OPTS, ['未定']);
+seOptsAddOnce('setlist_se_end_add_1290', 'setlist_se_end_opts', SE_END_OPTS, ['未定']);
 function seOptsRef(which){ return which==='start' ? SE_START_OPTS : which==='rhythm' ? RHYTHM_OPTS : SE_END_OPTS; }
 const SE_OPT_LABEL = {start:'はじめかた', end:'おわりかた', rhythm:'リズムパターン'};
 function saveSeOpts(which){
