@@ -461,17 +461,20 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .bulk-box .pos-row{margin-bottom:12px;}
 .setlist-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:20px 0 8px;}
 .head-toggles{display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
-.list-opts{display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap; margin:-4px 0 6px;}
-.list-opts .show-toggle{margin-right:auto;}
+.list-opts{display:flex; justify-content:flex-start; align-items:center; gap:8px; flex-wrap:wrap; margin:-4px 0 6px;}
 .lock-btn{flex:none; height:30px; padding:0 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation;}
 .lock-btn.on{background:var(--text); border-color:var(--text); color:var(--bg);}
-.list-opts .lock-btn{margin-right:auto;}
-.list-opts .lock-btn ~ .show-toggle{margin-right:0;}
-.list-opts:has(.lock-btn) .view-seg{flex-basis:100%; justify-content:flex-end;}   /* ロック・曲以外の行と、表示切り替えの行に分ける */
+.list-opts .lock-btn{margin-left:auto;}   /* 表示切り替えは左、ロックは右 */
+.setlist-item.just-added{animation:justAdded 1.6s ease;}
+@keyframes justAdded{0%,40%{box-shadow:0 0 0 2px var(--accent);} 100%{box-shadow:0 0 0 2px transparent;}}
+@media (prefers-reduced-motion: reduce){ .setlist-item.just-added{animation:none; box-shadow:0 0 0 2px var(--accent);} }
 .lock-note{margin:16px 0 8px; padding:10px 12px; border:1px dashed var(--border); border-radius:var(--radius); font-size:12.5px; color:var(--muted); line-height:1.6;}
 .lock-note .link-btn{margin-left:6px; border:none; background:none; padding:0; color:var(--accent); font-weight:700; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;}
 .num-toggle.is-locked{cursor:default; opacity:.7;}
 .lock-mark{margin-right:4px;}
+.live-title-line{display:flex; align-items:baseline; gap:8px; min-width:0;}
+.live-title-line .live-venue{flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.live-title-line .live-artist{flex:0 100 auto; min-width:3em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .sl-head-card{margin-top:22px;}
 .sl-head-card .totals-head .totals-label{font-size:15px;}
 .sl-head-card .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:2px;}
@@ -838,13 +841,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.45.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.46.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.46.0': [
+    'MC・SEなど曲以外を追加したとき「セットリストの最後（「○○」の後）に追加しました」と場所を表示し、追加した行を少し光らせるように',
+    '「曲以外を表示」スイッチをなくし、表示切り替えに統合：フル・標準は曲以外も表示、最小は曲だけ。表示切り替えは左に、ロックは同じ行の右に',
+    'イベント画面の情報カードは、イベント名とアーティスト名を1行に、日時の横にステージ時間（例：50分）を表示'
+  ],
   '1.45.0': [
     'セットリストのロック：セットリストの「🔓 ロック」を押すと曲順を固定。ドラッグのハンドル・削除ボタン・スワイプ削除が消え、曲の追加もできなくなります（もう一度押すと解除）'
   ],
@@ -1564,7 +1572,7 @@ const CARD_MODES = [['full','フル'],['bk','標準'],['min','最小']];
 function viewSegHtml(){
   return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${cardMode===k?'on':''}" onclick="setCardMode('${k}')" aria-pressed="${cardMode===k}">${l}</button>`).join('')}</div></div>`;
 }
-let showOthers = store.get('setlist_show_others', true);  // セットリストに曲以外（MC・SEなど）を表示するか
+let showOthers = true;  // セットリストに曲以外（MC・SEなど）を出すか。表示切り替えで決まる（フル・標準は出す、最小は出さない）
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','start'); // 「曲を登録」の追加位置
 // 追加位置の切り替え（先頭／最後）
@@ -3361,6 +3369,7 @@ document.getElementById('tab-songs').onclick = () => { structOpen = null; struct
 document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
 function render(){
+  showOthers = cardMode!=='min';
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
   document.getElementById('tab-songs').classList.toggle('active', tab==='songs');
   document.getElementById('tab-settings').classList.toggle('active', tab==='settings');
@@ -4327,8 +4336,8 @@ window.toggleLiveInfo = () => {
 };
 window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
-window.setCardMode = m => { cardMode = m; store.set('setlist_card_mode', m); render(); };
-window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
+window.setCardMode = m => { cardMode = m; store.set('setlist_card_mode', m); entryExpandedIdx = null; render(); };
+
 window.toggleLiveCreate = () => { liveCreateOpen = !liveCreateOpen; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
@@ -4371,9 +4380,8 @@ function renderLiveEdit(){
   html += `<div class="fold-card st-card-${liveSt.kind}"><button type="button" class="fold-head" onclick="toggleLiveInfo()">
     <div class="fold-head-main">${liveInfoOpen
       ? `<div class="fold-title">イベント情報</div>`
-      : `<div class="live-venue">${esc(live.venue || 'イベント名未設定')}</div>
-        ${live.artist ? `<div class="live-artist">${esc(live.artist)}</div>` : ''}
-        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}</div>`}
+      : `<div class="live-title-line"><span class="live-venue">${esc(live.venue || 'イベント名未設定')}</span>${live.artist ? `<span class="live-artist">${esc(live.artist)}</span>` : ''}</div>
+        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
@@ -4473,10 +4481,10 @@ function renderLiveEdit(){
     ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
   </div>`;
-  html += `<div class="list-opts">${live.setlist.length ? `<button type="button" class="lock-btn${lk ? ' on' : ''}" onclick="toggleLiveLock()" aria-pressed="${lk}" title="${lk ? 'ロックを解除' : '曲順をロック'}">${lk ? '🔒 ロック中' : '🔓 ロック'}</button>` : ''}${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}${viewSegHtml()}</div>`;
+  html += `<div class="list-opts">${viewSegHtml()}${live.setlist.length ? `<button type="button" class="lock-btn${lk ? ' on' : ''}" onclick="toggleLiveLock()" aria-pressed="${lk}" title="${lk ? 'ロックを解除' : '曲順をロック'}">${lk ? '🔒 ロック中' : '🔓 ロック'}</button>` : ''}</div>`;
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
-  if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
+  if(!showOthers && otherCount) html += `<div class="hint">最小表示では曲以外（${otherCount}件）は出しません。合計時間には含まれています。</div>`;
   html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表と曲情報の編集（「編集」でこのイベント用の変更も）</div>`;
 
   let seq = 0;
@@ -4696,11 +4704,19 @@ window.clearSetlist = () => {
 };
 window.addOther = (label, duration) => {
   const live = lives.find(l=>l.id===liveEditId);
+  if(liveLockedGuard(live)) return;
   const item = {type:'other', id:uid(), label, duration, notes:'', numbered:false};
   insertEntries(live, [item], otherAddPos);
   live.updatedAt = Date.now();
   saveLives(); render();
-  showToast(`${label||'その他'}を${otherAddPos==='start'?'先頭':'最後'}に追加しました。`);
+  // どこに入ったか：隣の曲名を添えて知らせ、追加した行を少し光らせる
+  const idx = live.setlist.indexOf(item);
+  const nb = otherAddPos==='start' ? live.setlist[idx+1] : live.setlist[idx-1];
+  const nbName = nb ? (nb.type==='other' ? (nb.label || 'その他') : ((songs.find(x => x.id===nb.songId) || {}).name || '')) : '';
+  const where = otherAddPos==='start' ? `セットリストの先頭${nbName ? `（「${nbName}」の前）` : ''}` : `セットリストの最後${nbName ? `（「${nbName}」の後）` : ''}`;
+  showToast(`${label||'その他'}を${where}に追加しました${cardMode==='min' ? '（最小表示では曲以外は出ません）' : ''}`);
+  const row = document.querySelector(`.setlist-item[data-drag-list="live"][data-key="${idx}"]`);
+  if(row){ row.classList.add('just-added'); setTimeout(() => row.classList.remove('just-added'), 1600); }
 };
 window.toggleOtherNumbered = i => {
   const live = lives.find(l=>l.id===liveEditId);
