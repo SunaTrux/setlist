@@ -157,6 +157,11 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .set-acc-body > :last-child{margin-bottom:0;}
 .set-acc[open] > summary{padding-bottom:10px;}
 .set-acc-danger .set-acc-t{color:var(--danger);}
+.create-head{display:flex; align-items:center; gap:8px; width:100%; margin:16px 0 8px; padding:10px 12px; border:1px dashed var(--border); border-radius:var(--radius); background:transparent; color:var(--muted); font-family:inherit; cursor:pointer; text-align:left; scroll-margin-top:8px;}
+.create-head.open{border-style:solid; margin-bottom:8px;}
+.create-title{font-size:13px; font-weight:700; letter-spacing:.03em; color:var(--text);}
+.create-sub{font-size:12px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.create-head .fold-toggle{margin-left:auto;}
 .section-title{font-size:13px; font-weight:700; color:var(--muted); margin:20px 0 8px; letter-spacing:.03em;}
 
 .totals-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:16px;}
@@ -792,13 +797,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.32.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.33.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.33.0': [
+    'イベント詳細の「セットリスト作成」（曲を登録・曲以外を追加）を開閉できるように。ふだんは閉じて、セットリストを大きく見られます（曲がまだないイベントと「セットリスト」ボタンからは開いた状態）'
+  ],
   '1.32.0': [
     'イベント一覧のカードに「セットリスト」ボタン（構成の左）。イベントを開いて、すぐセットリスト作成のところへ',
     'イベントを開いたときの情報カードは、イベント名・アーティスト名・日時だけに（場所・メモなどはタップして開くと見られます）'
@@ -1390,6 +1398,7 @@ let justCopiedId = null;
 let liveTotalsOpen = false;
 let liveOtherOpen = false;   // 「曲以外を追加」カード
 let liveRegisterOpen = false; // 「曲を登録」カード
+let liveCreateOpen = false;   // 「セットリスト作成」（曲を登録・曲以外を追加）のまとまり。ふだんは閉じてセットリストを主役に
 let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加位置：'start' or 'end'
 // 曲カードの表示：full=標準 / bk=最小＋BPM・Key / min=最小（曲順・曲名・時間・編集ボタンだけ）
 let cardMode = store.get('setlist_card_mode', store.get('setlist_cards_min', false) ? 'min' : 'full');
@@ -3994,7 +4003,7 @@ function renderLives(){
     const presetArtist = (liveArtistFilter!=='all' && liveArtistFilter!=='__none__') ? liveArtistFilter : '';
     const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:presetArtist, startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
     lives.push(l); saveLives(); liveEditId = l.id; entryExpandedIdx = null;
-    liveInfoOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = true;
+    liveInfoOpen = true; liveTotalsOpen = false; liveOtherOpen = false; liveRegisterOpen = true; liveCreateOpen = true;
     render();
     scrollToTop();
   };
@@ -4009,6 +4018,7 @@ window.openLive = id => {
   entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
   const l = lives.find(x=>x.id===id);
   liveRegisterOpen = !l || l.setlist.length===0;
+  liveCreateOpen = liveRegisterOpen;   // 曲がまだないイベントだけ、作成を開いておく
   liveInfoOpen = false;
   render();
   scrollToTop();
@@ -4016,6 +4026,7 @@ window.openLive = id => {
 // イベント一覧の「セットリスト」：イベントを開いて、セットリスト作成のところまで送る
 window.openLiveSetlist = id => {
   openLive(id);
+  if(!liveCreateOpen){ liveCreateOpen = true; liveRegisterOpen = true; render(); }
   const el = document.getElementById('setlist-section');
   if(el) requestAnimationFrame(() => el.scrollIntoView({block:'start'}));
 };
@@ -4028,6 +4039,7 @@ window.toggleLiveTotals = () => { liveTotalsOpen = !liveTotalsOpen; render(); };
 window.toggleLiveOther = () => { liveOtherOpen = !liveOtherOpen; render(); };
 window.setCardMode = m => { cardMode = m; store.set('setlist_card_mode', m); render(); };
 window.toggleShowOthers = () => { showOthers = !showOthers; store.set('setlist_show_others', showOthers); entryExpandedIdx = null; render(); };
+window.toggleLiveCreate = () => { liveCreateOpen = !liveCreateOpen; render(); };
 window.toggleLiveRegister = () => { liveRegisterOpen = !liveRegisterOpen; render(); };
 window.updateDow = (val) => {
   const el = document.getElementById('live-dow');
@@ -4094,7 +4106,9 @@ function renderLiveEdit(){
     <div class="form-actions"><button type="submit" class="btn btn-accent">保存</button></div>
   </form>`;
   html += `</div>
-  <div class="section-title" id="setlist-section" style="scroll-margin-top:8px;">セットリスト作成</div>`;
+  <button type="button" class="create-head${liveCreateOpen ? ' open' : ''}" id="setlist-section" onclick="toggleLiveCreate()" aria-expanded="${liveCreateOpen}">
+    <span class="create-title">セットリスト作成</span>${liveCreateOpen ? '' : '<span class="create-sub">曲を登録・曲以外を追加</span>'}${foldToggleHtml(liveCreateOpen)}
+  </button>`;
 
   const songRegisterInner = regBodyHtml(live);
 
@@ -4154,9 +4168,9 @@ function renderLiveEdit(){
   </div>`;
 
 
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
+  if(liveCreateOpen) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
     ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
-  html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
+  if(liveCreateOpen) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
   // ---- セットリストエリア ----
