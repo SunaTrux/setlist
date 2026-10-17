@@ -763,13 +763,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.27.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.28.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.28.0': [
+    'Markdownの取り込み欄に「テンプレをコピー」。AIに曲名と一緒に渡すか、自分で埋めて貼り付けるだけで、曲情報と構成表がまとめて入ります',
+    '書き出し・取り込み・テンプレの形をそろえました：曲情報は「項目｜内容」の表、構成表は「区間｜小節数｜回数｜コード｜歌｜演奏｜キメ｜キメ小節」',
+    '書き出しに曲時間・ジャンル・URL・メモも入るように（書き出したものを貼り付ければ同じ内容に戻せます）'
+  ],
   '1.27.0': [
     'おわりかたの候補に「だんだんゆっくりになって終わる」「フェルマータ」を追加（候補を自分で編集していた場合は末尾に追加）'
   ],
@@ -2164,8 +2169,8 @@ function renderStruct(){
     html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>
       <div class="st-empty-paste">
         <div class="st-empty-or">または、AIなどで作った構成表（Markdown）を貼り付け</div>
-        <textarea id="st-paste" rows="5" placeholder="| 区間 | バー数 | コード | 歌詞メモ | 演奏メモ | キメ |&#10;| Intro | 8 | G → Am | — | … | — |"></textarea>
-        <button type="button" class="btn" onclick="stDoPaste()">取り込む</button>
+        <textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea>
+        <div class="st-btns" style="margin-top:0; justify-content:center;"><button type="button" class="btn" onclick="stDoPaste()">取り込む</button><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button></div>
         <div class="st-msg" id="st-paste-msg"></div>
       </div></div>`;
   } else {
@@ -2378,8 +2383,8 @@ function stEditorHtml(s){
   <div class="panel">
     <div class="section-title" style="margin-top:0;">構成表を貼り付けて取り込む</div>
     <p class="st-note">AIなどで作った構成表をそのまま貼り付けると、セクションに変換します。見出しに「コード」「歌詞」「演奏」「キメ」などの列があれば、それぞれのメモに振り分けます。「（繰り返し）」の行は前の行の回数にまとめます。今のセクションは置き換わります。「曲情報」の表があれば、空いている項目（キー・BPMなど）にだけ入れます。</p>
-    <div class="field"><textarea id="st-paste" rows="6" placeholder="| 区間 | 小節数 | コード |&#10;| Intro | 4 | C G Am F |"></textarea></div>
-    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
+    <div class="field"><textarea id="st-paste" rows="6" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea></div>
+    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button></div>
     <div class="st-msg" id="st-paste-msg"></div>
   </div>
   <div class="panel">
@@ -2695,6 +2700,7 @@ function stSplitMd(text){
   const info = [], struct = []; let mode = 'struct', title = '';
   for(const raw of String(text).split(/\r?\n/)){
     const line = raw.trim();
+    if(/^>/.test(line) || /^<!--.*-->$/.test(line)) continue;   // テンプレの書き方メモ（引用・コメント）は読まない
     const h = line.match(/^(#{1,6})\s*(.+)$/);
     if(h){
       const t = h[2].replace(/\*\*/g, '').trim();
@@ -2707,7 +2713,9 @@ function stSplitMd(text){
       const c = stSplitRow(line).map(stCell);
       if(c.length===2 && /^(項目|item|field)$/i.test(c[0]) && /^(内容|value|値)$/i.test(c[1])){ mode = 'info'; continue; }
       // 見出しなしで構成表の表が始まったら（「区間｜小節数…」のような見出し行）、構成表として読む
-      if(mode==='info' && stHeaderMap(c)) mode = 'struct';
+      // ただし「| メモ | 歌とコードの確認 |」のような曲情報の行（2列で、1列目が曲情報の項目名）は曲情報のまま
+      const infoRow = c.length===2 && ST_INFO_KEYS.some(([, re]) => re.test(c[0]));
+      if(mode==='info' && !infoRow && stHeaderMap(c)) mode = 'struct';
     }
     if(/^[-*・]\s*[^:：|]+[:：]/.test(line)){ info.push(line); continue; }   // 「- キー: A」
     (mode==='info' ? info : struct).push(line);
@@ -2807,17 +2815,45 @@ window.stDoPaste = () => {
   if(hasStruct(s)) confirmAction(`「${s.name}」の今の構成（${s.struct.sections.length}セクション）を、貼り付けた構成表で置き換えますか？`, apply, '置き換える');
   else apply();
 };
-function stToMarkdown(s, e){
-  const cell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
-  const L = [`# ${s.name || '無題の曲'}`, ''];
-  const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
-  const info = [['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['リズム', s.rhythm], ['拍子', METERS.includes(s.meter) ? s.meter : ''], ['カポ', songCapo(s) ? String(songCapo(s)) : ''], ['はじめかた', val('start')], ['おわりかた', val('end')]].filter(([, v]) => v);
-  if(info.length){ info.forEach(([k, v]) => L.push(`- ${k}: ${v}`)); L.push(''); }
-  L.push('| 区間 | 小節数 | 回数 | キメ小節 | コード | 歌詞メモ | 演奏メモ | キメ |');
-  L.push('|------|--------|------|----------|--------|----------|----------|------|');
-  ((s.struct && s.struct.sections) || []).forEach(x => L.push(`| ${cell(x.name)} | ${cell(x.bars)} | ${cell(stTimes(x) > 1 ? stTimes(x) : '')} | ${cell(x.kimeBar)} | ${cell(x.chord)} | ${cell(x.vocal)} | ${cell(x.play)} | ${cell(x.kime)} |`));
-  return L.join('\n') + '\n';
+// ---- Markdownのテンプレ（書き出し・取り込み欄のお手本・AIに渡す用で同じ形） ----
+const ST_MD_INFO_ROWS = ['曲名','アーティスト','キー','BPM','拍子','カポ','曲時間','ジャンル','リズム','はじめかた','おわりかた','URL','メモ'];
+const ST_MD_COLS = ['区間','小節数','回数','コード','歌','演奏','キメ','キメ小節'];
+const stMdCell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
+function stMdTables(infoMap, secs){
+  const L = ['### 曲情報', '| 項目 | 内容 |', '|------|------|'];
+  infoMap.forEach(([k, v]) => L.push(`| ${k} | ${stMdCell(v)} |`));
+  L.push('', '### 構成表', `| ${ST_MD_COLS.join(' | ')} |`, `|${ST_MD_COLS.map(() => '------').join('|')}|`);
+  secs.forEach(x => L.push(`| ${[x.name, x.bars, stTimes(x) > 1 ? stTimes(x) : '', x.chord, x.vocal, x.play, x.kime, x.kimeBar].map(stMdCell).join(' | ')} |`));
+  return L;
 }
+function stMdTemplate(){
+  const genres = GENRE_OPTS.map(o => o.label).join('・');
+  const L = [
+    '> 曲情報と構成表を、この表の形のまま埋めてください。分からない項目は「—」のままで構いません（行ごと消してもOK）。',
+    `> キーは「A」「F#m」、拍子は 4/4・3/4・6/8、カポはフレット番号、曲時間は「3:30」、ジャンルは ${genres} のどれか。`,
+    '> 構成表は1行1セクション。小節数は数字だけ。回数は同じセクションを続けて繰り返すときだけ（「2」）。',
+    '> コードは小節ごとに「A → D → E → A」のようにつなぎ、行を分けるときは <br>。前と同じなら「同上」。',
+    '> 歌は歌の入りやメロの目印、演奏は弾き方のメモ、キメはキメ・ブレイクの内容、キメ小節はキメのある小節の番号（例：8）。',
+    '> カポを使う曲で押さえ方の表記で書くときは、コードの見出しを「コード（Capo3・G表記）」にしてください。',
+    ''
+  ];
+  return L.concat(stMdTables(ST_MD_INFO_ROWS.map(k => [k, k==='拍子' ? '4/4' : '']),
+    [['Intro',4],['Verse',8],['Chorus',8],['Outro',4]].map(([name, bars]) => ({name, bars, times:1})))).join('\n') + '\n';
+}
+function stToMarkdown(s, e){
+  const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
+  const g = GENRE_OPTS.find(o => o.value===s.genre);
+  const infoMap = [['曲名', s.name], ['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['拍子', METERS.includes(s.meter) ? s.meter : ''],
+    ['カポ', songCapo(s) ? String(songCapo(s)) : ''], ['曲時間', val('duration')], ['ジャンル', g ? g.label : stShow(s.genre)], ['リズム', stShow(s.rhythm)],
+    ['はじめかた', val('start')], ['おわりかた', val('end')], ['URL', s.url], ['メモ', e ? effVal(e, s, 'notes') : s.notes]].filter(([, v]) => String(v || '').trim());
+  return [`# ${s.name || '無題の曲'}`, ''].concat(stMdTables(infoMap, (s.struct && s.struct.sections) || [])).join('\n') + '\n';
+}
+// テンプレをコピー（コピーできない端末では、貼り付け欄にテンプレを入れる）
+window.stCopyTemplate = (taId, msgId) => {
+  const t = stMdTemplate(), msg = document.getElementById(msgId);
+  const fallback = () => { const ta = document.getElementById(taId); if(ta){ ta.value = t; ta.focus(); ta.select(); } if(msg) msg.textContent = 'コピーできなかったので、下の欄にテンプレを入れました。長押しでコピーしてください。'; };
+  try{ navigator.clipboard.writeText(t).then(() => { if(msg) msg.textContent = 'テンプレをコピーしました。AIに曲名と一緒に渡すか、自分で埋めて貼り付けてください。'; }, fallback); }catch(err){ fallback(); }
+};
 window.stExportMd = () => {
   const s = stSong(); if(!s) return;
   const box = document.getElementById('st-md-box'), ta = document.getElementById('st-md');
@@ -3274,9 +3310,9 @@ function songFormHtml(f){
   const nSec = f.struct && f.struct.sections ? f.struct.sections.length : 0;
   const mdPanel = f.id ? '' : `<details class="panel song-md" open>
     <summary>Markdownから取り込む</summary>
-    <p class="st-note" style="margin-top:8px;">AIなどで作った「曲情報」と「構成表」の表を貼り付けると、下のフォームに曲情報が入り、構成表も一緒に登録されます。内容を確かめてから「保存」してください。</p>
-    <div class="field"><textarea id="song-md-paste" rows="6" placeholder="### 曲情報&#10;| 項目 | 内容 |&#10;| 曲名 | … |&#10;&#10;### 構成表&#10;| 区間 | バー数 | コード | … |"></textarea></div>
-    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="songMdImport()">フォームに入れる</button></div>
+    <p class="st-note" style="margin-top:8px;">「テンプレをコピー」したものをAIに曲名と一緒に渡すか、自分で埋めて貼り付けると、下のフォームに曲情報が入り、構成表も一緒に登録されます。内容を確かめてから「保存」してください。</p>
+    <div class="field"><textarea id="song-md-paste" rows="6" placeholder="### 曲情報&#10;| 項目 | 内容 |&#10;| 曲名 | … |&#10;&#10;### 構成表&#10;| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |"></textarea></div>
+    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="songMdImport()">フォームに入れる</button><button type="button" class="btn" onclick="stCopyTemplate('song-md-paste','song-md-msg')">テンプレをコピー</button></div>
     <div class="st-msg" id="song-md-msg"></div>
     ${nSec ? `<div class="song-md-struct">構成表 ${nSec}セクションも一緒に登録されます</div>` : ''}
   </details>`;
