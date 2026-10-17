@@ -815,13 +815,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.37.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.37.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.37.3': [
+    '構成表の下のテンポ窓のたたむ／開くも曲ごとに覚えるように。まだ切り替えていない曲は、最後に選んだ状態で開きます'
+  ],
   '1.37.2': [
     '構成表で全体のメモが空のとき、「最小／標準」ボタンと構成表がくっついていたのを修正'
   ],
@@ -3124,14 +3127,22 @@ function stGoBtn(){
   b.setAttribute('aria-label', stM.on ? 'メトロノームを止める' : 'メトロノームを開始');
   const tab = document.getElementById('st-mbar-tab'); if(tab) tab.classList.toggle('run', stM.on);
 }
-// テンポ窓のたたみ／展開（初期値は展開。状態は覚えておく）
-let stBarFolded = !!store.get('setlist_struct_bar_folded', false);
+// テンポ窓のたたみ／展開：曲ごとに覚える（曲の構成に保存）。まだ決めていない曲は、最後に選んだ状態で開く
+let stBarFoldBase = !!store.get('setlist_struct_bar_folded', false);
+let stBarFolded = stBarFoldBase;
+function stFoldFor(s){ return s && s.struct && typeof s.struct.barFolded==='boolean' ? s.struct.barFolded : stBarFoldBase; }
 function stApplyFold(){
   const el = document.getElementById('st-mbar'); if(!el) return;
+  stBarFolded = stFoldFor(stSong());
   el.classList.toggle('folded', stBarFolded);
   document.body.classList.toggle('st-bar-folded', stBarFolded);
 }
-window.stFoldBar = on => { stBarFolded = !!on; store.set('setlist_struct_bar_folded', stBarFolded); stApplyFold(); };
+window.stFoldBar = on => {
+  const s = stSong(); on = !!on;
+  if(s){ stEnsure(s).barFolded = on; saveSongs(); }   // 表示の切り替えなので更新日時は変えない
+  stBarFoldBase = on; store.set('setlist_struct_bar_folded', on);
+  stApplyFold();
+};
 // 下のバー：構成表の表示中だけ出す。作り直さず使い回す（連打できるように）
 // 左下の「次の曲」ボタン（ライブ中に押しやすいよう大きく）
 function stNextBtn(show){
