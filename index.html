@@ -841,13 +841,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.46.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.46.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.46.2': [
+    'イベント一覧のカードも、イベント名の横にアーティスト名を表示。日付の横のステージ時間（○分）は外しました（下の曲数・合計時間はそのまま）'
+  ],
   '1.46.1': [
     'イベント画面の情報カードの日付は年を省略（10/17(土)。今年以外は年も表示）',
     'セットリストの最小表示では「曲名タップで曲情報と…」の説明を出さないように'
@@ -4279,10 +4282,9 @@ function renderLives(){
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
       html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div><div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
-        <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}${stageMinutes(l.startTime, l.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(l.startTime, l.endTime)}分</span>` : ''}</div>
-        <div class="live-venue">${esc(l.venue || 'イベント名未設定')}</div>
+        <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}</div>
+        <div class="live-title-line"><span class="live-venue">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="live-artist">${esc(l.artist)}</span>` : ''}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
-        <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
         <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
       </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div><button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
     });
