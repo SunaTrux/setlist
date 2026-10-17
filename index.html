@@ -135,6 +135,17 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .dur-sep{font-size:13px; color:var(--muted);}
 .form-actions{display:flex; gap:8px; margin-top:4px;}
 
+.set-acc{padding:0; margin-bottom:8px;}
+.set-acc > summary{list-style:none; cursor:pointer; display:flex; align-items:baseline; gap:10px; padding:14px; min-height:48px; box-sizing:border-box;}
+.set-acc > summary::-webkit-details-marker{display:none;}
+.set-acc > summary::after{content:''; margin-left:auto; align-self:center; flex:none; width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg) translateY(-3px); transition:transform .15s;}
+.set-acc[open] > summary::after{transform:rotate(-135deg) translateY(-1px);}
+.set-acc-t{font-size:15px; font-weight:700; flex:none;}
+.set-acc-s{font-size:12px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.set-acc-body{padding:0 14px 14px;}
+.set-acc-body > :last-child{margin-bottom:0;}
+.set-acc[open] > summary{padding-bottom:10px;}
+.set-acc-danger .set-acc-t{color:var(--danger);}
 .section-title{font-size:13px; font-weight:700; color:var(--muted); margin:20px 0 8px; letter-spacing:.03em;}
 
 .totals-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:16px;}
@@ -763,13 +774,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.29.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.30.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.30.0': [
+    '「設定」をアコーディオン形式に整理。項目名をタップすると開閉し、開いている項目は端末ごとに覚えます',
+    '候補の編集は「はじめかた」「おわりかた」「リズムパターン」を別々に開けるように（件数も表示）'
+  ],
   '1.29.0': [
     'はじめかた・おわりかたの候補の一番下に「未定」を追加（候補を自分で編集していた場合も末尾に追加）'
   ],
@@ -3277,7 +3292,7 @@ window.seOptReset = (which) => {
 };
 function seOptsEditorHtml(which, label){
   const a = seOptsRef(which);
-  return `<div class="field"><label>${label}</label>
+  return `<div class="field">${label ? `<label>${label}</label>` : ''}
     <div class="se-opt-list">${a.map((o, i) => `<div class="se-opt-row">
       <span class="se-opt-name">${esc(o)}</span>
       <button type="button" class="se-opt-btn" onclick="seOptMove('${which}',${i},-1)" ${i===0?'disabled':''} aria-label="上へ">↑</button>
@@ -4684,11 +4699,14 @@ window.copyLive = () => {
 };
 
 // ---------- 設定 ----------
+let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
+  const acc = (id, title, sub, inner, cls='') => `<details class="panel set-acc ${cls}" data-acc="${id}" ${setAccOpen.includes(id) ? 'open' : ''}>
+    <summary><span class="set-acc-t">${title}</span><span class="set-acc-s">${sub}</span></summary>
+    <div class="set-acc-body">${inner}</div></details>`;
   main.innerHTML = `
-  <div class="section-title">表示</div>
-  <div class="panel">
+  ${acc('display', '表示', 'テーマ・度数表記・全画面', `
     <div class="field"><label>テーマ</label>
       <div class="theme-row">
         <button type="button" class="theme-btn ${theme==='auto'?'active':''}" onclick="setTheme('auto')">自動</button>
@@ -4696,17 +4714,16 @@ function renderSettings(){
         <button type="button" class="theme-btn ${theme==='dark'?'active':''}" onclick="setTheme('dark')">ダーク</button>
       </div>
     </div>
-    <div class="field" style="margin-bottom:0;"><label>ディグリー表記（マイナーキーの曲）</label>
+    <div class="field" style="margin-bottom:0;"><label>度数表記（マイナーキーの曲）</label>
       <div class="theme-row">
         <button type="button" class="theme-btn ${stDegreeMinor==='minor'?'active':''}" onclick="setDegreeMinor('minor')">主音から<br><small>Fm → Im</small></button>
         <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
       </div>
     </div>
-  </div>
-  <div class="hint" style="margin:-4px 2px 8px;">${(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。ホーム画面から開くとブラウザのツールバーが出ません（データは別になるので、下の「データ管理」のバックアップ・復元で移してください）。'}</div>
+    <div class="hint" style="margin-top:12px;">${(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。ホーム画面から開くとブラウザのツールバーが出ません（データは別になるので、「バックアップ・CSV」のバックアップ・復元で移してください）。'}</div>
 
-  <div class="section-title">データ管理</div>
-  <div class="panel">
+`)}
+  ${acc('data', 'バックアップ・CSV', '全データ・曲マスタ・イベント一覧', `
     <div class="field">
       <label>全データ</label>
       <div class="settings-btn-row">
@@ -4733,37 +4750,33 @@ function renderSettings(){
       <input type="file" id="import-lives-input" accept="text/csv,.csv" style="display:none">
     </div>
     <div class="hint">Googleスプレッドシートなどの表計算アプリで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
-  </div>
-
-  <div class="section-title">はじめかた・おわりかた・リズムの候補</div>
-  <div class="panel">
-    ${seOptsEditorHtml('start', 'はじめかた')}
-    ${seOptsEditorHtml('end', 'おわりかた')}
-    ${seOptsEditorHtml('rhythm', 'リズムパターン')}
-    <div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>
-  </div>
-
-  <div class="section-title">サンプルデータ</div>
-  <div class="panel">
+`)}
+  <div class="section-title">候補の編集</div>
+  ${acc('opt-start', 'はじめかたの候補', `${SE_START_OPTS.length}件`, `${seOptsEditorHtml('start', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
+  ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
+  ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
+  <div class="section-title">その他</div>
+  ${acc('sample', 'サンプルデータ', 'バンド編成・ピアノ演奏会', `
     <div class="settings-btn-row">
       <button type="button" class="btn" onclick="loadSampleData('band')">バンド編成</button>
       <button type="button" class="btn" onclick="loadSampleData('piano')">ピアノ演奏会</button>
     </div>
     <div class="hint">バンド編成（曲7曲・イベント1件）またはピアノ演奏会（曲5曲・イベント1件）を選んで追加できます。既存のデータは消えません。</div>
-  </div>
-
-  <div class="section-title">データ初期化</div>
-  <div class="panel">
-    <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
-    <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、上の「サンプルデータ」からお好きなものを読み込みください。この操作は取り消せません。</div>
-  </div>
-  <div class="section-title">ご意見・不具合報告</div>
-  <div class="panel">
+`)}
+  ${acc('feedback', 'ご意見・不具合報告', 'フォームを開く', `
     <div class="hint" style="margin-top:0">使ってみた感想や「ここが使いにくい」「動かない」などは、下のフォームから気軽にどうぞ。不具合の場合は、どの画面で何をしたかと、使っている端末・ブラウザを書いてもらえると助かります（今のバージョン：${APP_VERSION}）。</div>
     <a class="btn btn-block feedback-btn" href="${FEEDBACK_URL}?version=${encodeURIComponent(APP_VERSION)}" target="_blank" rel="noopener">ご意見・不具合報告フォームを開く</a>
-  </div>
+`)}
+  ${acc('reset', 'データ初期化', '全データを削除', `
+    <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
+    <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、「サンプルデータ」からお好きなものを読み込んでください。この操作は取り消せません。</div>
+`, 'set-acc-danger')}
   <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）<br><a href="${CHANGELOG_URL}" target="_blank" rel="noopener">更新履歴</a></div>`;
 
+  main.querySelectorAll('details.set-acc').forEach(d => d.addEventListener('toggle', () => {
+    const id = d.dataset.acc; setAccOpen = setAccOpen.filter(x => x!==id); if(d.open) setAccOpen.push(id);
+    store.set('setlist_settings_open', setAccOpen);
+  }));
   document.getElementById('backup-input').onchange = function(){
     if(this.files[0]) handleBackupFile(this.files[0]);
     this.value = '';
