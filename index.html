@@ -829,13 +829,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.44.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.44.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.44.1': [
+    '曲マスタの「🔍 検索」で選んだ曲を、まとめて📌ピン留めできるように（選んだ曲がすべてピン留め済みなら「ピン解除」）'
+  ],
   '1.44.0': [
     '曲マスタの「選択」を「🔍 検索」に。曲名・原曲アーティスト・メモ・ジャンル・リズムで絞り込み（ひらがな／カタカナ・全角／半角の違いは無視、空白で区切るとすべてを含む曲）',
     '検索結果から曲を選んで、新しいイベントに入れる／既存のイベントに追加／テキストで書き出し／コピーして開く／削除がまとめてできます。検索語を変えても選んだ曲は残ります'
@@ -3432,7 +3435,7 @@ function stockBodyHtml(){
         html += `<label class="setlist-item select-row ${on?'is-checked':''} ${s.hidden?'is-hidden':''}">
           <input type="checkbox" ${on?'checked':''} onchange="toggleStockSelect('${s.id}')">
           <span class="setlist-num mono">${num}</span>
-          <span class="select-name">${esc(s.name)}${s.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</span>
+          <span class="select-name">${s.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}${s.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</span>
           <span class="select-dur mono">${esc(s.duration||'')}</span>
           <button type="button" class="eye-btn ${s.hidden?'off':''}" onclick="event.preventDefault(); event.stopPropagation(); toggleSongHidden('${s.id}')" aria-label="${s.hidden?'表示する':'非表示にする'}" title="${s.hidden?'表示する':'非表示にする'}">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>
         </label>`;
@@ -3480,6 +3483,7 @@ function stockBodyHtml(){
           <button type="button" class="btn" ${n===1?'':'disabled'} onclick="copySelectedSongOpen()" title="1曲だけ選んでいるときに使えます">コピーして開く</button>
         </div>
         <div class="select-actions">
+          <button type="button" class="btn" ${n?'':'disabled'} onclick="pinSelectedStock()">${n && [...stockSelected].every(id => (songs.find(x => x.id===id) || {}).pinned) ? '📌 ピン解除' : '📌 ピン留め'}</button>
           <button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>
         </div>
 
@@ -3946,6 +3950,15 @@ window.onStockQuery = v => { stockQuery = v; refreshStockBody(); };
 window.enterStockSelect = () => { stopMetro(); stockSelectMode = true; stockSelected = new Set(); stockQuery = ''; stockFocusQ = true; render(); };
 window.exitStockSelect = () => { stockSelectMode = false; stockSelected = new Set(); stockQuery = ''; render(); };
 window.toggleStockSelect = (id) => { if(stockSelected.has(id)) stockSelected.delete(id); else stockSelected.add(id); refreshStockBody(); };
+// 選んだ曲をまとめてピン留め（全部ピン留め済みなら、まとめて解除）
+window.pinSelectedStock = () => {
+  const ids = [...stockSelected]; if(!ids.length) return;
+  const list = songs.filter(x => stockSelected.has(x.id));
+  const unpin = list.every(x => x.pinned);
+  list.forEach(x => { if(unpin) delete x.pinned; else x.pinned = true; });
+  saveSongs(); refreshStockBody();
+  showToast(unpin ? `${list.length}曲のピン留めを外しました` : `📌 ${list.length}曲をピン留めしました`);
+};
 window.clearStockSelect = () => { stockSelected = new Set(); refreshStockBody(); };
 // 曲マスタの番号：非表示の曲を飛ばして、表示中の曲だけで 1, 2, 3 … と振る
 function stockVisibleNumbers(){ const m = new Map(); let n = 0; songs.forEach(s => { if(!s.hidden) m.set(s.id, ++n); }); return m; }
