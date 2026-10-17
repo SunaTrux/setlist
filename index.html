@@ -463,6 +463,15 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .head-toggles{display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
 .list-opts{display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap; margin:-4px 0 6px;}
 .list-opts .show-toggle{margin-right:auto;}
+.lock-btn{flex:none; height:30px; padding:0 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation;}
+.lock-btn.on{background:var(--text); border-color:var(--text); color:var(--bg);}
+.list-opts .lock-btn{margin-right:auto;}
+.list-opts .lock-btn ~ .show-toggle{margin-right:0;}
+.list-opts:has(.lock-btn) .view-seg{flex-basis:100%; justify-content:flex-end;}   /* ロック・曲以外の行と、表示切り替えの行に分ける */
+.lock-note{margin:16px 0 8px; padding:10px 12px; border:1px dashed var(--border); border-radius:var(--radius); font-size:12.5px; color:var(--muted); line-height:1.6;}
+.lock-note .link-btn{margin-left:6px; border:none; background:none; padding:0; color:var(--accent); font-weight:700; text-decoration:underline; cursor:pointer; font-size:inherit; font-family:inherit;}
+.num-toggle.is-locked{cursor:default; opacity:.7;}
+.lock-mark{margin-right:4px;}
 .sl-head-card{margin-top:22px;}
 .sl-head-card .totals-head .totals-label{font-size:15px;}
 .sl-head-card .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:2px;}
@@ -829,13 +838,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.44.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.45.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.45.0': [
+    'セットリストのロック：セットリストの「🔓 ロック」を押すと曲順を固定。ドラッグのハンドル・削除ボタン・スワイプ削除が消え、曲の追加もできなくなります（もう一度押すと解除）'
+  ],
   '1.44.1': [
     '曲マスタの「🔍 検索」で選んだ曲を、まとめて📌ピン留めできるように（選んだ曲がすべてピン留め済みなら「ピン解除」）'
   ],
@@ -1581,6 +1593,7 @@ window.setAddPos = (kind, pos) => {
 };
 // セットリストの先頭か最後に入れる（先頭のときは並びがずれるので、開いている詳細とメトロノームを閉じる）
 function insertEntries(live, entries, pos){
+  if(live && live.locked) return;   // ロック中は入れない（画面からは追加できないが念のため）
   if(pos==='start'){
     live.setlist.unshift(...entries);
     entryExpandedIdx = null;
@@ -1712,7 +1725,7 @@ function applyDragOrder(list, keys){
     if(next.some((s,k)=>s!==songs[k])){ songs = next; saveSongs(); }
   } else {
     const live = lives.find(l=>l.id===liveEditId);
-    if(!live) return;
+    if(!live || live.locked){ render(); return; }
     const idxs = keys.map(Number);
     const slots = [...idxs].sort((a,b)=>a-b);
     const moved = idxs.map(k => live.setlist[k]);
@@ -4014,6 +4027,7 @@ window.stockToExistingEvent = () => {
 function addSelectedToEvent(liveId){
   const live = lives.find(l=>l.id===liveId);
   if(!live) return;
+  if(liveLockedGuard(live)) return;
   const have = new Set(live.setlist.filter(e=>e.type!=='other').map(e=>e.songId));
   const all = selectedStockEntries();
   const add = all.filter(e => !have.has(e.songId));
@@ -4250,7 +4264,7 @@ function renderLives(){
         <div class="live-venue">${esc(l.venue || 'イベント名未設定')}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
-        <div class="live-count">${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
+        <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
       </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div><button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
     });
   }
@@ -4272,6 +4286,14 @@ function renderLives(){
 window.setHidePast = on => { hidePast = !!on; store.set('setlist_hide_past', hidePast); render(); };
 let actOpen = {sl:false, ev:false};   // イベント画面の下の「セットリスト操作」「イベント操作」（イベントを開くたびに閉じる）
 window.toggleActGroup = k => { actOpen[k] = !actOpen[k]; render(); };
+// 🔒 セットリストのロック（イベントごとに保存。曲順を固定して、追加・削除・並べ替えをできなくする）
+window.toggleLiveLock = () => {
+  const live = lives.find(l => l.id===liveEditId); if(!live) return;
+  if(live.locked) delete live.locked; else { live.locked = true; liveCreateOpen = false; entryExpandedIdx = null; }
+  live.updatedAt = Date.now(); saveLives(); closeSwipes(); render();
+  showToast(live.locked ? '🔒 セットリストをロックしました（曲順を固定）' : '🔓 ロックを解除しました');
+};
+function liveLockedGuard(live){ if(live && live.locked){ showToast('🔒 ロック中のセットリストです。ロックを解除してから変更してください'); return true; } return false; }
 window.resetSlView = () => { slFilter = 'all'; slSort = 'order'; render(); };
 window.openLive = id => {
   actOpen = {sl:false, ev:false};
@@ -4374,10 +4396,11 @@ function renderLiveEdit(){
     <div class="field"><label>イベントメモ</label><textarea rows="3" id="live-memo" placeholder="セットリスト全体の注意事項、持ち物、連絡事項など">${esc(live.memo||'')}</textarea></div>
     <div class="form-actions"><button type="submit" class="btn btn-accent">保存</button></div>
   </form>`;
-  html += `</div>
+  const lk = !!live.locked;   // 🔒 ロック中：曲順を固定（追加・削除・並べ替えをしない）
+  html += `</div>` + (lk ? `<div class="lock-note" id="setlist-section">🔒 ロック中のため、曲の追加・削除・並べ替えはできません。<button type="button" class="link-btn" onclick="toggleLiveLock()">ロックを解除</button></div>` : `
   <button type="button" class="create-head${liveCreateOpen ? ' open' : ''}" id="setlist-section" onclick="toggleLiveCreate()" aria-expanded="${liveCreateOpen}">
     <span class="create-title">セットリスト作成</span>${liveCreateOpen ? '' : '<span class="create-sub">曲を登録・曲以外を追加</span>'}${foldToggleHtml(liveCreateOpen)}
-  </button>`;
+  </button>`);
 
   const songRegisterInner = regBodyHtml(live);
 
@@ -4438,9 +4461,9 @@ function renderLiveEdit(){
   </div>`;
 
 
-  if(liveCreateOpen) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
+  if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
     ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
-  if(liveCreateOpen) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
+  if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
   // ---- セットリストエリア ----
@@ -4450,7 +4473,7 @@ function renderLiveEdit(){
     ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
   </div>`;
-  html += `<div class="list-opts">${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}${viewSegHtml()}</div>`;
+  html += `<div class="list-opts">${live.setlist.length ? `<button type="button" class="lock-btn${lk ? ' on' : ''}" onclick="toggleLiveLock()" aria-pressed="${lk}" title="${lk ? 'ロックを解除' : '曲順をロック'}">${lk ? '🔒 ロック中' : '🔓 ロック'}</button>` : ''}${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}${viewSegHtml()}</div>`;
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
@@ -4465,19 +4488,19 @@ function renderLiveEdit(){
       if(numbered) seq++;
       const numLabel = numbered ? seq : '・';
       const exp = entryExpandedIdx===i;
-      html += `<div class="setlist-item is-other" data-drag-list="live" data-key="${i}" data-swipe="live">
-        <div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>
+      html += `<div class="setlist-item is-other" data-drag-list="live" data-key="${i}"${lk ? '' : ' data-swipe="live"'}>
+        ${lk ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>`}
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${numLabel}</span>
           <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'} <span class="chev">${exp?'▾':'▸'}</span></button>
           <span class="dur-label mono">${esc(entry.duration||'')}</span>
-          <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
-          ${dragHandleHtml('live')}
+          ${lk ? '' : `<button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
+          ${dragHandleHtml('live')}`}
         </div>
         <div class="setlist-row2">
-          <button type="button" class="num-toggle ${numbered?'on':''}" onclick="toggleOtherNumbered(${i})" title="連番に含める"># 連番${numbered?'あり':'なし'}</button>
-          <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
+          ${lk ? `<span class="num-toggle ${numbered?'on':''} is-locked"># 連番${numbered?'あり':'なし'}</span>` : `<button type="button" class="num-toggle ${numbered?'on':''}" onclick="toggleOtherNumbered(${i})" title="連番に含める"># 連番${numbered?'あり':'なし'}</button>
+          <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>`}
         </div>
         ${exp ? `<div class="detail-panel detail-edit">
           <div class="field"><label>時間</label><select class="mono" onchange="updateEntry(${i},'duration',this.value)">${durationSelectHtml(entry.duration)}</select></div>
@@ -4496,16 +4519,16 @@ function renderLiveEdit(){
     const dur = effVal(entry, s, 'duration');
     const ovB = isOv(entry, s, 'bpm'), ovK = isOv(entry, s, 'key'), ovD = isOv(entry, s, 'duration');
     const anyOv = ovB || ovK || ovD;
-    html += `<div class="setlist-item ${metroPanel&&metroPanel.entry===entry?'metro-current':''}" data-drag-list="live" data-key="${i}" data-swipe="live">
-      <div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>
+    html += `<div class="setlist-item ${metroPanel&&metroPanel.entry===entry?'metro-current':''}" data-drag-list="live" data-key="${i}"${lk ? '' : ' data-swipe="live"'}>
+      ${lk ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>`}
       <div class="swipe-face">
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
         <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}</span></button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
         <button type="button" class="row-struct c-only${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
-        <button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
-        ${dragHandleHtml('live')}
+        ${lk ? '' : `<button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
+        ${dragHandleHtml('live')}`}
       </div>
       <div class="setlist-row2">
         ${bpmChipHtml(bpm, metroPanel&&metroPanel.entry===entry, `openMetro('live',${i})`)}
@@ -4513,7 +4536,7 @@ function renderLiveEdit(){
         ${ovB?`<span class="ov-master">←${esc(songVal(s,'bpm'))}</span>`:''}
         ${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}
         <button type="button" class="row-struct${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
-        <button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
+        ${lk ? '' : `<button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>`}
       </div>
       ${cardInfoHtml(s, entry)}
       </div>
@@ -4539,9 +4562,9 @@ function renderLiveEdit(){
     <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
     ${actOpen[key] ? `<div class="action-group-body">${inner}</div>` : ''}</div>`;
   if(live.setlist.length>0){
-    html += actGroup('sl', 'セットリスト操作', 'テキストで書き出し・全て削除', `
+    html += actGroup('sl', 'セットリスト操作', lk ? 'テキストで書き出し' : 'テキストで書き出し・全て削除', `
       <button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>
-      <button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>`);
+      ${lk ? '' : `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>`}`);
   }
   html += actGroup('ev', 'イベント操作', 'コピー・CSV・削除', `
     <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
@@ -4663,6 +4686,7 @@ window.quickAddSong = () => {
 window.clearSetlist = () => {
   const live = lives.find(l=>l.id===liveEditId);
   if(!live || live.setlist.length===0) return;
+  if(liveLockedGuard(live)) return;
   confirmAction('このイベントのセットリスト（曲・MC/SEなど）を全て削除します。よろしいですか？', () => {
     live.setlist = [];
     live.updatedAt = Date.now();
@@ -4883,6 +4907,7 @@ window.moveSong = (i, dir) => {
 };
 window.removeSongFromLive = i => {
   const live = lives.find(l=>l.id===liveEditId);
+  if(liveLockedGuard(live)) return;
   entryEditIdx = null;
   if(metroPanel && metroPanel.entry===live.setlist[i]) stopMetro();
   live.setlist.splice(i,1);
@@ -5020,6 +5045,7 @@ window.copyLive = () => {
   copy.id = uid();
   copy.venue = live.venue ? live.venue + 'のコピー' : '';
   copy.updatedAt = Date.now();
+  delete copy.locked; delete copy.pinned;   // コピーはロック・ピン留めなしで作る
   copy.setlist = copy.setlist.map(e => e.type==='other' ? {...e, id: uid()} : e);
   lives.push(copy);
   saveLives();
