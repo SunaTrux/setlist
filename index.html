@@ -808,13 +808,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.35.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.35.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.35.2': [
+    'バックアップのファイル名に、保存した場所・日時・アプリのバージョンを入れるように（例：setlist-backup_iPhone-Safari_20261017-1742_v1.35.2.json）。復元の確認にも作成場所を表示します'
+  ],
   '1.35.1': [
     '「設定」→「バックアップ・CSV」に、データの保存場所の説明を追加。今どこにデータがあるか（例：iPhoneの Safari／ホーム画面のアプリ）と、ブラウザ・ホーム画面のアプリごとにデータが別になること、移し方をまとめました'
   ],
@@ -4833,10 +4836,18 @@ window.copyLive = () => {
 function isStandaloneApp(){ return !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)); }
 function currentPlaceLabel(){
   const ua = navigator.userAgent || '';
-  const dev = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(ua) ? 'Android' : 'この端末';
+  const dev = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'この端末';
   if(isStandaloneApp()) return `${dev}のホーム画面のアプリ`;
   const br = /EdgA?\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'ブラウザ';
   return `${dev}の ${br}`;
+}
+// ファイル名用の短い環境名（例：iPhone-Safari／iPhone-HomeApp／Mac-Chrome）
+function placeSlug(){
+  const ua = navigator.userAgent || '';
+  const dev = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'PC';
+  if(isStandaloneApp()) return dev + '-HomeApp';
+  const br = /EdgA?\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  return dev + '-' + br;
 }
 function dataPlaceHtml(){
   return `<div class="data-place">
@@ -4880,7 +4891,7 @@ function renderSettings(){
         <button type="button" class="btn btn-with-icon" onclick="document.getElementById('backup-input').click()">復元${IMPORT_ICON_SVG}</button>
       </div>
       <input type="file" id="backup-input" accept=".json,application/json" style="display:none">
-      <div class="hint">曲マスタ・イベント一覧・設定を、1つのファイル（setlist-backup-日付.json）に保存します。復元すると、その場所のデータが丸ごとファイルの内容に置き換わります。</div>
+      <div class="hint">曲マスタ・イベント一覧・設定を、1つのファイルに保存します。ファイル名に場所・日時・バージョンが入ります（例：setlist-backup_iPhone-Safari_20261017-1742_v${APP_VERSION}.json）。復元すると、その場所のデータが丸ごとファイルの内容に置き換わります。</div>
     </div>
     <div class="field">
       <label>曲マスタ</label>
@@ -5646,17 +5657,17 @@ window.exportBackup = async () => {
   const data = {};
   backupKeys().forEach(k => { try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} });
   data.setlist_songs = songs; data.setlist_lives = lives;  // 画面上の最新の内容
-  const obj = {app:'players-setlist', schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, createdAt: new Date().toISOString(), data};
+  const obj = {app:'players-setlist', schemaVersion: SCHEMA_VERSION, appVersion: APP_VERSION, createdAt: new Date().toISOString(), place: currentPlaceLabel(), data};
   const dl = await getDownloads();
   if(!dl){ showToast('この環境ではファイル書き出しができません。'); return; }
-  try{ await dl.save({filename:`setlist-backup-${backupStamp()}.json`, data: JSON.stringify(obj, null, 1), raw:true}); }
+  try{ await dl.save({filename:`setlist-backup_${placeSlug()}_${backupStamp()}_v${APP_VERSION}.json`, data: JSON.stringify(obj, null, 1), raw:true}); }
   catch(err){ if(!err || err.code!=='declined') showToast('書き出しに失敗しました: '+((err&&err.message)||'不明なエラー')); }
 };
 function parseBackup(text){
   let obj;
   try{ obj = JSON.parse(String(text).replace(/^\ufeff/, '')); }catch(e){ return {error:'バックアップファイルとして読み込めませんでした。「バックアップ」で保存した .json ファイルを選んでください。'}; }
   if(!obj || obj.app!=='players-setlist' || !obj.data || typeof obj.data!=='object'){
-    return {error:'このアプリのバックアップファイルではありません。「バックアップ」で保存した setlist-backup-日付.json を選んでください。（CSVは「曲マスタ」「イベント一覧」のCSV入力から読み込めます）'};
+    return {error:'このアプリのバックアップファイルではありません。「バックアップ」で保存した setlist-backup_〜.json を選んでください。（CSVは「曲マスタ」「イベント一覧」のCSV入力から読み込めます）'};
   }
   if((obj.schemaVersion||1) > SCHEMA_VERSION) return {error:'新しいバージョンのアプリで作られたバックアップです。アプリを最新にしてから復元してください。'};
   const d = obj.data;
@@ -5672,7 +5683,7 @@ function handleBackupFile(file){
     const o = plan.obj;
     let when = '';
     try{ const t = new Date(o.createdAt); if(!isNaN(t)) when = `${t.getFullYear()}/${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`; }catch(e){}
-    const msg = `このバックアップを復元しますか？\n作成日時：${when||'不明'}${o.appVersion?'（v'+o.appVersion+'）':''}\n内容：曲${plan.songs}曲・イベント${plan.lives}件\n\n今の曲マスタ（${songs.length}曲）とイベント一覧（${lives.length}件）、表示などの設定は、すべてこの内容に置き換わります。`;
+    const msg = `このバックアップを復元しますか？\n作成日時：${when||'不明'}${o.appVersion?'（v'+o.appVersion+'）':''}\n${o.place?'作成場所：'+o.place+'\n':''}内容：曲${plan.songs}曲・イベント${plan.lives}件\n\n今の曲マスタ（${songs.length}曲）とイベント一覧（${lives.length}件）、表示などの設定は、すべてこの内容に置き換わります。`;
     confirmAction(msg, () => applyBackup(o), '復元する');
   };
   reader.onerror = () => showToast('ファイルを読み込めませんでした。');
