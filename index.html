@@ -454,7 +454,12 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .bulk-box .pos-row{margin-bottom:12px;}
 .setlist-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:20px 0 8px;}
 .head-toggles{display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
-.list-opts{display:flex; justify-content:flex-end; margin:-4px 0 6px;}
+.list-opts{display:flex; justify-content:flex-end; align-items:center; gap:8px; flex-wrap:wrap; margin:-4px 0 6px;}
+.list-opts .show-toggle{margin-right:auto;}
+.sl-head-card{margin-top:22px;}
+.sl-head-card .totals-head .totals-label{font-size:15px;}
+.sl-head-card .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:2px;}
+.sl-head-card + .sl-tools{margin-top:10px;}
 .setlist-row1 .c-only{display:none;}
 body.cards-min .setlist-row1 .c-only{display:flex;}
 .setlist-row1 .row-edit, .setlist-row1 .row-del{width:32px; height:32px; margin:-4px 0; margin-left:0;}
@@ -817,13 +822,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.42.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.43.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.43.0': [
+    '「セットリスト合計」を「セットリスト」にして、セットリストの見出しとして一番上に。その下に絞り込み・並べ替え・表示の切り替え'
+  ],
   '1.42.1': [
     '構成表の最小表示でも、全体のメモがあれば1行目に表示（その下に はじめかた → おわりかた）'
   ],
@@ -4232,7 +4240,11 @@ window.openLiveSetlist = id => {
   if(hasSongs){ if(liveCreateOpen){ liveCreateOpen = false; render(); } }
   else if(!liveCreateOpen){ liveCreateOpen = true; liveRegisterOpen = true; render(); }
   const el = document.getElementById(hasSongs ? 'setlist-main' : 'setlist-section');
-  if(el) requestAnimationFrame(() => el.scrollIntoView({block:'start'}));
+  if(el) requestAnimationFrame(() => {
+    // 上に固定のタイトル・タブがあるので、その高さ分ずらして見出しが隠れないようにする
+    const hd = document.querySelector('header'); el.style.scrollMarginTop = ((hd ? hd.offsetHeight : 0) + 8) + 'px';
+    el.scrollIntoView({block:'start'});
+  });
 };
 window.toggleLiveInfo = () => {
   if(liveInfoOpen) applyLiveForm();
@@ -4353,10 +4365,11 @@ function renderLiveEdit(){
     return `<div class="totals-compare even">予定（${fmtMinutes(planned)}）ぴったりです</div>`;
   })();
 
-  const totalsCardHtml = `<div class="fold-card">
+  // セットリストエリアの見出しを兼ねる（名前・曲数・合計時間。開くとタイマーなど）
+  const totalsCardHtml = `<div class="fold-card sl-head-card" id="setlist-main" style="scroll-margin-top:8px;">
     <button type="button" class="fold-head" onclick="toggleLiveTotals()">
       <div class="fold-head-main totals-head">
-        <span class="totals-label">${total===0 ? 'セットリスト合計（自動計算）' : `セットリスト合計${otherCount?`（${songCount}曲 + ${otherCount}項目）`:''}`}</span>
+        <span class="totals-label">セットリスト${live.setlist.length ? `<small>（${songCount}曲${otherCount ? ` + ${otherCount}項目` : ''}）</small>` : ''}</span>
         <span class="totals-value mono">${fmtDur(total)}</span>
       </div>
       ${foldToggleHtml(liveTotalsOpen)}
@@ -4379,19 +4392,13 @@ function renderLiveEdit(){
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
   // ---- セットリストエリア ----
-  html += `<div class="setlist-head" id="setlist-main" style="scroll-margin-top:8px;">
-    <div class="section-title" style="margin:0;">セットリスト</div>
-    <div class="head-toggles">
-    ${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}
-    </div>
-  </div>`;
+  html += totalsCardHtml;   // 見出し（セットリスト・合計時間）→ 絞り込み・並べ替え → 表示切り替え
   const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
   if(slSongs.length > 1) html += `<div class="stock-tools sl-tools">
     ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
   </div>`;
-  html += `<div class="list-opts">${viewSegHtml()}</div>`;
-  html += totalsCardHtml;
+  html += `<div class="list-opts">${otherCount ? `<button type="button" class="show-toggle ${showOthers?'on':''}" onclick="toggleShowOthers()" aria-pressed="${showOthers}">曲以外を表示 <span class="switch"><span></span></span></button>` : ''}${viewSegHtml()}</div>`;
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">曲以外の項目（${otherCount}件）は非表示中です。合計時間には含まれています。</div>`;
