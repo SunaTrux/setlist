@@ -816,13 +816,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.39.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.40.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.40.0': [
+    'イベントの「曲を登録」にもネット検索を追加（曲マスタと同じ「ネット検索｜ライブラリ｜手入力」）。選んだ曲はセットリストに入り、曲マスタにも登録されます'
+  ],
   '1.39.1': [
     '構成表の「小節・バー・コード・歌・演奏・キメ」の切り替えは標準表示だけに。最小表示では隠して、標準で選んだ表示をそのまま使います'
   ],
@@ -5491,7 +5494,7 @@ const catalogCache = new Map();
 const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
 function regCurrentTab(ctx){ return ctx==='stock' ? stockRegTab : regTab; }
 function regSegHtml(tab, ctx){
-  const tabs = ctx==='stock' ? REG_TABS : REG_TABS.filter(([k]) => k!=='net');
+  const tabs = REG_TABS;   // 曲マスタ・イベントとも「ネット検索｜ライブラリ｜手入力」
   return `<div class="reg-seg" role="tablist">${tabs.map(([k,l]) => `<button type="button" class="${tab===k?'on':''}" onclick="setRegTab('${k}','${ctx}')" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
 }
 function regSearchHtml(ctx){
@@ -5500,7 +5503,6 @@ function regSearchHtml(ctx){
 }
 // イベント画面の「曲を登録」の中身
 function regBodyHtml(){
-  if(regTab==='net') regTab = 'lib';
   const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
     return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
@@ -5510,7 +5512,7 @@ function regBodyHtml(){
     </div>
     <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲マスタにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲マスタで編集できます。</div>`;
   }
-  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}<div class="hint" style="padding-bottom:0;">ネット検索は、曲マスタの「曲を登録」から使えます</div>`;
+  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}`;
 }
 // 曲マスタの「曲を登録」（手入力以外のタブ）の中身
 function stockRegPanelHtml(){
@@ -5629,7 +5631,7 @@ function regResultsHtml(ctx){
       .filter(s => !s.hidden && (!nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq)))
       .sort((a,b) => nq ? ((normName(b.name).startsWith(nq)) - (normName(a.name).startsWith(nq))) : 0);
     if(!stockHits.length && !packHits.length){
-      return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲マスタはまだ空です。'}「手入力」か、曲マスタのネット検索から登録できます。</div>`;
+      return `<div class="reg-empty">${songs.length ? '該当する曲がありません。' : '曲マスタはまだ空です。'}「ネット検索」か「手入力」から登録できます。</div>`;
     }
     let html = '';
     if(stockHits.length){
@@ -5648,7 +5650,7 @@ function regResultsHtml(ctx){
   if(netLoading || netResultsQ !== q) return `<div class="reg-empty">検索中…</div>`;
   if(netBlocked) return netSearchHtml(q, 'この画面ではカタログ検索に接続できません');
   if(!netResults.length) return `<div class="reg-empty">見つかりませんでした。<div class="reg-note">検索元：${esc(netSource)}</div>別の書き方（曲名だけ、アーティスト名だけ）か、「手入力」で登録できます。</div>`;
-  return `<div class="reg-count">${netResults.length}件（${esc(netSource)}）。「追加」で${isStock ? '曲マスタに登録されます' : 'このセトリに入ります'}。</div>
+  return `<div class="reg-count">${netResults.length}件（${esc(netSource)}）。「追加」で${isStock ? '曲マスタに登録されます' : 'セットリストに入り、曲マスタにも登録されます'}。</div>
     <div class="reg-list">${netResults.map((x,k) => {
       const done = isStock ? inStock(x.name) : inSetlist(x.name);
       const fn = isStock ? `addNetResultToStock(${k})` : `addNetResult(${k})`;
