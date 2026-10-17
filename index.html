@@ -763,7 +763,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.26.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.26.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
@@ -2116,9 +2116,10 @@ function renderStruct(){
   const tb = stTotalBars(s), nb = parseInt(bpm, 10);
   const chips = [];
   if(key) chips.push(`<span class="st-chip">キー<b>${esc(keyDisp(key, s))}</b></span>`);
-  if(songCapo(s)) chips.push(`<span class="st-chip st-chip-plain" aria-label="カポ ${songCapo(s)}"><b>Capo${songCapo(s)}</b></span>`);
-  if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`);
-  { const m = songMeter(s); if(m !== '4/4') chips.push(`<span class="st-chip st-chip-plain" aria-label="拍子 ${m}"><b>${m}</b></span>`); }
+  // 3/4・6/8 のときは拍子のチップだけにして、リズムのチップは出さない
+  { const m = songMeter(s);
+    if(m !== '4/4') chips.push(`<span class="st-chip st-chip-plain" aria-label="拍子 ${m}"><b>${m}</b></span>`);
+    else if(s.rhythm) chips.push(`<span class="st-chip">リズム<b>${esc(s.rhythm)}</b></span>`); }
   if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
   if(dur) chips.push(`<span class="st-chip st-chip-plain" aria-label="曲時間 ${esc(normDurStr(dur))}"><b>${esc(normDurStr(dur))}</b></span>`);
   const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
