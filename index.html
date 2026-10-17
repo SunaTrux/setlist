@@ -415,6 +415,7 @@ body.metro-open main{padding-bottom:500px;}
 .event-pick{display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; text-align:left; padding:10px 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font-family:inherit;}
 .event-pick-name{font-size:14px; font-weight:700;}
 .event-pick-sub{font-size:12px; color:var(--muted);}
+.event-pick-artist{font-size:12px; font-weight:600; color:var(--muted); margin-left:8px;}
 .bpm-chip{display:flex; align-items:center; gap:6px; height:34px; padding:0 12px 0 10px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer; font-family:inherit;}
 .bpm-chip span{font-size:15px; font-weight:700;}
 .bpm-chip small{font-size:10px; color:var(--muted); letter-spacing:.05em;}
@@ -841,13 +842,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.47.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.48.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.48.0': [
+    'イベント画面の「セットリスト操作」に「他のイベントからセットリストを読み込む」。MC・SEなど曲以外やイベント用のキー・BPMの変更も含めて丸ごと読み込みます（イベント名・日時などは読み込みません）。今のセットリストがあるときは、置き換えるか最後に追加するかを選べます'
+  ],
   '1.47.0': [
     '書き出すファイル（曲マスタ・イベント一覧・1イベントのCSV、構成表の.md）の名前に、場所・日時・バージョンを入れるように（例：setlist-events_iPhone-Safari_20261018-0838_v1.47.0.csv）',
     'CSVを読み込む前に、ファイル名・作成場所・日時と、上書き／新規の件数を確認するように',
@@ -4050,6 +4054,45 @@ window.stockToExistingEvent = () => {
   overlay.addEventListener('click', e => { if(e.target===overlay) close(); });
   overlay.querySelectorAll('.event-pick').forEach(btn => btn.onclick = () => { close(); addSelectedToEvent(btn.dataset.id); });
 };
+// 他のイベントのセットリストを丸ごと読み込む（曲以外・イベント用のキーやBPMの変更も含む。イベント情報は読み込まない）
+window.importSetlistFromEvent = () => {
+  const live = lives.find(l => l.id===liveEditId); if(!live || liveLockedGuard(live)) return;
+  const list = sortLives(lives.filter(l => l.id!==live.id && l.setlist.length), 'status');
+  if(!list.length){ showToast('セットリストのある他のイベントがありません。'); return; }
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box">
+    <div class="modal-message">セットリストを読み込むイベントを選んでください。\n（イベント名・日時などは読み込みません）</div>
+    <div class="event-pick-list">
+      ${list.map(l => { const n = l.setlist.filter(e=>e.type!=='other').length, o = l.setlist.length - n; return `<button type="button" class="event-pick" data-id="${l.id}">
+        <span class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}</span>
+        <span class="event-pick-name">${esc(l.venue || 'イベント名未設定')}${l.artist ? `<span class="event-pick-artist">${esc(l.artist)}</span>` : ''}</span>
+        <span class="event-pick-sub">${n}曲${o ? ` + ${o}項目` : ''}・${fmtDur(l.setlist.reduce((t,e)=>t+entryDuration(e),0))}</span>
+      </button>`; }).join('')}
+    </div>
+    <div class="modal-actions"><button type="button" class="btn" id="modal-cancel">キャンセル</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('#modal-cancel').onclick = close;
+  overlay.addEventListener('click', e => { if(e.target===overlay) close(); });
+  overlay.querySelectorAll('.event-pick').forEach(btn => btn.onclick = () => {
+    close();
+    const src = lives.find(l => l.id===btn.dataset.id); if(!src) return;
+    const copyEntries = () => JSON.parse(JSON.stringify(src.setlist)).map(e => e.type==='other' ? {...e, id: uid()} : e);
+    const done = (mode) => {
+      const add = copyEntries();
+      live.setlist = mode==='replace' ? add : live.setlist.concat(add);
+      live.updatedAt = Date.now(); entryExpandedIdx = null; stopMetro(); saveLives(); render();
+      showToast(`「${src.venue || 'イベント'}」のセットリスト（${add.length}項目）を${mode==='replace' ? '読み込みました' : '最後に追加しました'}`);
+    };
+    if(!live.setlist.length) return done('replace');
+    choiceDialog(`「${src.venue || 'イベント'}」のセットリスト（${src.setlist.length}項目）を読み込みます。\n今のセットリスト（${live.setlist.length}項目）はどうしますか？`, [
+      {label:'今のセットリストと置き換える', accent:true, fn: () => done('replace')},
+      {label:'今のセットリストの最後に追加する', fn: () => done('append')}
+    ]);
+  });
+};
 // 選んだ曲をイベントの最後に追加する（そのイベントに入っている曲は重ねて入れない）
 function addSelectedToEvent(liveId){
   const live = lives.find(l=>l.id===liveId);
@@ -4586,10 +4629,13 @@ function renderLiveEdit(){
   const actGroup = (key, title, sub, inner) => `<div class="action-group${actOpen[key] ? ' open' : ''}">
     <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
     ${actOpen[key] ? `<div class="action-group-body">${inner}</div>` : ''}</div>`;
-  if(live.setlist.length>0){
-    html += actGroup('sl', 'セットリスト操作', lk ? 'テキストで書き出し' : 'テキストで書き出し・全て削除', `
-      <button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>
-      ${lk ? '' : `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>`}`);
+  {
+    const hasSl = live.setlist.length > 0, canImport = !lk && lives.some(l => l.id!==live.id && l.setlist.length);
+    const sub = [canImport ? '他のイベントから読み込み' : '', hasSl ? 'テキストで書き出し' : '', hasSl && !lk ? '全て削除' : ''].filter(Boolean).join('・');
+    if(sub) html += actGroup('sl', 'セットリスト操作', sub, `
+      ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
+      ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
+      ${hasSl && !lk ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}`);
   }
   html += actGroup('ev', 'イベント操作', 'コピー・CSV・削除', `
     <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
