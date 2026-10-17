@@ -460,7 +460,7 @@ body.cards-min .setlist-row1 .c-only{display:flex;}
 .setlist-row1 .row-edit, .setlist-row1 .row-del{width:32px; height:32px; margin:-4px 0; margin-left:0;}
 body.cards-min .setlist-row2{display:none;}
 .setlist-row3{padding:0 12px 10px; margin-top:-2px; font-size:12px; line-height:1.55; color:var(--text);}
-.setlist-row3 .r3-se{overflow-wrap:anywhere;}
+.setlist-row3 .r3-se{overflow-wrap:anywhere; margin-top:3px; font-weight:600; color:var(--muted);}
 .setlist-row3 .r3-artist{font-size:12px; font-weight:600; color:var(--muted);}
 .setlist-row3 .r3-note{margin-top:2px; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
 body.cards-min .setlist-row3{display:none;}
@@ -816,13 +816,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.40.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.41.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.41.0': [
+    '曲カードの表示「標準」を「フル」に名前変更',
+    'フル表示では、原曲アーティスト → 全体のメモ → はじめかた → おわりかた の順に表示'
+  ],
   '1.40.1': [
     '画面を消したり別のアプリに切り替えたりしたら、メトロノームを自動で止めるように（戻ったときにお知らせ）',
     'メトロノームの処理が遅れたときに、遅れた分のクリックがまとめて鳴らないように'
@@ -1326,9 +1330,10 @@ function keyChipHtml(k, ovFrom, s){
 function cardInfoHtml(s, e){
   const v = f => e ? effVal(e, s, f) : songVal(s, f);
   const nt = v('notes'), ar = String(s.orig || '').trim();
-  // 標準表示では、はじめかた・おわりかたは出さない（メトロノームパネル・構成表で見る）。原曲アーティストとメモを出す
-  if(!nt && !ar) return '';
-  return `<div class="setlist-row3">${ar ? `<div class="r3-artist">${esc(ar)}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}</div>`;
+  const st = stShow(v('start')), en = stShow(v('end'));
+  // フル表示：原曲アーティスト → 全体のメモ → はじめかた → おわりかた
+  if(!nt && !ar && !st && !en) return '';
+  return `<div class="setlist-row3">${ar ? `<div class="r3-artist">${esc(ar)}</div>` : ''}${nt ? `<div class="r3-note">${esc(nt)}</div>` : ''}${st || en ? `<div class="r3-se">${esc(st || '-')} → ${esc(en || '-')}</div>` : ''}</div>`;
 }
 function songVal(s, f){ return s ? String(s[f]||'') : ''; }
 function normDurStr(v){ return v ? fmtDur(parseDur(v)) : ''; }
@@ -1513,7 +1518,7 @@ let liveCreateOpen = false;   // 「セットリスト作成」（曲を登録�
 let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加位置：'start' or 'end'
 // 曲カードの表示：full=標準 / bk=最小＋BPM・Key / min=最小（曲順・曲名・時間・編集ボタンだけ）
 let cardMode = store.get('setlist_card_mode', store.get('setlist_cards_min', false) ? 'min' : 'full');
-const CARD_MODES = [['full','標準'],['bk','BPM・Key'],['min','最小']];
+const CARD_MODES = [['full','フル'],['bk','BPM・Key'],['min','最小']];
 function viewSegHtml(){
   return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${cardMode===k?'on':''}" onclick="setCardMode('${k}')" aria-pressed="${cardMode===k}">${l}</button>`).join('')}</div></div>`;
 }
