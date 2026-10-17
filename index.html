@@ -116,7 +116,9 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .live-card-wrap{position:relative; margin-bottom:10px; border-radius:var(--radius); overflow:hidden; background:var(--surface);}
 .live-card-wrap .live-card{padding-right:72px; margin-bottom:0;}
 .live-del-btn{position:absolute; right:12px; top:12px; margin:0;}
-.live-struct-btn{position:absolute; right:12px; bottom:12px; height:34px; padding:0 12px; touch-action:manipulation;}
+.live-card-acts{position:absolute; right:12px; bottom:12px; display:flex; gap:6px;}
+.live-card-acts .row-struct{height:34px; padding:0 12px; touch-action:manipulation;}
+.live-card-acts .live-setlist-btn{color:var(--text); border-color:var(--border);}
 
 .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:16px;}
 .field{margin-bottom:10px;}
@@ -790,13 +792,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.31.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.32.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.32.0': [
+    'イベント一覧のカードに「セットリスト」ボタン（構成の左）。イベントを開いて、すぐセットリスト作成のところへ',
+    'イベントを開いたときの情報カードは、イベント名・アーティスト名・日時だけに（場所・メモなどはタップして開くと見られます）'
+  ],
   '1.31.0': [
     '曲マスタ・イベント一覧で、右にスワイプすると「📌 ピン」。ピン留めした曲・イベントは一覧のいちばん上にまとまります（もう一度右スワイプで解除）',
     'イベント一覧の日付を色分け：これからは青、今日は赤（「今日」マーク付き）、終わったイベントはグレー'
@@ -3979,7 +3985,7 @@ function renderLives(){
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-artist">${esc(l.artist || 'アーティスト未設定')}</div>
         <div class="live-count">${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
-      </button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
+      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div><button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
     });
   }
   main.innerHTML = html;
@@ -4006,6 +4012,12 @@ window.openLive = id => {
   liveInfoOpen = false;
   render();
   scrollToTop();
+};
+// イベント一覧の「セットリスト」：イベントを開いて、セットリスト作成のところまで送る
+window.openLiveSetlist = id => {
+  openLive(id);
+  const el = document.getElementById('setlist-section');
+  if(el) requestAnimationFrame(() => el.scrollIntoView({block:'start'}));
 };
 window.toggleLiveInfo = () => {
   if(liveInfoOpen) applyLiveForm();
@@ -4057,10 +4069,8 @@ function renderLiveEdit(){
     <div class="fold-head-main">${liveInfoOpen
       ? `<div class="fold-title">イベント情報</div>`
       : `<div class="live-venue">${esc(live.venue || 'イベント名未設定')}</div>
-        ${live.place ? `<div class="live-place">${esc(live.place)}</div>` : ''}
         ${live.artist ? `<div class="live-artist">${esc(live.artist)}</div>` : ''}
-        <div class="live-date mono summary-date">${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>
-        ${live.memo ? `<div class="live-summary-memo">${esc(live.memo.split('\n')[0])}</div>` : ''}`}
+        <div class="live-date mono summary-date">${live.date ? esc(live.date)+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}</div>`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
@@ -4084,7 +4094,7 @@ function renderLiveEdit(){
     <div class="form-actions"><button type="submit" class="btn btn-accent">保存</button></div>
   </form>`;
   html += `</div>
-  <div class="section-title">セットリスト作成</div>`;
+  <div class="section-title" id="setlist-section" style="scroll-margin-top:8px;">セットリスト作成</div>`;
 
   const songRegisterInner = regBodyHtml(live);
 
