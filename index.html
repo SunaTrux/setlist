@@ -579,6 +579,7 @@ body.struct-open header{display:none;}
 
 .st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
 .st-title-row{display:flex; align-items:center; gap:10px;}
+.st-back-mini{flex:none; width:34px; height:34px; padding:0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:18px; font-weight:700; line-height:1; cursor:pointer; touch-action:manipulation; display:flex; align-items:center; justify-content:center;}
 .st-title-box{flex:1; min-width:0;}
 .st-title{font-size:20px; font-weight:700; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .st-no small{font-size:.6em; color:var(--muted); font-weight:700; margin-left:1px;}
@@ -815,13 +816,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.37.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.38.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.38.0': [
+    '構成表の「最小」表示では、上の「← セットリスト」「構成表／編集」の行を隠して広く表示。戻るときは曲名の左の「←」、編集するときは「標準」に戻してください'
+  ],
   '1.37.4': [
     'Android でホーム画面に追加したアプリは、時計や電池の表示も隠した全画面で開くように（iPhone は仕組み上これまでどおり）'
   ],
@@ -2324,11 +2328,14 @@ function renderStruct(){
   if(tb) chips.push(`<span class="st-chip st-chip-plain" aria-label="全体 ${tb}小節"><b>${tb}小節</b></span>`);
   if(dur) chips.push(`<span class="st-chip st-chip-plain" aria-label="曲時間 ${esc(normDurStr(dur))}"><b>${esc(normDurStr(dur))}</b></span>`);
   const arrow = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
-  let html = `<div class="st-head">
-    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${stFromStock() ? '曲マスタ' : structOpen.fromList ? 'イベント一覧' : 'セットリスト'}</button>
+  const backLabel = stFromStock() ? '曲マスタ' : structOpen.fromList ? 'イベント一覧' : 'セットリスト';
+  const compact = stMin && !structEdit;   // 最小表示では「戻る・構成表／編集」の行を出さず、曲名の左に小さな戻るボタンだけ
+  let html = compact ? '' : `<div class="st-head">
+    <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${backLabel}</button>
     <div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>
-  </div>
-  <div class="st-title-row">
+  </div>`;
+  html += `<div class="st-title-row">
+    ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
     <div class="st-title-box"><h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${esc(s.name)}</h2></div>
   </div>
   ${structEdit || !stMin ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;
