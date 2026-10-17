@@ -112,6 +112,8 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .live-card-wrap.st-card-today .live-card, .fold-card.st-card-today{box-shadow:inset 4px 0 0 var(--accent);}
 .live-card-wrap.st-card-future .live-card, .fold-card.st-card-future{box-shadow:inset 4px 0 0 var(--teal);}
 .live-card-wrap.st-card-past .live-card, .fold-card.st-card-past{box-shadow:inset 4px 0 0 var(--border);}
+.past-toggle{display:flex; align-items:center; gap:8px; font-size:13px; margin:-4px 2px 10px; cursor:pointer; color:var(--muted);}
+.past-toggle input{width:18px; height:18px; margin:0; accent-color:var(--accent);}
 .live-card-wrap.st-card-past .live-date, .live-card-wrap.st-card-past .live-venue, .live-card-wrap.st-card-past .live-count{opacity:.6;}
 .live-venue{font-size:14px; font-weight:700; margin:4px 0 2px;}
 .live-artist{font-size:13px; color:var(--muted);}
@@ -800,13 +802,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.34.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.35.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.35.0': [
+    'イベント一覧を「日付順（今日→これから→過去）」で並べるように（並び替えで今までの順にも戻せます）',
+    'イベント一覧に「過去のイベントを隠す」チェック。ピン留めしたイベントは隠しません'
+  ],
   '1.34.0': [
     'イベントの日付の色分けを「バンドマン持ち物リスト」とそろえました：今日はオレンジ、これからは緑（「明日」「あと○日」）、終わったものはグレー（「終了」）。カードの左端にも色の線',
     '「設定」の「候補の編集」を「プレイ情報の初期値設定」に'
@@ -1343,7 +1349,8 @@ let slFilter = 'all', slSort = 'order';  // イベントのセットリストの
 let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
-let liveSort = store.get('setlist_live_sort', 'date_desc');
+let liveSort = store.get('setlist_live_sort', 'status');  // 初期値は日付順（今日→これから→過去）
+let hidePast = store.get('setlist_hide_past', false);   // イベント一覧で過去のイベントを隠す（ピン留めは隠さない）
 let liveArtistFilter = store.get('setlist_live_artist', 'all');  // イベント一覧の絞り込み：all / __none__ / アーティスト名
 // イベントのアーティスト一覧（表記ゆれ・前後の空白はまとめ、件数の多い順）
 function liveArtistList(){
@@ -1369,6 +1376,7 @@ function songSortOptionsHtml(current){
   return SONG_SORT_OPTS.map(o => `<option value="${o.value}" ${o.value===current?'selected':''}>${o.label}</option>`).join('');
 }
 const LIVE_SORT_OPTS = [
+  {value:'status', label:'日付順（今日→これから→過去）'},
   {value:'date_desc', label:'イベント日（新しい順）'},
   {value:'date_asc', label:'イベント日（古い順）'},
   {value:'updated_desc', label:'更新日（新しい順）'},
@@ -1400,6 +1408,19 @@ function sortSongs(arr, mode){
 }
 function sortLives(arr, mode){
   const a = [...arr];
+  // 日付順（バンドマン持ち物リストと同じ）：今日 → これから（近い順）→ 日付未設定 → 過去（新しい順）
+  if(mode==='status'){
+    const rank = {today:0, future:1, none:2, past:3};
+    return a.sort((x, y) => {
+      const sx = liveDateStatus(x.date).kind, sy = liveDateStatus(y.date).kind;
+      if(rank[sx]!==rank[sy]) return rank[sx]-rank[sy];
+      if(sx==='none') return (y.updatedAt||0)-(x.updatedAt||0);
+      const kx = (x.date||'')+' '+(x.startTime||'99:99'), ky = (y.date||'')+' '+(y.startTime||'99:99');
+      if(kx===ky) return (y.updatedAt||0)-(x.updatedAt||0);
+      const asc = kx < ky ? -1 : 1;
+      return sx==='past' ? -asc : asc;
+    });
+  }
   if(mode==='title_asc') return a.sort((x,y)=>(x.venue||'').localeCompare(y.venue||'','ja'));
   if(mode==='title_desc') return a.sort((x,y)=>(y.venue||'').localeCompare(x.venue||'','ja'));
   if(mode==='updated_asc') return a.sort((x,y)=>(x.updatedAt||0)-(y.updatedAt||0));
@@ -3994,13 +4015,16 @@ function renderLives(){
     </select></label>` : ''}
     ${lives.length>1 ? `<label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="live-sort-quick" aria-label="並び替え">${liveSortOptionsHtml(liveSort)}</select></label>` : ''}
   </div>` : ''}`;
-  const sorted0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
+  const filtered0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
+  const pastCount = filtered0.filter(l => !l.pinned && liveDateStatus(l.date).kind==='past').length;
+  if(pastCount) html += `<label class="past-toggle"><input type="checkbox" ${hidePast?'checked':''} onchange="setHidePast(this.checked)"> 過去のイベントを隠す（${pastCount}件）</label>`;
+  const sorted0 = hidePast ? filtered0.filter(l => l.pinned || liveDateStatus(l.date).kind!=='past') : filtered0;
   const sorted = [...sorted0.filter(l => l.pinned), ...sorted0.filter(l => !l.pinned)];
   const nPinL = sorted.filter(l => l.pinned).length;
   if(lives.length===0){
     html += `<div class="empty">まだイベントが登録されていません。<br>「新しいイベント」から作成しましょう。</div>`;
   } else if(sorted.length===0){
-    html += `<div class="empty">絞り込みに合うイベントがありません。</div>`;
+    html += `<div class="empty">${filtered0.length && hidePast ? 'これからのイベントはありません（過去のイベントは隠しています）' : '絞り込みに合うイベントがありません。'}</div>`;
   } else {
     sorted.forEach((l, li) => {
       if(nPinL && li===0) html += `<div class="pin-head">📌 ピン留め</div>`;
@@ -4032,6 +4056,7 @@ function renderLives(){
   const artistSel = document.getElementById('live-artist-filter');
   if(artistSel) artistSel.onchange = function(){ liveArtistFilter = this.value; store.set('setlist_live_artist', liveArtistFilter); render(); };
 }
+window.setHidePast = on => { hidePast = !!on; store.set('setlist_hide_past', hidePast); render(); };
 window.resetSlView = () => { slFilter = 'all'; slSort = 'order'; render(); };
 window.openLive = id => {
   slFilter = 'all'; slSort = 'order';
