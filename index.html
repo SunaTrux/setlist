@@ -541,13 +541,13 @@ body.struct-open header{display:none;}
 .st-chip b{color:var(--text); font-weight:700; margin-left:4px;}
 .st-chip-plain b{margin-left:0;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
-.st-chordbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:-2px 0 10px;}
-.st-cmode button, .st-capo button{padding:5px 10px; font-size:12px;}
+.st-chordbar{display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin:-2px 0 10px;}
+.st-cmode button, .st-capo button{padding:5px 6px; font-size:12px;}
 .st-cmode button:disabled{opacity:.4;}
-.st-trans{display:flex; align-items:center; gap:4px; margin-left:auto;}
+.st-trans{display:flex; align-items:center; gap:3px; margin-left:auto;}
 .st-trans-lab{font-size:11px; font-weight:700; color:var(--muted); margin-right:2px;}
-.st-tbtn{width:32px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:16px; font-weight:700; cursor:pointer; touch-action:manipulation;}
-.st-tkey{min-width:5.5em; height:30px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; white-space:nowrap;}
+.st-tbtn{width:26px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:16px; font-weight:700; cursor:pointer; touch-action:manipulation;}
+.st-tkey{min-width:4em; height:30px; padding:0 6px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; white-space:nowrap;}
 .st-tkey.on{border-color:var(--accent); color:var(--accent);}
 .st-commit{flex-basis:100%; display:flex; align-items:center; gap:6px; justify-content:flex-end; font-size:11px; color:var(--muted);}
 .st-commit span{margin-right:auto; min-width:0;}
@@ -763,13 +763,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.26.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.26.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.26.2': [
+    'ジャンルに「J-POP」「K-POP」を追加',
+    '曲マスタの「Markdownから取り込む」を最初から開いた状態に',
+    '構成表の表記を短くして（コード／度数・Capo3・原キー）、切り替えの行が1行に収まるように'
+  ],
   '1.26.0': [
     '曲ごとに「カポ」（ギター）を設定できるように。構成表のチップに「Capo3」',
     '構成表で「実音／Capo」を切り替え：Capoにすると、コードを押さえ方の表記（例：Capo3（G表記））で表示。切り替えは端末ごとに覚えます',
@@ -1078,7 +1083,9 @@ const GENRE_OPTS = [
   {value:'classic', label:'クラシック'},
   {value:'latin', label:'ラテン'},
   {value:'pops', label:'ポップス'},
-  {value:'kayo', label:'歌謡曲'}
+  {value:'kayo', label:'歌謡曲'},
+  {value:'jpop', label:'J-POP'},
+  {value:'kpop', label:'K-POP'}
 ];
 function genreOptionsHtml(current){
   let html = `<option value="">未設定</option>`;
@@ -2244,12 +2251,12 @@ function stChordCtx(s, e){
   return {mode, shift: normShift(shift), keyShift, flat, respell: !!s.acc, mk, ek, target, tonic, canDegree, capo, capoOn, shapeKey};
 }
 function stChordBarHtml(s, e, c){
-  const seg = `<div class="pos-seg st-cmode"><button type="button" class="${c.mode==='chord'?'on':''}" onclick="setChordMode('chord')">コード</button><button type="button" class="${c.mode==='degree'?'on':''}" onclick="setChordMode('degree')" ${c.canDegree?'':'disabled title="キーが未設定のため使えません"'}>ディグリー</button></div>`;
+  const seg = `<div class="pos-seg st-cmode"><button type="button" class="${c.mode==='chord'?'on':''}" onclick="setChordMode('chord')">コード</button><button type="button" class="${c.mode==='degree'?'on':''}" onclick="setChordMode('degree')" ${c.canDegree?'':'disabled title="キーが未設定のため使えません"'}>度数</button></div>`;
   let tr = '';
   if(c.mode==='chord'){
     const kd = (pc, mi) => keyDisp(keyName(pc, mi), s);
     const ks = c.keyShift;
-    const lab = c.mk ? (ks ? `${kd(c.mk.pc, c.mk.minor)} → ${kd(c.target.pc, c.target.minor)}` : `${kd(c.mk.pc, c.mk.minor)}（元のキー）`) : (ks ? `${ks>0?'+':''}${ks}（半音）` : '移調なし');
+    const lab = c.mk ? (ks ? `${kd(c.mk.pc, c.mk.minor)} → ${kd(c.target.pc, c.target.minor)}` : `${kd(c.mk.pc, c.mk.minor)}（原キー）`) : (ks ? `${ks>0?'+':''}${ks}（半音）` : '移調なし');
     tr = `<div class="st-trans"><span class="st-trans-lab">移調</span><button type="button" class="st-tbtn" onclick="stTranspose(-1)" aria-label="半音下げる">−</button><button type="button" class="st-tkey${c.keyShift?' on':''}" onclick="stTranspose(0)" title="元のキーに戻す">${esc(lab)}</button><button type="button" class="st-tbtn" onclick="stTranspose(1)" aria-label="半音上げる">＋</button></div>`;
     if(!e && stTrans) tr += `<div class="st-commit"><span>曲マスタはまだ変わっていません（試し表示）</span><button type="button" class="btn btn-accent" onclick="stCommitTrans()">確定</button><button type="button" class="btn" onclick="stTranspose(0)">取消</button></div>`;
   } else {
@@ -2258,7 +2265,7 @@ function stChordBarHtml(s, e, c){
   let cp = '';
   if(c.capo && c.mode==='chord'){
     const sk = c.shapeKey ? `（${esc(keyDisp(keyName(c.shapeKey.pc, c.shapeKey.minor), s))}表記）` : '';
-    cp = `<div class="pos-seg st-capo"><button type="button" class="${c.capoOn?'':'on'}" onclick="setCapoView(false)">実音</button><button type="button" class="${c.capoOn?'on':''}" onclick="setCapoView(true)">Capo${c.capo}${c.capoOn ? sk : ''}</button></div>`;
+    cp = `<div class="pos-seg st-capo"><button type="button" class="${c.capoOn?'':'on'}" onclick="setCapoView(false)">実音</button><button type="button" class="${c.capoOn?'on':''}" onclick="setCapoView(true)">Capo${c.capo}</button></div>`;
   }
   return `<div class="st-chordbar">${seg}${cp}${tr}</div>`;
 }
@@ -2725,6 +2732,8 @@ function stNormGenre(v){
   if(/classic|クラシック/.test(t)) return 'classic';
   if(/latin|ラテン|bossa|salsa/.test(t)) return 'latin';
   if(/歌謡/.test(t)) return 'kayo';
+  if(/j\s*-?\s*pop/.test(t)) return 'jpop';
+  if(/k\s*-?\s*pop/.test(t)) return 'kpop';
   if(/pop|ポップ/.test(t)) return 'pops';
   if(/rock|ロック/.test(t)) return 'rock';
   return String(v).trim();
@@ -3251,7 +3260,7 @@ function songFormHtml(f){
   if(!f.id && stockRegTab !== 'manual') return stockRegPanelHtml();
   const seg = !f.id ? regSegHtml(stockRegTab, 'stock') : '';
   const nSec = f.struct && f.struct.sections ? f.struct.sections.length : 0;
-  const mdPanel = f.id ? '' : `<details class="panel song-md" ${nSec ? 'open' : ''}>
+  const mdPanel = f.id ? '' : `<details class="panel song-md" open>
     <summary>Markdownから取り込む</summary>
     <p class="st-note" style="margin-top:8px;">AIなどで作った「曲情報」と「構成表」の表を貼り付けると、下のフォームに曲情報が入り、構成表も一緒に登録されます。内容を確かめてから「保存」してください。</p>
     <div class="field"><textarea id="song-md-paste" rows="6" placeholder="### 曲情報&#10;| 項目 | 内容 |&#10;| 曲名 | … |&#10;&#10;### 構成表&#10;| 区間 | バー数 | コード | … |"></textarea></div>
