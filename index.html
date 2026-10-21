@@ -834,8 +834,43 @@ lives.forEach(l=>{
   l.setlist.forEach(e => { if(!e.type){ e.type='song'; migrated=true; } });
 });
 
-function saveSongs(){ store.set('setlist_songs', songs); }
-function saveLives(){ store.set('setlist_lives', lives); }
+// ---- 安全対策：取り込んだデータに、画面を壊したり勝手に動いたりする値が混ざらないようにする ----
+// ID は英数字・-・_ だけ（画面のボタンの中に埋め込むため）。合わないIDは作り直し、イベントからの参照もつなぎ替える
+const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+// URL は http(s) だけ（「javascript:」などは捨てる）
+function safeUrl(u){ u = String(u || '').trim(); return /^https?:\/\/[^\s"'<>]+$/i.test(u) ? u : ''; }
+function sanitizeData(){
+  let changed = false;
+  if(!Array.isArray(songs)){ songs = []; changed = true; }
+  if(!Array.isArray(lives)){ lives = []; changed = true; }
+  const remap = new Map(), seen = new Set();
+  songs = songs.filter(x => x && typeof x==='object');
+  songs.forEach(x => {
+    const old = x.id;
+    if(!SAFE_ID.test(String(old || '')) || seen.has(old)){ x.id = uid(); if(old!=null) remap.set(String(old), x.id); changed = true; }
+    seen.add(x.id);
+    if(typeof x.name!=='string'){ x.name = String(x.name ?? ''); changed = true; }
+    if(x.url && x.url!==safeUrl(x.url)){ x.url = safeUrl(x.url); changed = true; }
+  });
+  const lseen = new Set();
+  lives = lives.filter(l => l && typeof l==='object');
+  lives.forEach(l => {
+    if(!SAFE_ID.test(String(l.id || '')) || lseen.has(l.id)){ l.id = uid(); changed = true; }
+    lseen.add(l.id);
+    if(!Array.isArray(l.setlist)){ l.setlist = []; changed = true; }
+    l.setlist = l.setlist.filter(e => e && typeof e==='object');
+    l.setlist.forEach(e => {
+      if(e.type==='other'){ if(e.id!=null && !SAFE_ID.test(String(e.id))){ e.id = uid(); changed = true; } return; }
+      if(remap.has(String(e.songId))){ e.songId = remap.get(String(e.songId)); changed = true; }
+      else if(e.songId!=null && !SAFE_ID.test(String(e.songId))){ e.songId = ''; changed = true; }
+    });
+  });
+  return changed;
+}
+function saveSongs(){ if(sanitizeData()) store.set('setlist_lives', lives); store.set('setlist_songs', songs); }
+function saveLives(){ if(sanitizeData()) store.set('setlist_songs', songs); store.set('setlist_lives', lives); }
+// 起動時にも一度チェック（バックアップの復元や、古い版で取り込んだデータに備えて）
+try{ if(sanitizeData()){ store.set('setlist_songs', songs); store.set('setlist_lives', lives); } }catch(e){ console.error(e); }
 if(migrated) saveLives();
 
 let songsMigrated = false;
@@ -845,13 +880,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.49.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.49.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.49.1': [
+    '安全対策を強化：取り込んだCSVやバックアップに不正なIDやリンクが混ざっていても、画面で勝手に動かないように。CSVを表計算アプリで開いたときに数式として動かないように'
+  ],
   '1.49.0': [
     'ロック中のイベントから開いた構成表は見るだけに：「編集」タブ、セクション名タップでの編集、移調の −＋ を止めます（表示の切り替え・テンポ窓・曲送りはそのまま）'
   ],
@@ -3707,7 +3745,7 @@ function songFormHtml(f){
     ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
     ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
-    <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${f.url ? `<a class="ref-link" href="${esc(f.url)}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
+    <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${safeUrl(f.url) ? `<a class="ref-link" href="${esc(safeUrl(f.url))}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
     ${!f.id ? stockPosSegHtml() : ''}
     ${returnToLiveId ? `<div class="hint" style="padding:0 0 8px;">保存またはキャンセルすると、イベント画面に戻ります。</div>` : ''}
@@ -5308,7 +5346,9 @@ async function getDownloads(){
 
 // ---- 簡易CSV ----
 function csvEscape(val){
-  const s = (val===null||val===undefined) ? '' : String(val);
+  let s = (val===null||val===undefined) ? '' : String(val);
+  // 表計算アプリで数式として動かないように、= + @ や「-文字」で始まる値の頭に ' を付ける（読み込み時に外す）
+  if(/^[=+@\t\r]/.test(s) || /^-[^\d.\s]/.test(s)) s = "'" + s;
   if(/[",\r\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
   return s;
 }
@@ -5346,7 +5386,7 @@ function parseCSV(text){
   const headers = rows[0];
   return rows.slice(1).filter(r => r.length>1 || r[0]!=='').map(r => {
     const obj = {};
-    headers.forEach((h,idx) => { obj[h] = r[idx]!==undefined ? r[idx] : ''; });
+    headers.forEach((h,idx) => { obj[h] = r[idx]!==undefined ? String(r[idx]).replace(/^'(?=[=+@\t\r-])/, '') : ''; });
     return obj;
   });
 }
