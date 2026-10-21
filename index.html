@@ -752,6 +752,38 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 
 /* ---- スマホ横向きの構成表：左に曲の情報と操作、右に構成表（それぞれスクロール） ---- */
 .st-land, .st-side, .st-main{display:contents;}
+/* ---- 広い画面（PC・タブレット・スマホ横）のレイアウト ---- */
+@media (min-width:640px){
+  .live-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:12px; align-items:start;}
+  .live-grid .live-card-wrap{margin-bottom:0;}
+  .live-grid .pin-head, .live-grid .pin-sep{grid-column:1 / -1; margin-top:0; margin-bottom:0;}
+}
+@media (min-width:760px){
+  #app{max-width:1120px;}
+  header h1{margin-left:24px; margin-right:24px;}
+  nav{padding:0 24px; max-width:640px;}
+  main{padding:20px 24px 48px;}
+  body[data-view="songs"] main, body[data-view="settings"] main{max-width:800px; margin:0 auto;}
+  body[data-view="lives"] .song-toolbar, body[data-view="lives"] .stock-tools{max-width:640px;}
+  .metro-inner{border-radius:16px 16px 0 0;}
+}
+@media (min-width:820px){
+  .le-grid{display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); grid-template-rows:auto 1fr; grid-template-areas:"side main" "acts main"; column-gap:28px; align-items:start;}
+  .le-side{grid-area:side; min-width:0;}
+  .le-main{grid-area:main; min-width:0;}
+  .le-acts{grid-area:acts; min-width:0;}
+  .le-main > .sl-head-card{margin-top:0;}
+  .le-side > .create-head:first-child, .le-side > .fold-card:first-child{margin-top:0;}
+  .le-acts > .action-group:first-child{margin-top:12px;}
+}
+/* スマホ横向き：タイトルとタブを1行にして、縦の余白をかせぐ（左右のノッチも避ける） */
+@media (orientation:landscape) and (max-height:500px){
+  header{display:flex; align-items:center; padding-top:calc(6px + env(safe-area-inset-top,0px)); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);}
+  header h1{font-size:16px; margin:0 16px; white-space:nowrap;}
+  nav{flex:1; padding:0 12px 0 0; max-width:none;}
+  nav button{padding:8px 0;}
+  main{padding-left:calc(16px + env(safe-area-inset-left,0px)); padding-right:calc(16px + env(safe-area-inset-right,0px));}
+}
 @media (orientation:landscape) and (max-height:600px){
   body.st-viewing{--side-w:clamp(290px, 38vw, 400px); overflow:hidden;}
   body.st-viewing header{display:none;}
@@ -880,13 +912,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.49.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.50.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.50.0': [
+    'PC・タブレット・スマホ横向きでの見た目を改善：イベント一覧は2〜3列に並べ、イベント画面は左にイベント情報・セットリスト作成、右にセットリストの2列に。曲マスタと設定は読みやすい幅に',
+    'スマホ横向きでは、タイトルとタブを1行にまとめて画面を広く使えるように'
+  ],
   '1.49.1': [
     '安全対策を強化：取り込んだCSVやバックアップに不正なIDやリンクが混ざっていても、画面で勝手に動かないように。CSVを表計算アプリで開いたときに数式として動かないように'
   ],
@@ -3444,6 +3480,7 @@ document.getElementById('tab-settings').onclick = () => { structOpen = null; str
 
 function render(){
   showOthers = cardMode!=='min';
+  document.body.dataset.view = structOpen ? 'struct' : tab==='lives' ? (liveEditId ? 'live' : 'lives') : tab;   // 画面ごとのレイアウト用
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
   document.getElementById('tab-songs').classList.toggle('active', tab==='songs');
   document.getElementById('tab-settings').classList.toggle('active', tab==='settings');
@@ -4375,6 +4412,7 @@ function renderLives(){
   } else if(sorted.length===0){
     html += `<div class="empty">${filtered0.length && hidePast ? 'これからのイベントはありません（過去のイベントは隠しています）' : '絞り込みに合うイベントがありません。'}</div>`;
   } else {
+    html += `<div class="live-grid">`;   // 広い画面では2〜3列に並べる
     sorted.forEach((l, li) => {
       if(nPinL && li===0) html += `<div class="pin-head">📌 ピン留め</div>`;
       if(nPinL && li===nPinL) html += `<div class="pin-sep"></div>`;
@@ -4388,6 +4426,7 @@ function renderLives(){
         <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
       </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div><button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
     });
+    html += `</div>`;
   }
   main.innerHTML = html;
   document.getElementById('btn-add-live').onclick = () => {
@@ -4488,6 +4527,8 @@ function renderLiveEdit(){
   if(justCopiedId===live.id){
     html += `<div class="new-copy-note">コピーから作った新しいイベントです。イベント名や日付を変更してください。</div>`;
   }
+  // 広い画面（PC・タブレット・スマホ横）では、左にイベント情報・セットリスト作成・操作、右にセットリスト
+  html += `<div class="le-grid"><div class="le-side">`;
   const liveSt = liveDateStatus(live.date);
   html += `<div class="fold-card st-card-${liveSt.kind}"><button type="button" class="fold-head" onclick="toggleLiveInfo()">
     <div class="fold-head-main">${liveInfoOpen
@@ -4586,6 +4627,7 @@ function renderLiveEdit(){
   if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
+  html += `</div><div class="le-main">`;
   // ---- セットリストエリア ----
   html += totalsCardHtml;   // 見出し（セットリスト・合計時間）→ 絞り込み・並べ替え → 表示切り替え
   const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
@@ -4677,6 +4719,7 @@ function renderLiveEdit(){
     html += shown.length ? shown.map(r => slSort==='order' ? r.p.h : r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
   }
 
+  html += `</div><div class="le-acts">`;
   // 画面下の操作は見出しだけ出して、押したら開く（初期値は閉じる）
   const actGroup = (key, title, sub, inner) => `<div class="action-group${actOpen[key] ? ' open' : ''}">
     <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
@@ -4693,6 +4736,7 @@ function renderLiveEdit(){
     <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
     <button type="button" class="btn btn-block btn-with-icon" onclick="exportSingleEvent()">CSVで書き出す${EXPORT_ICON_SVG}</button>
     <button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`);
+  html += `</div></div>`;   // le-acts / le-grid
 
   main.innerHTML = html;
   if(timer.running && !timer.intervalId){ timer.intervalId = setInterval(tickTimer, 1000); }
