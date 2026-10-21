@@ -169,6 +169,23 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .set-acc-body > :last-child{margin-bottom:0;}
 .set-acc[open] > summary{padding-bottom:10px;}
 .set-acc-danger .set-acc-t{color:var(--danger);}
+/* 設定の2カラム（スマホ横・タブレット・PC） */
+.set-split{display:grid; grid-template-columns:minmax(170px, 230px) minmax(0, 1fr); gap:16px; align-items:start;}
+.set-nav{display:flex; flex-direction:column; gap:2px; padding:6px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);}
+.set-nav button{display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; text-align:left; padding:10px 12px; border:none; border-radius:10px; background:none; color:var(--text); font-family:inherit; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.set-nav button .t{font-size:14px; font-weight:700;}
+.set-nav-group{font-size:11px; font-weight:700; color:var(--muted); padding:12px 12px 4px; border-top:1px solid var(--border); margin-top:4px;}
+.set-nav button .s{font-size:11px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.set-nav button.set-acc-danger .t{color:var(--danger);}
+.set-nav button.on{background:var(--accent); color:var(--accent-text);}
+.set-nav button.on .t, .set-nav button.on .s{color:inherit;}
+.set-nav button.on .s{opacity:.85;}
+.set-sec{display:none; padding:16px; margin:0;}
+.set-sec.on{display:block;}
+.set-sec-h{font-size:17px; font-weight:700; margin:0 0 14px;}
+.set-sec.set-acc-danger .set-sec-h{color:var(--danger);}
+.set-sec .set-acc-body{padding:0;}
+.set-pane .app-version{margin-top:16px;}
 .create-head{display:flex; align-items:center; gap:8px; width:100%; margin:16px 0 8px; padding:10px 12px; border:1px dashed var(--border); border-radius:var(--radius); background:transparent; color:var(--muted); font-family:inherit; cursor:pointer; text-align:left; scroll-margin-top:8px;}
 .create-head.open{border-style:solid; margin-bottom:8px;}
 .create-title{font-size:13px; font-weight:700; letter-spacing:.03em; color:var(--text);}
@@ -506,7 +523,7 @@ body.cards-bk .setlist-row3{display:none;}
 .opt-chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .hidden-tag{display:inline-block; margin-left:6px; padding:0 6px; border-radius:999px; border:1px solid var(--border); font-size:10px; font-weight:700; color:var(--muted); vertical-align:middle;}
 body.cards-min .setlist-row1{padding:8px 12px;}
-body.cards-min .setlist-item[data-drag-list="live"] .setlist-row1 .dur-label{display:none;}   /* 最小表示は曲の分数を隠して曲名を長く */
+body.cards-min .setlist-row1 .dur-label{display:none;}   /* 最小表示は曲の分数を隠して曲名を長く（セットリスト・曲マスタ） */
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
 .switch span{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--surface2); transition:transform .15s;}
@@ -913,13 +930,19 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.50.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-17';
+const APP_VERSION = '1.51.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-22';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.51.0': [
+    '曲マスタにロックを追加。ロック中は曲の登録・削除・並べ替え・編集（構成表も）ができず、✕や並べ替えのハンドルが消えます',
+    'セットリストをロックしたイベントは削除できないように',
+    '曲マスタの最小表示でも曲の分数を表示しないように',
+    'スマホ横向き・タブレット・PCの設定画面は、iOSの設定のように左に項目一覧・右に中身の2カラム表示に'
+  ],
   '1.50.2': [
     'セットリストの最小表示では曲の分数を表示しないように。そのぶん曲名を長く表示できます（合計時間は見出しに出ます）'
   ],
@@ -1581,6 +1604,7 @@ let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番�
 let slFilter = 'all', slSort = 'order';  // イベントのセットリストの絞り込み・並べ替え（表示だけ。イベントを開くたびに戻す）
 let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
+let stockLocked = !!store.get('setlist_stock_locked', false);   // 🔒 曲マスタのロック（端末ごと。登録・削除・並べ替え・編集をできなくする）
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
 let liveSort = store.get('setlist_live_sort', 'status');  // 初期値は日付順（今日→これから→過去）
 let hidePast = store.get('setlist_hide_past', false);   // イベント一覧で過去のイベントを隠す（ピン留めは隠さない）
@@ -1832,6 +1856,7 @@ function endDrag(e){
 }
 // 画面に見えている並びを保存する。見えていない項目（隠した曲以外）は元の位置のまま
 function applyDragOrder(list, keys){
+  if(list==='stock' && stockLocked) return;
   if(list==='stock'){
     // 見えている曲だけを、元いた位置（スロット）に並べ直して入れる。非表示の曲は動かさない
     const byId = new Map(songs.map((s,i) => [s.id, i]));
@@ -2108,6 +2133,7 @@ function saveMetroBpm(){
   const p = metroPanel; if(!p) return;
   const v = String(p.bpm);
   if(p.source==='stock'){
+    if(stockLocked) return;   // ロック中はテンポを変えても曲マスタには保存しない（その場だけ）
     const s = songs.find(x=>x.id===p.songId); if(!s) return;
     s.bpm = v; s.updatedAt = Date.now(); saveSongs();
   } else {
@@ -2473,8 +2499,8 @@ window.structNav = d => {
   return {wrapped, pos: np, len: seq.length};
 };
 // ロック中のイベントから開いた構成表は見るだけ（編集・セクションのその場編集・移調の保存をしない）
-function stLockedNow(){ const l = !stFromStock() && stLive(); return !!(l && l.locked); }
-function stLockToast(){ showToast('🔒 ロック中のイベントです。セットリストのロックを解除すると編集できます'); }
+function stLockedNow(){ if(stockLocked) return true; const l = !stFromStock() && stLive(); return !!(l && l.locked); }
+function stLockToast(){ showToast(stockLocked ? '🔒 曲マスタはロック中です。曲マスタのロックを解除すると編集できます' : '🔒 ロック中のイベントです。セットリストのロックを解除すると編集できます'); }
 window.stToggleSec = si => {
   if(stLockedNow()){ stLockToast(); return; }
   stOpenSec = stOpenSec===si ? null : si;
@@ -2532,7 +2558,7 @@ function renderStruct(){
   const compact = stMin && !structEdit;   // 最小表示では「戻る・構成表／編集」の行を出さず、曲名の左に小さな戻るボタンだけ
   let html = compact ? '' : `<div class="st-head">
     <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${backLabel}</button>
-    ${locked ? `<span class="st-lock-tag" title="ロック中のイベントなので、見るだけです">🔒 ロック中</span>` : `<div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>`}
+    ${locked ? `<span class="st-lock-tag" title="${stockLocked ? '曲マスタがロック中なので、見るだけです' : 'ロック中のイベントなので、見るだけです'}">🔒 ロック中</span>` : `<div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>`}
   </div>`;
   html += `<div class="st-title-row">
     ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
@@ -2559,7 +2585,7 @@ function renderStruct(){
   // 横向きでは左の列（曲の情報・操作）と右の列（構成表）に分ける。縦向きでは今まで通り上から順に並ぶ
   const sideHtml = html; html = '';
   if(!secs.length){
-    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。${locked ? '<br>（ロック中のイベントなので、ここでは作れません）' : `<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>`}
+    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。${locked ? `<br>（${stockLocked ? '曲マスタがロック中' : 'ロック中のイベント'}なので、ここでは作れません）` : `<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>`}
       <div class="st-empty-paste"${locked ? ' hidden' : ''}>
         <div class="st-empty-or">または、AIなどで作った構成表（Markdown）を貼り付け</div>
         <textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea>
@@ -3514,10 +3540,10 @@ function renderSongs(){
     <input type="search" id="stock-q" class="stock-q" placeholder="曲名・アーティスト・メモで検索" value="${esc(stockQuery)}" autocomplete="off" enterkeyhint="search" oninput="onStockQuery(this.value)" aria-label="曲マスタを検索">
     <button type="button" class="btn" onclick="exitStockSelect()">閉じる</button>
   </div>
-  <div class="stock-tools">${filterTools}</div>` : `<div class="song-toolbar">
+  <div class="stock-tools">${filterTools}</div>` : `${stockLocked ? '' : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-song">+ 曲を登録</button>
     <button type="button" class="btn bulk-btn" onclick="openBulkText()" aria-label="テキストからまとめて登録" title="テキストからまとめて登録">${TEXT_ICON_SVG}<span>一括登録</span></button>
-  </div>
+  </div>`}
   ${songs.length ? `<div class="stock-tools">
     <button type="button" class="btn select-btn" onclick="enterStockSelect()" aria-label="曲マスタを検索・選択">🔍 検索</button>
     ${filterTools}
@@ -3543,7 +3569,7 @@ function stockBodyHtml(){
       if(s.hidden && !stockSelectMode) return false;  // 非表示の曲は、検索・選択の画面でだけ出す
       return matchesSongFilter(s) && matchesStockQuery(s);
     });
-    const canMove = songSort==='order' && !songForm && !stockSelectMode;  // 絞り込み中も、見えている曲どうしで並べ替えできる
+    const canMove = songSort==='order' && !songForm && !stockSelectMode && !stockLocked;  // 絞り込み中も、見えている曲どうしで並べ替えできる
     const filtered = songGenreFilter!=='all' || (stockSelectMode && !!normQ(stockQuery));
     if(filteredSongs.length){
       const tot = filteredSongs.reduce((t,s)=>t+parseDur(s.duration),0);
@@ -3551,9 +3577,10 @@ function stockBodyHtml(){
         <span class="totals-label">合計（${filteredSongs.length}曲${filtered?'・絞り込み中':''}）</span>
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
-      if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}</div>`;
-      if(stockSelectMode) html += `<div class="stock-sel-tools"><button type="button" class="btn" onclick="toggleSelectAllStock()">見えている曲をすべて選択／解除</button></div><div class="hint">曲をタップして選び、下のボタンでまとめて操作します。目のアイコンで、曲マスタに表示する／しないを切り替えます。</div>`;
-      if(!canMove && !songForm && !stockSelectMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」にしてください。</div>`;
+      if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}<button type="button" class="lock-btn${stockLocked ? ' on' : ''}" onclick="toggleStockLock()" aria-pressed="${stockLocked}" title="${stockLocked ? 'ロックを解除' : '曲マスタをロック'}">${stockLocked ? '🔒 ロック中' : '🔓 ロック'}</button></div>`;
+      if(stockLocked && !stockSelectMode) html += `<div class="lock-note">🔒 ロック中のため、曲の登録・削除・並べ替え・編集はできません。<button type="button" class="link-btn" onclick="toggleStockLock()">ロックを解除</button></div>`;
+      if(stockSelectMode) html += `<div class="stock-sel-tools"><button type="button" class="btn" onclick="toggleSelectAllStock()">見えている曲をすべて選択／解除</button></div><div class="hint">曲をタップして選び、下のボタンでまとめて操作します。${stockLocked ? '🔒 曲マスタはロック中のため、削除・コピー・表示の切り替えはできません。' : '目のアイコンで、曲マスタに表示する／しないを切り替えます。'}</div>`;
+      if(!canMove && !songForm && !stockSelectMode && !stockLocked) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」にしてください。</div>`;
       else if(canMove && filtered) html += `<div class="hint">絞り込み中です。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲の位置はそのままです。</div>`;
     }
     if(filteredSongs.length===0 && !songForm){
@@ -3577,21 +3604,21 @@ function stockBodyHtml(){
           <span class="setlist-num mono">${num}</span>
           <span class="select-name">${s.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}${s.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</span>
           <span class="select-dur mono">${esc(s.duration||'')}</span>
-          <button type="button" class="eye-btn ${s.hidden?'off':''}" onclick="event.preventDefault(); event.stopPropagation(); toggleSongHidden('${s.id}')" aria-label="${s.hidden?'表示する':'非表示にする'}" title="${s.hidden?'表示する':'非表示にする'}">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>
+          ${stockLocked ? '' : `<button type="button" class="eye-btn ${s.hidden?'off':''}" onclick="event.preventDefault(); event.stopPropagation(); toggleSongHidden('${s.id}')" aria-label="${s.hidden?'表示する':'非表示にする'}" title="${s.hidden?'表示する':'非表示にする'}">${s.hidden ? EYE_OFF_SVG : EYE_SVG}</button>`}
         </label>`;
         return;
       }
       const pinned = !!s.pinned && !stockSelectMode;
       html += `<div class="setlist-item ${metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id?'metro-current':''}" data-drag-list="${pinned ? 'stock-pin' : 'stock'}" data-key="${s.id}" data-swipe="stock">
         ${pinBgHtml(pinned, `togglePinSong('${s.id}')`)}
-        <div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>
+        ${stockLocked ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>`}
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${num}</span>
           <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key, null, s)}</span></button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
           <button type="button" class="row-struct c-only${hasStruct(s)?' has':''}" onclick="openStockStruct('${s.id}')" aria-label="構成表を開く" title="構成">構成</button>
-          <button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
+          ${stockLocked ? '' : `<button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>`}
           ${canMove && !pinned ? dragHandleHtml('stock') : ''}
         </div>
         <div class="setlist-row2">
@@ -3599,7 +3626,7 @@ function stockBodyHtml(){
           ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
           ${keyChipHtml(s.key, null, s)}
           <button type="button" class="row-struct${hasStruct(s)?' has':''}" onclick="openStockStruct('${s.id}')" aria-label="構成表を開く" title="構成">構成</button>
-          <button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>
+          ${stockLocked ? '' : `<button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>`}
         </div>
         ${cardInfoHtml(s)}
         </div>
@@ -3620,11 +3647,11 @@ function stockBodyHtml(){
         </div>
         <div class="select-actions">
           <button type="button" class="btn" ${n?'':'disabled'} onclick="copySelectedStockText()">テキストで書き出し</button>
-          <button type="button" class="btn" ${n===1?'':'disabled'} onclick="copySelectedSongOpen()" title="1曲だけ選んでいるときに使えます">コピーして開く</button>
+          ${stockLocked ? '' : `<button type="button" class="btn" ${n===1?'':'disabled'} onclick="copySelectedSongOpen()" title="1曲だけ選んでいるときに使えます">コピーして開く</button>`}
         </div>
         <div class="select-actions">
           <button type="button" class="btn" ${n?'':'disabled'} onclick="pinSelectedStock()">${n && [...stockSelected].every(id => (songs.find(x => x.id===id) || {}).pinned) ? '📌 ピン解除' : '📌 ピン留め'}</button>
-          <button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>
+          ${stockLocked ? '' : `<button type="button" class="btn select-del" ${n?'':'disabled'} onclick="deleteSelectedStock()">削除</button>`}
         </div>
 
       </div>`;
@@ -3874,6 +3901,7 @@ function bulkOverlay(inner){
 }
 window.closeBulk = () => { const ov = document.getElementById('bulk-overlay'); if(ov) ov.remove(); };
 window.openBulkText = () => {
+  if(stockLockedGuard()) return;
   bulkOverlay(`<div class="bulk-head">テキストからまとめて登録</div>
     <div class="hint">下記欄にテキストを貼り付けてください（1行に1曲）。<br>例：<span class="bulk-ex">Get Back</span><span class="bulk-ex">1. Get Back</span><span class="bulk-ex">Get Back - The Beatles 3:11</span></div>
     <details class="bulk-tips"><summary>ヒント</summary><div class="hint">音楽アプリの検索結果をスクリーンショット→別のアプリでテキスト化→コピーして貼り付けでも、ある程度は読み込めます。より正確に読み込みたい場合はCSV入力を使ってください。</div></details>
@@ -4256,12 +4284,14 @@ const EYE_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" str
 const EYE_OFF_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1C11 5 11.5 5 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 4.1"/><path d="M6.5 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
 // 選択画面の目のアイコン：その曲だけ、すぐに表示／非表示を切り替える
 window.toggleSongHidden = id => {
+  if(stockLockedGuard()) return;
   const s = songs.find(x=>x.id===id); if(!s) return;
   if(s.hidden) delete s.hidden; else s.hidden = true;
   s.updatedAt = Date.now(); saveSongs(); if(stockSelectMode) refreshStockBody(); else render();
   showToast(`「${s.name}」を${s.hidden?'非表示に':'表示に'}しました。`);
 };
 window.setSelectedHidden = (hide) => {
+  if(stockLockedGuard()) return;
   const ids = new Set(stockSelected); if(!ids.size) return;
   let n = 0;
   songs.forEach(s => { if(ids.has(s.id) && !!s.hidden !== hide){ if(hide) s.hidden = true; else delete s.hidden; s.updatedAt = Date.now(); n++; } });
@@ -4270,6 +4300,7 @@ window.setSelectedHidden = (hide) => {
   showToast(n ? `${n}曲を${hide?'非表示に':'表示に'}しました。` : `選んだ曲はすでに${hide?'非表示':'表示'}です。`);
 };
 window.deleteSelectedStock = () => {
+  if(stockLockedGuard()) return;
   const ids = new Set(stockSelected); const n = ids.size;
   if(!n) return;
   const usedSongs = [...ids].filter(id => songUsage(id).length).length;
@@ -4306,6 +4337,7 @@ window.setStockPos = (pos, el) => {
 };
 window.toggleSongExpand = id => { songExpandedId = songExpandedId===id ? null : id; render(); };
 window.editSongInStock = (songId) => {
+  if(stockLockedGuard()) return;
   if(structOpen && songs.some(x => x.id===songId)){ structEdit = true; stOpenSec = null; stTrans = 0; render(); scrollToTop(); return; }
   const song = songs.find(x=>x.id===songId);
   if(!song) return;
@@ -4319,6 +4351,7 @@ window.editSongInStock = (songId) => {
 };
 // 選択した1曲をコピー（構成も含めて丸ごと）し、すぐ下に入れて編集を開く
 window.copySelectedSongOpen = () => {
+  if(stockLockedGuard()) return;
   if(stockSelected.size!==1){ showToast('コピーする曲を1曲だけ選んでください。'); return; }
   const id = [...stockSelected][0], i = songs.findIndex(x => x.id===id); if(i<0) return;
   const src = songs[i];
@@ -4331,6 +4364,7 @@ window.copySelectedSongOpen = () => {
 };
 // 曲の編集は構成表の「編集」に統合（新しい曲の登録だけフォームを使う）
 window.editSong = id => {
+  if(stockLockedGuard()) return;
   if(!songs.some(x => x.id===id)) return;
   openStockStruct(id); structEdit = true; stOpenSec = null; stTrans = 0; render(); scrollToTop();
 };
@@ -4348,6 +4382,7 @@ function liveLabelHtml(l){
   return `<span class="use-date mono">${esc(l.date || '日付未設定')}</span><span class="use-name">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="use-artist">${esc(l.artist)}</span>` : ''}`;
 }
 window.deleteSong = id => {
+  if(stockLockedGuard()) return;
   const target = songs.find(s=>s.id===id); if(!target) return;
   const used = songUsage(id);
   const doDelete = () => {
@@ -4426,12 +4461,12 @@ function renderLives(){
       const st = liveDateStatus(l.date);
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
-      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div><div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
+      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}${l.locked ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div>`}<div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
         <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}</div>
         <div class="live-title-line"><span class="live-venue">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="live-artist">${esc(l.artist)}</span>` : ''}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
-      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div><button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button></div></div>`;
+      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div>${l.locked ? '' : `<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button>`}</div></div>`;
     });
     html += `</div>`;
   }
@@ -4454,6 +4489,13 @@ window.setHidePast = on => { hidePast = !!on; store.set('setlist_hide_past', hid
 let actOpen = {sl:false, ev:false};   // イベント画面の下の「セットリスト操作」「イベント操作」（イベントを開くたびに閉じる）
 window.toggleActGroup = k => { actOpen[k] = !actOpen[k]; render(); };
 // 🔒 セットリストのロック（イベントごとに保存。曲順を固定して、追加・削除・並べ替えをできなくする）
+window.toggleStockLock = () => {
+  stockLocked = !stockLocked; store.set('setlist_stock_locked', stockLocked);
+  if(stockLocked){ songForm = null; }
+  closeSwipes(); render();
+  showToast(stockLocked ? '🔒 曲マスタをロックしました（登録・削除・並べ替え・編集ができなくなります）' : '🔓 曲マスタのロックを解除しました');
+};
+function stockLockedGuard(){ if(stockLocked){ closeSwipes(); showToast('🔒 曲マスタはロック中です。ロックを解除してから変更してください'); return true; } return false; }
 window.toggleLiveLock = () => {
   const live = lives.find(l => l.id===liveEditId); if(!live) return;
   if(live.locked) delete live.locked; else { live.locked = true; liveCreateOpen = false; entryExpandedIdx = null; }
@@ -4739,10 +4781,10 @@ function renderLiveEdit(){
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${hasSl && !lk ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}`);
   }
-  html += actGroup('ev', 'イベント操作', 'コピー・CSV・削除', `
+  html += actGroup('ev', 'イベント操作', lk ? 'コピー・CSV' : 'コピー・CSV・削除', `
     <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
     <button type="button" class="btn btn-block btn-with-icon" onclick="exportSingleEvent()">CSVで書き出す${EXPORT_ICON_SVG}</button>
-    <button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`);
+    ${lk ? `<div class="hint">🔒 ロック中のため、イベントは削除できません。</div>` : `<button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`}`);
   html += `</div></div>`;   // le-acts / le-grid
 
   main.innerHTML = html;
@@ -4920,7 +4962,7 @@ document.addEventListener('pointerdown', e => {
   closeSwipes(item);
   const face = item.querySelector('.swipe-face');
   if(!face) return;
-  swipeState = {item, face, id:e.pointerId, x0:e.clientX, y0:e.clientY, locked:null, dx:0, canPin: !!item.querySelector('.swipe-bg-pin'),
+  swipeState = {item, face, id:e.pointerId, x0:e.clientX, y0:e.clientY, locked:null, dx:0, canPin: !!item.querySelector('.swipe-bg-pin'), canDel: !!item.querySelector('.swipe-bg:not(.swipe-bg-pin)'),
     base: item.classList.contains('swipe-open') ? -SWIPE_W : item.classList.contains('swipe-open-pin') ? SWIPE_W : 0};
 });
 document.addEventListener('pointermove', e => {
@@ -4931,7 +4973,7 @@ document.addEventListener('pointermove', e => {
     st.locked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
   }
   if(st.locked !== 'x') return;
-  st.dx = Math.min(st.canPin ? SWIPE_W : 0, Math.max(-SWIPE_W, st.base + dx));
+  st.dx = Math.min(st.canPin ? SWIPE_W : 0, Math.max(st.canDel ? -SWIPE_W : 0, st.base + dx));
   st.item.classList.toggle('swipe-to-pin', st.dx > 0);
   st.face.style.transition = 'none';
   st.face.style.transform = `translateX(${st.dx}px)`;
@@ -5045,6 +5087,7 @@ window.saveEntryEdit = () => {
   showToast(`「${s.name}」をこのイベントに保存しました。`);
 };
 window.applyOverridesToMaster = () => {
+  if(stockLockedGuard()) return;
   const {live, e, s} = entryEditCtx(); if(!e || !s) return;
   const d = readEntryEditDom(s);
   Object.keys(d).forEach(f => { s[f] = d[f]; });
@@ -5060,6 +5103,7 @@ window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(
 // イベント一覧から削除（✕ボタン・左スワイプ）
 window.removeLiveById = (id) => {
   const live = lives.find(l=>l.id===id); if(!live) return;
+  if(live.locked){ closeSwipes(); showToast('🔒 ロック中のイベントは削除できません。セットリストのロックを解除してください'); return; }
   const label = [live.date, live.venue, live.artist].filter(Boolean).join(' ');
   closeSwipes();
   confirmAction(`「${label || 'このイベント'}」を削除しますか？\nセットリストも一緒に削除されます。この操作は取り消せません。`, () => {
@@ -5071,6 +5115,7 @@ window.removeLiveById = (id) => {
 };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
+  if(live && live.locked){ showToast('🔒 ロック中のイベントは削除できません。セットリストのロックを解除してください'); return; }
   const label = live ? [live.date, live.venue, live.artist].filter(Boolean).join(' ') : 'このイベント';
   confirmAction(`「${label || 'このイベント'}」を削除しますか？\nこの操作は取り消せません。`, () => {
     stopMetro(); resetTimerState();
@@ -5269,13 +5314,31 @@ function dataPlaceHtml(){
     <p class="data-place-warn">ブラウザの履歴・データを消去したり、機種変更したりすると消えてしまうので、ときどきバックアップしておくと安心です。</p>
   </div>`;
 }
+const setSplitMq = window.matchMedia('(min-width:760px), (orientation:landscape) and (max-height:500px)');
+let setSplitSel = store.get('setlist_settings_sel', 'display');   // 2カラムの設定で選んでいる項目
+window.selectSetSec = id => {
+  setSplitSel = id; store.set('setlist_settings_sel', id);
+  main.querySelectorAll('.set-nav button').forEach(b => { const on = b.dataset.sec===id; b.classList.toggle('on', on); b.setAttribute('aria-current', on); });
+  main.querySelectorAll('.set-sec').forEach(x => x.classList.toggle('on', x.dataset.acc===id));
+  const pane = main.querySelector('.set-pane'); if(pane && pane.getBoundingClientRect().top < 0) scrollToTop();
+};
+try{ setSplitMq.addEventListener('change', () => { if(tab==='settings' && !structOpen) render(); }); }catch(e){ try{ setSplitMq.addListener(() => { if(tab==='settings' && !structOpen) render(); }); }catch(_){} }
 let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
-  const acc = (id, title, sub, inner, cls='') => `<details class="panel set-acc ${cls}" data-acc="${id}" ${setAccOpen.includes(id) ? 'open' : ''}>
+  // 横に広い画面（スマホ横・タブレット・PC）は、iOSの設定のように左に項目一覧、右に中身の2カラム
+  const split = setSplitMq.matches, navItems = [];
+  const acc = (id, title, sub, inner, cls='') => {
+    if(split){
+      navItems.push({id, title, sub, cls});
+      return `<section class="panel set-sec ${cls}${id===setSplitSel ? ' on' : ''}" data-acc="${id}"><h2 class="set-sec-h">${title}</h2><div class="set-acc-body">${inner}</div></section>`;
+    }
+    return `<details class="panel set-acc ${cls}" data-acc="${id}" ${setAccOpen.includes(id) ? 'open' : ''}>
     <summary><span class="set-acc-t">${title}</span><span class="set-acc-s">${sub}</span></summary>
     <div class="set-acc-body">${inner}</div></details>`;
-  main.innerHTML = `
+  };
+  const grp = title => { if(split){ navItems.push({group:title}); return ''; } return `<div class="section-title">${title}</div>`; };
+  const setBody = `
   ${acc('display', '表示', 'テーマ・度数表記・全画面', `
     <div class="field"><label>テーマ</label>
       <div class="theme-row">
@@ -5322,11 +5385,11 @@ function renderSettings(){
     </div>
     <div class="hint">Googleスプレッドシートなどの表計算アプリで開ける CSV 形式です。IDの列（右端）はアプリが曲やイベントを見分けるためのものなので、そのままにしてください。CSV入力では同じIDの行を上書きし、ID欄を空にした行は新規追加されます。イベント一覧のCSVには曲の情報も一緒に書き出されるので、曲マスタを先に入力していなくても、イベント一覧のファイル1つで曲ごと復元できます（人から共有してもらったセットリストを読み込む場合も同様です）。</div>
 `)}
-  <div class="section-title">プレイ情報の初期値設定</div>
+  ${grp('プレイ情報の初期値設定')}
   ${acc('opt-start', 'はじめかたの候補', `${SE_START_OPTS.length}件`, `${seOptsEditorHtml('start', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
-  <div class="section-title">その他</div>
+  ${grp('その他')}
   ${acc('sample', 'サンプルデータ', 'バンド編成・ピアノ演奏会', `
     <div class="settings-btn-row">
       <button type="button" class="btn" onclick="loadSampleData('band')">バンド編成</button>
@@ -5343,6 +5406,12 @@ function renderSettings(){
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、「サンプルデータ」からお好きなものを読み込んでください。この操作は取り消せません。</div>
 `, 'set-acc-danger')}
   <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）<br><a href="${CHANGELOG_URL}" target="_blank" rel="noopener">更新履歴</a></div>`;
+  if(split && !navItems.some(n => n.id===setSplitSel)){ setSplitSel = 'display'; }
+  main.innerHTML = split ? `<div class="set-split">
+    <nav class="set-nav" aria-label="設定の項目">${navItems.map(n => n.group ? `<div class="set-nav-group">${n.group}</div>` : `<button type="button" class="${n.cls}${n.id===setSplitSel ? ' on' : ''}" data-sec="${n.id}" onclick="selectSetSec('${n.id}')" aria-current="${n.id===setSplitSel}"><span class="t">${n.title}</span><span class="s">${n.sub}</span></button>`).join('')}</nav>
+    <div class="set-pane">${setBody}</div>
+  </div>` : setBody;
+  if(split && !main.querySelector('.set-sec.on')){ const f = main.querySelector('.set-sec'); if(f) f.classList.add('on'); }
 
   main.querySelectorAll('details.set-acc').forEach(d => d.addEventListener('toggle', () => {
     const id = d.dataset.acc; setAccOpen = setAccOpen.filter(x => x!==id); if(d.open) setAccOpen.push(id);
