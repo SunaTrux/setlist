@@ -125,6 +125,30 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .live-card-acts{position:absolute; right:12px; bottom:12px; display:flex; gap:6px;}
 .live-card-acts .row-struct{height:34px; padding:0 12px; touch-action:manipulation;}
 .live-card-acts .live-setlist-btn{color:var(--text); border-color:var(--border);}
+/* イベント一覧の表示切り替え */
+.lives-opts{margin:2px 0 10px;}
+.lives-lock-note{margin:0 0 10px;}
+.live-memo{margin-top:6px; font-size:12px; line-height:1.5; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+.live-songs{margin-top:6px; font-size:12px; line-height:1.55; color:var(--muted); overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+.live-songs .mono{color:var(--accent); font-weight:700; margin-right:2px;}
+.live-songs-sep{opacity:.5;}
+.lv-full .live-card-wrap .live-card{padding-bottom:52px;}   /* 下のボタンに文字がかからないように */
+.lv-full .live-count{position:absolute; left:14px; bottom:20px; margin:0;}
+.lv-min .live-card-wrap .live-card{min-height:0; padding:10px 12px 10px 14px; padding-right:152px;}
+.lv-min .live-card-acts{right:10px; gap:4px;}
+.lv-min .live-card-acts .row-struct{height:32px; padding:0 9px; font-size:12px;}
+.lv-full .live-title-line{flex-wrap:wrap; row-gap:0;}
+.lv-full .live-title-line .live-venue, .lv-full .live-title-line .live-artist{white-space:normal; overflow:visible; text-overflow:clip;}
+.lv-min .live-place, .lv-min .live-count, .lv-min .live-del-btn{display:none;}   /* 最小は✕も出さない（削除は左スワイプで） */
+.lv-min .live-card-acts{top:50%; bottom:auto; transform:translateY(-50%);}
+.lv-min .live-title-line{margin-top:2px;}
+.lv-min .lock-mark{margin-left:6px;}
+.live-info-ro{padding:0 14px 14px;}
+.live-info-ro .info-row{display:flex; gap:10px; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;}
+.live-info-ro .info-k{flex:none; width:6.5em; color:var(--muted); font-size:12px; font-weight:600;}
+.live-info-ro .info-v{min-width:0; overflow-wrap:anywhere;}
+.live-info-ro .info-memo{white-space:pre-wrap;}
+.live-info-ro .hint{margin-top:10px;}
 
 .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:16px;}
 .field{margin-bottom:10px;}
@@ -782,7 +806,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   nav{padding:0 24px; max-width:640px;}
   main{padding:20px 24px 48px;}
   body[data-view="songs"] main, body[data-view="settings"] main{max-width:800px; margin:0 auto;}
-  body[data-view="lives"] .song-toolbar, body[data-view="lives"] .stock-tools{max-width:640px;}
+  body[data-view="lives"] .song-toolbar, body[data-view="lives"] .stock-tools, body[data-view="lives"] .lives-opts, body[data-view="lives"] .lives-lock-note{max-width:640px;}
   .metro-inner{border-radius:16px 16px 0 0;}
 }
 @media (min-width:820px){
@@ -930,13 +954,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.51.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.52.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-22';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.52.0': [
+    'イベント一覧に表示切り替え（フル／標準／最小）を追加。フルはイベントメモと曲順も表示、最小は日付・イベント名・アーティストだけの1枚を小さなカードに',
+    'イベント一覧にロックを追加。ロック中はイベントの作成・コピー・削除・イベント情報の編集ができません（セットリストの編集はイベントごとのロックで）'
+  ],
   '1.51.0': [
     '曲マスタにロックを追加。ロック中は曲の登録・削除・並べ替え・編集（構成表も）ができず、✕や並べ替えのハンドルが消えます',
     'セットリストをロックしたイベントは削除できないように',
@@ -1702,9 +1730,20 @@ let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加�
 // 曲カードの表示：full=標準 / bk=最小＋BPM・Key / min=最小（曲順・曲名・時間・編集ボタンだけ）
 let cardMode = store.get('setlist_card_mode', store.get('setlist_cards_min', false) ? 'min' : 'bk');   // 初期値は「標準」（BPM・Key）
 const CARD_MODES = [['full','フル'],['bk','標準'],['min','最小']];
-function viewSegHtml(){
-  return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${cardMode===k?'on':''}" onclick="setCardMode('${k}')" aria-pressed="${cardMode===k}">${l}</button>`).join('')}</div></div>`;
+function viewSegHtml(mode = cardMode, fn = 'setCardMode'){
+  return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${mode===k?'on':''}" onclick="${fn}('${k}')" aria-pressed="${mode===k}">${l}</button>`).join('')}</div></div>`;
 }
+// イベント一覧の表示（フル／標準／最小）とロック。どちらも端末ごとに保存
+let livesMode = (m => ['full','bk','min'].includes(m) ? m : 'bk')(store.get('setlist_lives_mode', 'bk'));
+let livesLocked = !!store.get('setlist_lives_locked', false);
+window.setLivesMode = m => { livesMode = m; store.set('setlist_lives_mode', m); closeSwipes(); render(); };
+window.toggleLivesLock = () => {
+  livesLocked = !livesLocked; store.set('setlist_lives_locked', livesLocked);
+  if(livesLocked) liveInfoOpen = false;
+  closeSwipes(); render();
+  showToast(livesLocked ? '🔒 イベント一覧をロックしました（イベントの作成・コピー・削除・イベント情報の編集ができなくなります）' : '🔓 イベント一覧のロックを解除しました');
+};
+function livesLockedGuard(){ if(livesLocked){ closeSwipes(); showToast('🔒 イベント一覧はロック中です。ロックを解除してから変更してください'); return true; } return false; }
 let showOthers = true;  // セットリストに曲以外（MC・SEなど）を出すか。表示切り替えで決まる（フル・標準は出す、最小は出さない）
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','start'); // 「曲を登録」の追加位置
@@ -4144,6 +4183,7 @@ function selectedStockEntries(){
   return songs.filter(s => stockSelected.has(s.id)).map(s => ({type:'song', songId:s.id}));
 }
 window.stockToNewEvent = () => {
+  if(livesLockedGuard()) return;
   const entries = selectedStockEntries();
   if(!entries.length) return;
   const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:'', startTime:'', endTime:'', setlist:entries, updatedAt:Date.now()};
@@ -4431,9 +4471,9 @@ function renderLives(){
   if(liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && !artists.some(a => normName(a.name)===normName(liveArtistFilter)) && !lives.length) liveArtistFilter = 'all';
   const noneCount = lives.filter(l => !String(l.artist||'').trim()).length;
   const showFilter = artists.length > 0;
-  let html = `<div class="song-toolbar">
+  let html = `${livesLocked ? '' : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-live">+ 新しいイベント</button>
-  </div>
+  </div>`}
   ${(lives.length>1 || showFilter) ? `<div class="stock-tools">
     ${showFilter ? `<label class="sort-chip" title="アーティストで絞り込み">${FILTER_ICON_SVG}<select id="live-artist-filter" aria-label="アーティストで絞り込み">
       <option value="all" ${liveArtistFilter==='all'?'selected':''}>すべてのアーティスト</option>
@@ -4446,6 +4486,8 @@ function renderLives(){
   const filtered0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
   const pastCount = filtered0.filter(l => !l.pinned && liveDateStatus(l.date).kind==='past').length;
   if(pastCount) html += `<label class="past-toggle"><input type="checkbox" ${hidePast?'checked':''} onchange="setHidePast(this.checked)"> 過去のイベントを隠す（${pastCount}件）</label>`;
+  if(lives.length) html += `<div class="list-opts lives-opts">${viewSegHtml(livesMode, 'setLivesMode')}<button type="button" class="lock-btn${livesLocked ? ' on' : ''}" onclick="toggleLivesLock()" aria-pressed="${livesLocked}" title="${livesLocked ? 'ロックを解除' : 'イベント一覧をロック'}">${livesLocked ? '🔒 ロック中' : '🔓 ロック'}</button></div>`;
+  if(livesLocked && lives.length) html += `<div class="lock-note lives-lock-note">🔒 ロック中のため、イベントの作成・コピー・削除・イベント情報の編集はできません。<button type="button" class="link-btn" onclick="toggleLivesLock()">ロックを解除</button></div>`;
   const sorted0 = hidePast ? filtered0.filter(l => l.pinned || liveDateStatus(l.date).kind!=='past') : filtered0;
   const sorted = [...sorted0.filter(l => l.pinned), ...sorted0.filter(l => !l.pinned)];
   const nPinL = sorted.filter(l => l.pinned).length;
@@ -4454,24 +4496,37 @@ function renderLives(){
   } else if(sorted.length===0){
     html += `<div class="empty">${filtered0.length && hidePast ? 'これからのイベントはありません（過去のイベントは隠しています）' : '絞り込みに合うイベントがありません。'}</div>`;
   } else {
-    html += `<div class="live-grid">`;   // 広い画面では2〜3列に並べる
+    html += `<div class="live-grid lv-${livesMode}">`;   // 広い画面では2〜3列に並べる。lv-full／lv-bk／lv-min で表示の量を変える
     sorted.forEach((l, li) => {
       if(nPinL && li===0) html += `<div class="pin-head">📌 ピン留め</div>`;
       if(nPinL && li===nPinL) html += `<div class="pin-sep"></div>`;
       const st = liveDateStatus(l.date);
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
       const songCount = l.setlist.filter(e=>e.type!=='other').length;
-      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}${l.locked ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div>`}<div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
-        <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}${timeRangeText(l.startTime, l.endTime)?' '+esc(timeRangeText(l.startTime, l.endTime)):''}</div>
+      const noDel = l.locked || livesLocked;   // ロック中（イベント・一覧）は削除できない
+      const tr = timeRangeText(l.startTime, l.endTime);
+      const dateTxt = livesMode==='min'
+        ? (l.date ? esc(shortDate(l.date)) + (dowLabel(l.date) ? `(${dowLabel(l.date)})` : '') : '日付未設定')
+        : esc(l.date || '日付未設定') + (dowLabel(l.date) ? `(${dowLabel(l.date)})` : '') + (tr ? ' ' + esc(tr) : '');
+      // フル：イベントメモと曲順（曲だけ）も出す
+      const fullHtml = livesMode==='full' ? (() => {
+        const names = l.setlist.filter(e => e.type!=='other').map(e => (songs.find(x => x.id===e.songId) || {}).name).filter(Boolean);
+        return `${l.memo ? `<div class="live-memo">${esc(l.memo)}</div>` : ''}${names.length ? `<div class="live-songs">${names.map((n, k) => `<span class="mono">${k+1}.</span>${esc(n)}`).join('<span class="live-songs-sep"> / </span>')}</div>` : ''}`;
+      })() : '';
+      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}${noDel ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div>`}<div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
+        <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${dateTxt}${livesMode==='min' && l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}</div>
         <div class="live-title-line"><span class="live-venue">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="live-artist">${esc(l.artist)}</span>` : ''}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
+        ${fullHtml}
         <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
-      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div>${l.locked ? '' : `<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button>`}</div></div>`;
+      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div>${noDel ? '' : `<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button>`}</div></div>`;
     });
     html += `</div>`;
   }
   main.innerHTML = html;
-  document.getElementById('btn-add-live').onclick = () => {
+  const addLiveBtn = document.getElementById('btn-add-live');
+  if(addLiveBtn) addLiveBtn.onclick = () => {
+    if(livesLockedGuard()) return;
     // アーティストで絞り込み中なら、そのアーティスト名を入れておく
     const presetArtist = (liveArtistFilter!=='all' && liveArtistFilter!=='__none__') ? liveArtistFilter : '';
     const l = {id:uid(), date:'', venue:'次のライブ', place:'', artist:presetArtist, startTime:'', endTime:'', setlist:[], updatedAt:Date.now()};
@@ -4587,7 +4642,19 @@ function renderLiveEdit(){
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
-  if(liveInfoOpen) html += `
+  if(liveInfoOpen && livesLocked){
+    const row = (k, v) => v ? `<div class="info-row"><span class="info-k">${k}</span><span class="info-v">${v}</span></div>` : '';
+    const m = stageMinutes(live.startTime, live.endTime);
+    html += `<div class="fold-body live-info-ro">
+      ${row('イベント名', esc(live.venue || 'イベント名未設定'))}
+      ${row('場所', esc(live.place||''))}
+      ${row('アーティスト', esc(live.artist||''))}
+      ${row('日付', live.date ? esc(live.date) + (dowLabel(live.date) ? `(${dowLabel(live.date)})` : '') : '未設定')}
+      ${row('ステージ', (summaryTime ? summaryTime.trim() : '') + (m!==null ? `（${fmtMinutes(m)}）` : ''))}
+      ${live.memo ? `<div class="info-row"><span class="info-k">メモ</span><span class="info-v info-memo">${esc(live.memo)}</span></div>` : ''}
+      <div class="hint">🔒 イベント一覧がロック中のため、イベント情報は編集できません。</div>
+    </div>`;
+  } else if(liveInfoOpen) html += `
   <form class="fold-body is-form" id="live-form">
     <div class="field"><label>イベント名</label><input id="live-venue" value="${esc(live.venue)}" placeholder="例: サンプル定期ライブ Vol.1"></div>
     <div class="field"><label>場所</label><input id="live-place" value="${esc(live.place||'')}" placeholder="例: ◯◯ライブハウス"></div>
@@ -4781,10 +4848,10 @@ function renderLiveEdit(){
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText()">テキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${hasSl && !lk ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}`);
   }
-  html += actGroup('ev', 'イベント操作', lk ? 'コピー・CSV' : 'コピー・CSV・削除', `
-    <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>
+  html += actGroup('ev', 'イベント操作', livesLocked ? 'CSV' : lk ? 'コピー・CSV' : 'コピー・CSV・削除', `
+    ${livesLocked ? '' : `<button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">コピーして新規で開く${COPY_ICON_SVG}</button>`}
     <button type="button" class="btn btn-block btn-with-icon" onclick="exportSingleEvent()">CSVで書き出す${EXPORT_ICON_SVG}</button>
-    ${lk ? `<div class="hint">🔒 ロック中のため、イベントは削除できません。</div>` : `<button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`}`);
+    ${livesLocked ? `<div class="hint">🔒 イベント一覧がロック中のため、コピー・削除はできません。</div>` : lk ? `<div class="hint">🔒 ロック中のため、イベントは削除できません。</div>` : `<button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`}`);
   html += `</div></div>`;   // le-acts / le-grid
 
   main.innerHTML = html;
@@ -5103,6 +5170,7 @@ window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(
 // イベント一覧から削除（✕ボタン・左スワイプ）
 window.removeLiveById = (id) => {
   const live = lives.find(l=>l.id===id); if(!live) return;
+  if(livesLockedGuard()) return;
   if(live.locked){ closeSwipes(); showToast('🔒 ロック中のイベントは削除できません。セットリストのロックを解除してください'); return; }
   const label = [live.date, live.venue, live.artist].filter(Boolean).join(' ');
   closeSwipes();
@@ -5115,6 +5183,7 @@ window.removeLiveById = (id) => {
 };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
+  if(livesLockedGuard()) return;
   if(live && live.locked){ showToast('🔒 ロック中のイベントは削除できません。セットリストのロックを解除してください'); return; }
   const label = live ? [live.date, live.venue, live.artist].filter(Boolean).join(' ') : 'このイベント';
   confirmAction(`「${label || 'このイベント'}」を削除しますか？\nこの操作は取り消せません。`, () => {
@@ -5265,6 +5334,7 @@ window.copySetlistText = () => {
   openTextExport('セットリスト', (n, o) => buildSetlistText(live, n, o));
 };
 window.copyLive = () => {
+  if(livesLockedGuard()) return;
   applyLiveForm();  // 元イベントの入力途中の内容を先に保存してからコピー
   const live = lives.find(l=>l.id===liveEditId);
   if(!live) return;
