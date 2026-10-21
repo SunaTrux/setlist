@@ -506,6 +506,7 @@ body.cards-bk .setlist-row3{display:none;}
 .opt-chip.on{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .hidden-tag{display:inline-block; margin-left:6px; padding:0 6px; border-radius:999px; border:1px solid var(--border); font-size:10px; font-weight:700; color:var(--muted); vertical-align:middle;}
 body.cards-min .setlist-row1{padding:8px 12px;}
+body.cards-min .setlist-item[data-drag-list="live"] .setlist-row1 .dur-label{display:none;}   /* 最小表示は曲の分数を隠して曲名を長く */
 .show-toggle{display:flex; align-items:center; gap:8px; padding:4px 0; border:none; background:none; color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;}
 .switch{position:relative; width:36px; height:20px; border-radius:999px; background:var(--border); transition:background .15s;}
 .switch span{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--surface2); transition:transform .15s;}
@@ -912,13 +913,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.50.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.50.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-17';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.50.2': [
+    'セットリストの最小表示では曲の分数を表示しないように。そのぶん曲名を長く表示できます（合計時間は見出しに出ます）'
+  ],
   '1.50.1': [
     'イベント一覧で、行数の少ないイベントカード（日付未設定など）の「構成」ボタンと削除ボタン（✕）が重なることがあったのを修正'
   ],
