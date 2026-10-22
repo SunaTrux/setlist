@@ -626,6 +626,7 @@ body.cards-min .setlist-row1 .dur-label{display:none;}   /* 最小表示は曲�
 }
 .row-struct{flex-shrink:0; height:34px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap;}
 .row-struct.has{color:var(--accent); border-color:var(--accent);}
+.st-has-mark{display:inline-flex; vertical-align:-1px; margin-left:6px; color:var(--accent); opacity:.85;}
 .setlist-row1 .row-struct{height:32px; margin:-4px 0;}
 .setlist-row2 .row-struct{margin-left:auto;}
 .setlist-row2 .row-struct + .row-edit{margin-left:0;}
@@ -954,13 +955,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.52.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-22';
+const APP_VERSION = '1.53.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.53.0': [
+    'セットリスト・曲マスタで、曲名をタップすると構成表が開くように。各曲の「構成」ボタンはなくして、そのぶん曲名を広く表示',
+    '構成表がある曲は、曲名の右に小さな印を表示',
+    'メトロノームは ♩BPM のタップで（最小表示では構成表のテンポのバーで）'
+  ],
   '1.52.0': [
     'イベント一覧に表示切り替え（フル／標準／最小）を追加。フルはイベントメモと曲順も表示、最小は日付・イベント名・アーティストだけの1枚を小さなカードに',
     'イベント一覧にロックを追加。ロック中はイベントの作成・コピー・削除・イベント情報の編集ができません（セットリストの編集はイベントごとのロックで）'
@@ -1730,6 +1736,8 @@ let otherAddPos = store.get('setlist_other_pos','end');  // 曲以外の追加�
 // 曲カードの表示：full=標準 / bk=最小＋BPM・Key / min=最小（曲順・曲名・時間・編集ボタンだけ）
 let cardMode = store.get('setlist_card_mode', store.get('setlist_cards_min', false) ? 'min' : 'bk');   // 初期値は「標準」（BPM・Key）
 const CARD_MODES = [['full','フル'],['bk','標準'],['min','最小']];
+// 構成表がある曲の印（曲名の右）
+const STRUCT_MARK = `<span class="st-has-mark" title="構成表あり" aria-label="構成表あり"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="1.5" y="2" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 6h7M4.5 8.5h7M4.5 11h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>`;
 function viewSegHtml(mode = cardMode, fn = 'setCardMode'){
   return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${mode===k?'on':''}" onclick="${fn}('${k}')" aria-pressed="${mode===k}">${l}</button>`).join('')}</div></div>`;
 }
@@ -3654,9 +3662,8 @@ function stockBodyHtml(){
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${num}</span>
-          <button type="button" class="setlist-name-btn" onclick="openMetro('stock','${s.id}')">${pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key, null, s)}</span></button>
+          <button type="button" class="setlist-name-btn" onclick="openStockStruct('${s.id}')" title="構成表を開く">${pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}${hasStruct(s) ? STRUCT_MARK : ''}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key, null, s)}</span></button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
-          <button type="button" class="row-struct c-only${hasStruct(s)?' has':''}" onclick="openStockStruct('${s.id}')" aria-label="構成表を開く" title="構成">構成</button>
           ${stockLocked ? '' : `<button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>`}
           ${canMove && !pinned ? dragHandleHtml('stock') : ''}
         </div>
@@ -3664,7 +3671,6 @@ function stockBodyHtml(){
           ${bpmChipHtml(s.bpm, metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id, `openMetro('stock','${s.id}')`)}
           ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
           ${keyChipHtml(s.key, null, s)}
-          <button type="button" class="row-struct${hasStruct(s)?' has':''}" onclick="openStockStruct('${s.id}')" aria-label="構成表を開く" title="構成">構成</button>
           ${stockLocked ? '' : `<button type="button" class="row-del" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>`}
         </div>
         ${cardInfoHtml(s)}
@@ -4755,7 +4761,7 @@ function renderLiveEdit(){
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
   if(!showOthers && otherCount) html += `<div class="hint">最小表示では曲以外（${otherCount}件）は出しません。合計時間には含まれています。</div>`;
-  if(cardMode!=='min') html += `<div class="hint">曲名タップで曲情報とメトロノーム。「構成」で構成表と曲情報の編集（「編集」でこのイベント用の変更も）</div>`;
+  if(cardMode!=='min') html += `<div class="hint">曲名タップで構成表（曲情報の編集は構成表の「編集」から）。♩BPMタップでメトロノーム。</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
@@ -4802,9 +4808,8 @@ function renderLiveEdit(){
       <div class="swipe-face">
       <div class="setlist-row1">
         <span class="setlist-num mono">${seq}</span>
-        <button type="button" class="setlist-name-btn" onclick="openMetro('live',${i})">${esc(s.name)}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}</span></button>
+        <button type="button" class="setlist-name-btn" onclick="openStruct(${i})" title="構成表を開く">${esc(s.name)}${hasStruct(s) ? STRUCT_MARK : ''}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}</span></button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
-        <button type="button" class="row-struct c-only${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
         ${lk ? '' : `<button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
         ${dragHandleHtml('live')}`}
       </div>
@@ -4813,7 +4818,6 @@ function renderLiveEdit(){
         ${s.rhythm ? `<span class="rhythm-tag">${esc(s.rhythm)}</span>` : ''}
         ${ovB?`<span class="ov-master">←${esc(songVal(s,'bpm'))}</span>`:''}
         ${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}
-        <button type="button" class="row-struct${hasStruct(s)?' has':''}" onclick="openStruct(${i})" aria-label="構成表を開く" title="構成">構成</button>
         ${lk ? '' : `<button type="button" class="row-del" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>`}
       </div>
       ${cardInfoHtml(s, entry)}
