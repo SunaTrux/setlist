@@ -64,6 +64,10 @@ body{overflow-x:hidden;}
 
 header{position:sticky; top:0; padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
 h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
+.tagline{margin:-8px 16px 10px; font-size:12px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere;}
+.tagline:empty{display:none;}
+nav button{display:inline-flex; align-items:center; justify-content:center; gap:5px;}
+.tab-ic{width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;}
 nav{display:flex; padding:0 16px; gap:4px;}
 nav button{flex:1; padding:10px 0; background:none; border:none; color:var(--muted); font-size:14px; font-weight:600; border-bottom:2px solid transparent; cursor:pointer;}
 nav button.active{color:var(--text); border-bottom-color:var(--accent);}
@@ -193,6 +197,9 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .set-acc-body > :last-child{margin-bottom:0;}
 .set-acc[open] > summary{padding-bottom:10px;}
 .set-acc-danger .set-acc-t{color:var(--danger);}
+.tagline-tools{display:flex; align-items:center; gap:8px; margin-top:6px;}
+.tagline-tools .hint{flex:1; margin:0; padding:0;}
+.tagline-reset{flex:none; padding:6px 10px; font-size:12px; white-space:nowrap;}
 /* 設定の2カラム（スマホ横・タブレット・PC） */
 .set-split{display:grid; grid-template-columns:minmax(170px, 230px) minmax(0, 1fr); gap:16px; align-items:start;}
 .set-nav{display:flex; flex-direction:column; gap:2px; padding:6px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);}
@@ -803,7 +810,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 }
 @media (min-width:760px){
   #app{max-width:1120px;}
-  header h1{margin-left:24px; margin-right:24px;}
+  header h1, header .tagline{margin-left:24px; margin-right:24px;}
   nav{padding:0 24px; max-width:640px;}
   main{padding:20px 24px 48px;}
   body[data-view="songs"] main, body[data-view="settings"] main{max-width:800px; margin:0 auto;}
@@ -823,6 +830,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 @media (orientation:landscape) and (max-height:500px){
   header{display:flex; align-items:center; padding-top:calc(6px + env(safe-area-inset-top,0px)); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);}
   header h1{font-size:16px; margin:0 16px; white-space:nowrap;}
+  header .tagline{display:none;}   /* 横向きは1行にまとめるのでヒント文は出さない */
   nav{flex:1; padding:0 12px 0 0; max-width:none;}
   nav button{padding:8px 0;}
   main{padding-left:calc(16px + env(safe-area-inset-left,0px)); padding-right:calc(16px + env(safe-area-inset-right,0px));}
@@ -869,10 +877,11 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 <div id="app">
   <header>
     <h1>プレイヤーズセットリスト</h1>
+    <p class="tagline" id="app-tagline"></p>
     <nav>
-      <button id="tab-lives" class="active">イベント</button>
-      <button id="tab-songs">曲マスタ</button>
-      <button id="tab-settings">設定</button>
+      <button id="tab-lives" class="active"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>イベント</span></button>
+      <button id="tab-songs"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg><span>曲マスタ</span></button>
+      <button id="tab-settings"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/><circle cx="12" cy="12" r="6.6"/></svg><span>設定</span></button>
     </nav>
   </header>
   <main id="main"></main>
@@ -955,13 +964,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.53.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.54.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.54.0': [
+    'タイトルの下にアプリのヒント文を表示。設定 →「表示」で好きな言葉に変えられます（「初期の文に戻す」で元どおり）',
+    'イベント・曲マスタ・設定のタブにアイコンを追加'
+  ],
   '1.53.0': [
     'セットリスト・曲マスタで、曲名をタップすると構成表が開くように。各曲の「構成」ボタンはなくして、そのぶん曲名を広く表示',
     '構成表がある曲は、曲名の右に小さな印を表示',
@@ -3558,7 +3571,22 @@ document.getElementById('tab-lives').onclick = () => { structOpen = null; struct
 document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
 document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
+// ---- アプリのヒント文（タイトルの下の一文。設定 →「表示」で変更可。空なら初期の文） ----
+const DEFAULT_TAGLINE = 'セットリストも構成表も、ステージでもう迷わない';
+const TAGLINE_MAX = 60;
+function currentTagline(){ const t = store.get('setlist_tagline', ''); return (typeof t==='string' && t.trim()) ? Array.from(t.trim()).slice(0, TAGLINE_MAX).join('') : DEFAULT_TAGLINE; }
+function applyTagline(){ const el = document.getElementById('app-tagline'); if(el) el.textContent = currentTagline(); }   // textContent なので、タグなどは文字のまま表示される
+function taglineCountText(){ const n = Array.from(currentTagline()).length; return `${n}字` + (n > 25 ? '（スマホでは2行になることがあります。目安は25字まで）' : '（多くのスマホで1行に収まります）'); }
+window.onTaglineInput = v => {
+  store.set('setlist_tagline', Array.from(String(v)).slice(0, TAGLINE_MAX).join(''));
+  applyTagline();
+  const c = document.getElementById('tagline-count'); if(c) c.textContent = taglineCountText();
+  const r = document.getElementById('tagline-reset'); if(r) r.disabled = currentTagline()===DEFAULT_TAGLINE;
+};
+window.onTaglineBlur = el => { if(!el.value.trim()){ el.value = DEFAULT_TAGLINE; store.set('setlist_tagline', ''); applyTagline(); } };
+window.resetTagline = () => { store.set('setlist_tagline', ''); const el = document.getElementById('tagline-input'); if(el) el.value = DEFAULT_TAGLINE; onTaglineInput(''); store.set('setlist_tagline', ''); showToast('ヒント文を初期の文に戻しました'); };
 function render(){
+  applyTagline();
   showOthers = cardMode!=='min';
   document.body.dataset.view = structOpen ? 'struct' : tab==='lives' ? (liveEditId ? 'live' : 'lives') : tab;   // 画面ごとのレイアウト用
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
@@ -5413,7 +5441,7 @@ function renderSettings(){
   };
   const grp = title => { if(split){ navItems.push({group:title}); return ''; } return `<div class="section-title">${title}</div>`; };
   const setBody = `
-  ${acc('display', '表示', 'テーマ・度数表記・全画面', `
+  ${acc('display', '表示', 'テーマ・度数表記・ヒント文・全画面', `
     <div class="field"><label>テーマ</label>
       <div class="theme-row">
         <button type="button" class="theme-btn ${theme==='auto'?'active':''}" onclick="setTheme('auto')">自動</button>
@@ -5426,6 +5454,10 @@ function renderSettings(){
         <button type="button" class="theme-btn ${stDegreeMinor==='minor'?'active':''}" onclick="setDegreeMinor('minor')">主音から<br><small>Fm → Im</small></button>
         <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
       </div>
+    </div>
+    <div class="field" style="margin:14px 0 0;"><label for="tagline-input">アプリのヒント文（タイトルの下の一文）</label>
+      <input type="text" id="tagline-input" maxlength="${TAGLINE_MAX}" value="${esc(currentTagline())}" placeholder="${esc(DEFAULT_TAGLINE)}" oninput="onTaglineInput(this.value)" onblur="onTaglineBlur(this)">
+      <div class="tagline-tools"><span class="hint" id="tagline-count">${esc(taglineCountText())}</span><button type="button" class="btn tagline-reset" id="tagline-reset" onclick="resetTagline()" ${currentTagline()===DEFAULT_TAGLINE ? 'disabled' : ''}>初期の文に戻す</button></div>
     </div>
     <div class="hint" style="margin-top:12px;">${isStandaloneApp() ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。<br>※ホーム画面のアプリは、ブラウザとは別にデータを持ちます。今のデータを使うときは「バックアップ・CSV」で移してください。'}</div>
 
