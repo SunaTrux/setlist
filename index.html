@@ -670,6 +670,8 @@ body.struct-open header{display:none;}
 
 .st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
 .st-title-row{display:flex; align-items:center; gap:10px;}
+.st-head-r{display:flex; align-items:center; gap:6px; flex:none;}
+.st-lock-btn{flex:none; width:34px; height:34px; padding:0; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-size:14px; line-height:1; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-lock-tag{flex:none; height:34px; display:inline-flex; align-items:center; padding:0 12px; border-radius:999px; border:none; background:var(--text); color:var(--bg); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-lock-mini{font-size:14px; margin-right:4px;}
 .st-tbtn:disabled, .st-tkey:disabled{opacity:.45; cursor:default;}
@@ -1003,13 +1005,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.58.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.59.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.59.0': [
+    '構成表に専用のロックを追加（右上の🔓で構成表の編集をオフ、「🔒 ロック中」を押すと解除）。セットリストのロック・曲マスタのロックとは別になりました',
+    'セットリストや曲マスタをロックしても、構成表は編集できるように（それぞれの画面のロックは、その画面だけ）',
+    '構成表の最小表示では、セクションのその場編集などの編集をしないように'
+  ],
   '1.58.0': [
     '構成表の右上の「🔒 ロック中」を押すと、ロックを解除できるように'
   ],
@@ -2672,15 +2679,17 @@ window.structNav = d => {
   return {wrapped, pos: np, len: seq.length};
 };
 // ロック中のイベントから開いた構成表は見るだけ（編集・セクションのその場編集・移調の保存をしない）
-function stLockedNow(){ if(stockLocked) return true; const l = !stFromStock() && stLive(); return !!(l && l.locked); }
+// 構成表のロック（構成表の画面だけの「編集オン／オフ」。セットリストや曲マスタのロックとは別。端末ごとに保存）
+// ロック中・最小表示のときは編集させない（編集タブ、セクションのその場編集、移調の保存）
+let stEditLocked = !!store.get('setlist_struct_locked', false);
+function stLockedNow(){ return stEditLocked || !!stMin; }
 // 構成表の右上の「🔒 ロック中」を押したら、この構成表をロックしているもの（イベント・曲マスタ）をまとめて解除（メッセージは出さない）
-window.stUnlock = () => {
-  const l = !stFromStock() && stLive();
-  if(l && l.locked){ delete l.locked; l.updatedAt = Date.now(); saveLives(); }
-  if(stockLocked){ stockLocked = false; store.set('setlist_stock_locked', false); }
+window.stSetLock = on => {
+  stEditLocked = !!on; store.set('setlist_struct_locked', stEditLocked);
+  if(stEditLocked){ structEdit = false; stOpenSec = null; }
   render();
 };
-function stLockToast(){ showToast(stockLocked ? '🔒 曲マスタはロック中です。曲マスタのロックを解除すると編集できます' : '🔒 ロック中のイベントです。セットリストのロックを解除すると編集できます'); }
+function stLockToast(){ if(stEditLocked) showToast('🔒 構成表はロック中です。右上の「ロック中」を押すと解除できます'); }   // 最小表示ではメッセージを出さずに何もしない
 window.stToggleSec = si => {
   if(stLockedNow()){ stLockToast(); return; }
   stOpenSec = stOpenSec===si ? null : si;
@@ -2738,11 +2747,11 @@ function renderStruct(){
   const compact = stMin && !structEdit;   // 最小表示では「戻る・構成表／編集」の行を出さず、曲名の左に小さな戻るボタンだけ
   let html = compact ? '' : `<div class="st-head">
     <button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${backLabel}</button>
-    ${locked ? `<button type="button" class="st-lock-tag" onclick="stUnlock()" title="押すとロックを解除" aria-label="ロック中（押すと解除）">🔒 ロック中</button>` : `<div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div>`}
+    ${stEditLocked ? `<button type="button" class="st-lock-tag" onclick="stSetLock(false)" title="押すとロックを解除" aria-label="構成表はロック中（押すと解除）">🔒 ロック中</button>` : `<div class="st-head-r"><button type="button" class="st-lock-btn" onclick="stSetLock(true)" title="構成表をロック（編集できなくする）" aria-label="構成表をロック">🔓</button><div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div></div>`}
   </div>`;
   html += `<div class="st-title-row">
     ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
-    <div class="st-title-box"><h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && locked ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
+    <div class="st-title-box"><h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && stEditLocked ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
   </div>
   ${structEdit || !stMin ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;
   if(structEdit){ document.body.classList.remove('st-viewing'); html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
@@ -2765,7 +2774,7 @@ function renderStruct(){
   // 横向きでは左の列（曲の情報・操作）と右の列（構成表）に分ける。縦向きでは今まで通り上から順に並ぶ
   const sideHtml = html; html = '';
   if(!secs.length){
-    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。${locked ? `<br>（${stockLocked ? '曲マスタがロック中' : 'ロック中のイベント'}なので、ここでは作れません）` : `<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>`}
+    html += `<div class="st-empty">この曲の構成はまだありません。<br>セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。${locked ? `<br>（${stEditLocked ? '構成表がロック中' : '最小表示'}なので、ここでは作れません）` : `<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>`}
       <div class="st-empty-paste"${locked ? ' hidden' : ''}>
         <div class="st-empty-or">または、AIなどで作った構成表（Markdown）を貼り付け</div>
         <textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea>
