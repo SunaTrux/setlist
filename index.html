@@ -71,8 +71,12 @@ body{overflow-x:hidden;}
 
 header{position:sticky; top:0; padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
 h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
-.tagline{margin:-8px 16px 10px; font-size:12px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere;}
-.tagline:empty{display:none;}
+.tagline-row{display:flex; align-items:center; gap:4px; margin:-10px 10px 8px 16px;}
+.tagline{flex:1; min-width:0; margin:0; font-size:12px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere;}
+.tagline-next{flex:none; width:30px; height:30px; padding:0; border:none; border-radius:50%; background:none; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.tagline-next svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transition:transform .3s ease;}
+.tagline-next.spin svg{transform:rotate(360deg);}
+.tagline-next[hidden]{display:none;}
 nav button{display:inline-flex; align-items:center; justify-content:center; gap:5px;}
 .tab-ic{width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;}
 nav{display:flex; padding:0 16px; gap:4px;}
@@ -851,7 +855,8 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 }
 @media (min-width:760px){
   #app{max-width:1120px;}
-  header h1, header .tagline{margin-left:24px; margin-right:24px;}
+  header h1{margin-left:24px; margin-right:24px;}
+  header .tagline-row{margin-left:24px; margin-right:18px;}
   nav{padding:0 24px; max-width:640px;}
   main{padding:20px 24px 48px;}
   body[data-view="songs"] main, body[data-view="settings"] main{max-width:800px; margin:0 auto;}
@@ -871,7 +876,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 @media (orientation:landscape) and (max-height:500px){
   header{display:flex; align-items:center; padding-top:calc(6px + env(safe-area-inset-top,0px)); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);}
   header h1{font-size:16px; margin:0 16px; white-space:nowrap;}
-  header .tagline{display:none;}   /* 横向きは1行にまとめるのでヒント文は出さない */
+  header .tagline-row{display:none;}   /* 横向きは1行にまとめるのでヒント文は出さない */
   nav{flex:1; padding:0 12px 0 0; max-width:none;}
   nav button{padding:8px 0;}
   main{padding-left:calc(16px + env(safe-area-inset-left,0px)); padding-right:calc(16px + env(safe-area-inset-right,0px));}
@@ -924,7 +929,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 <div id="app">
   <header>
     <h1>プレイヤーズセットリスト</h1>
-    <p class="tagline" id="app-tagline"></p>
+    <div class="tagline-row"><p class="tagline" id="app-tagline"></p><button type="button" class="tagline-next" id="tagline-next" onclick="nextTagline()" aria-label="次のヒントに切り替え" title="次のヒント"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button></div>
     <nav>
       <button id="tab-lives" class="active"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>イベント</span></button>
       <button id="tab-songs"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg><span>曲マスタ</span></button>
@@ -1011,13 +1016,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.60.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.61.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.61.0': [
+    'アプリのヒント文を5種類に。タイトルの下の🔄で切り替えられます',
+    '設定 →「表示」で、ヒント文を1行に1つずつ自由に編集できます（「初期の文に戻す」で元どおり）'
+  ],
   '1.60.1': [
     'セットリストの最小表示：説明文を1行に短く、曲名も1行に収めて長いものは「…」で省略',
     'セットリストのロック中は、ジャンルの絞り込みと並び替えを出さないように'
@@ -3726,19 +3735,55 @@ document.getElementById('tab-songs').onclick = () => { structOpen = null; struct
 document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
 
 // ---- アプリのヒント文（タイトルの下の一文。設定 →「表示」で変更可。空なら初期の文） ----
-const DEFAULT_TAGLINE = 'セットリストも構成表も、ステージでもう迷わない';
-const TAGLINE_MAX = 60;
-function currentTagline(){ const t = store.get('setlist_tagline', ''); return (typeof t==='string' && t.trim()) ? Array.from(t.trim()).slice(0, TAGLINE_MAX).join('') : DEFAULT_TAGLINE; }
-function applyTagline(){ const el = document.getElementById('app-tagline'); if(el) el.textContent = currentTagline(); }   // textContent なので、タグなどは文字のまま表示される
-function taglineCountText(){ const n = Array.from(currentTagline()).length; return `${n}字` + (n > 25 ? '（スマホでは2行になることがあります。目安は25字まで）' : '（多くのスマホで1行に収まります）'); }
-window.onTaglineInput = v => {
-  store.set('setlist_tagline', Array.from(String(v)).slice(0, TAGLINE_MAX).join(''));
+const DEFAULT_TAGLINES = [
+  'セットリストも構成表も、ステージでもう迷わない',
+  'セットリストは通しリハーサルにも使えるよ',
+  'セットリスト案を書き出してメンバーに送ろう',
+  'お気に入りのセットリストはバックアップしとこう',
+  'イベント中でもセットリストは変えられるよ'
+];
+const TAGLINE_MAX = 60, TAGLINES_MAX = 20;
+const clipTag = t => Array.from(String(t).trim()).slice(0, TAGLINE_MAX).join('');
+// ヒント文の一覧（設定で編集。未設定なら初期の文）。以前の1文だけの設定があれば、それを先頭に入れて引き継ぐ
+function taglineList(){
+  const a = store.get('setlist_taglines', null);
+  if(Array.isArray(a)){ const l = a.filter(x => typeof x==='string' && x.trim()).map(clipTag).slice(0, TAGLINES_MAX); if(l.length) return l; }
+  const old = store.get('setlist_tagline', '');
+  if(typeof old==='string' && old.trim() && !DEFAULT_TAGLINES.includes(old.trim())) return [clipTag(old), ...DEFAULT_TAGLINES];
+  return DEFAULT_TAGLINES.slice();
+}
+const isDefaultTaglines = () => { const l = taglineList(); return l.length===DEFAULT_TAGLINES.length && l.every((x, i) => x===DEFAULT_TAGLINES[i]); };
+let taglineIdx = (n => Number.isInteger(n) ? n : 0)(store.get('setlist_tagline_idx', 0));
+function currentTagline(){ const l = taglineList(); return l[((taglineIdx % l.length) + l.length) % l.length]; }
+function applyTagline(){
+  const el = document.getElementById('app-tagline'); if(el) el.textContent = currentTagline();   // textContent なので、タグなどは文字のまま表示される
+  const nb = document.getElementById('tagline-next'); if(nb) nb.hidden = taglineList().length < 2;
+}
+// 🔄：次のヒントへ
+window.nextTagline = () => {
+  taglineIdx = (taglineIdx + 1) % taglineList().length; store.set('setlist_tagline_idx', taglineIdx);
+  applyTagline();
+  const nb = document.getElementById('tagline-next');
+  if(nb){ nb.classList.remove('spin'); void nb.offsetWidth; nb.classList.add('spin'); setTimeout(() => nb.classList.remove('spin'), 320); }
+};
+function taglineCountText(){
+  const l = taglineList(), long = l.filter(x => Array.from(x).length > 25).length;
+  return `${l.length}件` + (long ? `（うち${long}件は25字を超えていて、スマホでは2行になることがあります）` : '（1行25字までが目安）');
+}
+window.onTaglinesInput = v => {
+  const l = String(v).split(/\r?\n/).map(x => x.trim()).filter(Boolean).map(clipTag).slice(0, TAGLINES_MAX);
+  store.set('setlist_taglines', l.length ? l : null); store.set('setlist_tagline', '');
   applyTagline();
   const c = document.getElementById('tagline-count'); if(c) c.textContent = taglineCountText();
-  const r = document.getElementById('tagline-reset'); if(r) r.disabled = currentTagline()===DEFAULT_TAGLINE;
+  const r = document.getElementById('tagline-reset'); if(r) r.disabled = isDefaultTaglines();
 };
-window.onTaglineBlur = el => { if(!el.value.trim()){ el.value = DEFAULT_TAGLINE; store.set('setlist_tagline', ''); applyTagline(); } };
-window.resetTagline = () => { store.set('setlist_tagline', ''); const el = document.getElementById('tagline-input'); if(el) el.value = DEFAULT_TAGLINE; onTaglineInput(''); store.set('setlist_tagline', ''); showToast('ヒント文を初期の文に戻しました'); };
+window.onTaglinesBlur = el => { if(!el.value.trim()){ store.set('setlist_taglines', null); el.value = taglineList().join('\n'); applyTagline(); } };
+window.resetTagline = () => {
+  store.set('setlist_taglines', null); store.set('setlist_tagline', '');
+  const el = document.getElementById('tagline-input'); if(el) el.value = DEFAULT_TAGLINES.join('\n');
+  onTaglinesInput(DEFAULT_TAGLINES.join('\n')); store.set('setlist_taglines', null);
+  showToast('ヒント文を初期の文に戻しました');
+};
 function render(){
   applyTagline();
   document.documentElement.classList.toggle('is-standalone', isStandaloneApp());
@@ -5612,9 +5657,9 @@ function renderSettings(){
         <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
       </div>
     </div>
-    <div class="field" style="margin:14px 0 0;"><label for="tagline-input">アプリのヒント文（タイトルの下の一文）</label>
-      <input type="text" id="tagline-input" maxlength="${TAGLINE_MAX}" value="${esc(currentTagline())}" placeholder="${esc(DEFAULT_TAGLINE)}" oninput="onTaglineInput(this.value)" onblur="onTaglineBlur(this)">
-      <div class="tagline-tools"><span class="hint" id="tagline-count">${esc(taglineCountText())}</span><button type="button" class="btn tagline-reset" id="tagline-reset" onclick="resetTagline()" ${currentTagline()===DEFAULT_TAGLINE ? 'disabled' : ''}>初期の文に戻す</button></div>
+    <div class="field" style="margin:14px 0 0;"><label for="tagline-input">アプリのヒント文（タイトルの下の一文。1行に1つ、🔄で順に切り替え）</label>
+      <textarea id="tagline-input" rows="6" wrap="off" style="white-space:pre; overflow-x:auto;" placeholder="${esc(DEFAULT_TAGLINES[0])}" oninput="onTaglinesInput(this.value)" onblur="onTaglinesBlur(this)">${esc(taglineList().join('\n'))}</textarea>
+      <div class="tagline-tools"><span class="hint" id="tagline-count">${esc(taglineCountText())}</span><button type="button" class="btn tagline-reset" id="tagline-reset" onclick="resetTagline()" ${isDefaultTaglines() ? 'disabled' : ''}>初期の文に戻す</button></div>
     </div>
     <div class="hint" style="margin-top:12px;">${isStandaloneApp() ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。<br>※ホーム画面のアプリは、ブラウザとは別にデータを持ちます。今のデータを使うときは「バックアップ・CSV」で移してください。'}</div>
 
