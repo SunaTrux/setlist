@@ -828,10 +828,11 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 .st-mbar button[aria-pressed="true"]{background:var(--text); border-color:var(--text); color:var(--bg);}
 .st-mbar button[hidden]{display:none;}
 .st-mbar .st-go{width:52px; background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
-/* ホーム画面のアプリはバーが画面の一番下に付くので、角に近い再生ボタンだけ少し持ち上げて大きく（縦向き・PC） */
+/* ホーム画面のアプリはバーが画面の一番下に付くので、テンポ窓のバー全体を少し高くして、下の角のボタンを押しやすく（縦向き・PC） */
 @media (orientation:portrait), (min-height:601px){
-  html.is-standalone .st-mbar:not(.folded) .st-go{width:60px; height:48px; margin:-4px 0; transform:translateY(-8px); border-radius:12px; box-shadow:0 4px 12px rgba(0,0,0,.25);}   /* 外側の大きさは他のボタンと同じにして、見た目だけ持ち上げる（他のボタンは動かない） */
-  html.is-standalone .st-mbar:not(.folded) .st-go svg{width:22px; height:22px;}
+  html.is-standalone .st-mbar:not(.folded){padding-bottom:20px;}
+  html.is-standalone body.struct-open:not(.st-bar-folded) .st-navgrp{bottom:78px;}
+  html.is-standalone body.struct-open:not(.st-bar-folded) main{padding-bottom:162px;}
 }
 .st-mbar .st-go.run{background:var(--text); border-color:var(--text); color:var(--bg);}
 
@@ -1005,13 +1006,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.59.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.59.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.59.1': [
+    'ホーム画面のアプリで、構成表のテンポ窓の再生ボタンだけ大きくするのをやめ、テンポ窓のバー全体を少し高くして押しやすく'
+  ],
   '1.59.0': [
     '構成表に専用のロックを追加（右上の🔓で構成表の編集をオフ、「🔒 ロック中」を押すと解除）。セットリストのロック・曲マスタのロックとは別になりました',
     'セットリストや曲マスタをロックしても、構成表は編集できるように（それぞれの画面のロックは、その画面だけ）',
