@@ -783,6 +783,19 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 .st-navgrp button{width:44px; height:44px; padding:0; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.15); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-navgrp button svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;}
 .st-navgrp button:disabled{opacity:.35; box-shadow:none; cursor:default;}
+/* 縦向き・PC（スマホ横の2列表示以外） */
+@media (orientation:portrait), (min-height:601px){
+  /* 前後の曲ボタンは横に長く（テンポのつまみの手前まで）。縦向き・PCのとき */
+  body.struct-open .st-navgrp{right:76px; max-width:560px;}
+  body.struct-open .st-navgrp button{flex:1; width:auto;}
+  /* テンポをたたんだとき：前後の曲とテンポを画面の一番下の帯にまとめて固定（下に余白を作らない） */
+  body.struct-open.st-bar-folded::after{content:''; position:fixed; left:0; right:0; bottom:0; z-index:79; height:calc(64px + env(safe-area-inset-bottom,0px)); background:var(--bg); border-top:1px solid var(--border);}
+  body.struct-open.st-bar-folded .st-navgrp{bottom:calc(10px + env(safe-area-inset-bottom,0px)); right:144px; z-index:81;}
+  body.struct-open.st-bar-folded .st-navgrp button{box-shadow:none;}
+  body.struct-open.st-bar-folded .st-mbar.folded{bottom:calc(10px + env(safe-area-inset-bottom,0px)); z-index:82;}
+  body.struct-open.st-bar-folded .st-mbar.folded .st-mbar-tab{height:44px; min-width:120px; justify-content:center; box-shadow:none;}
+  body.struct-open.st-bar-folded main{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));}
+}
 .st-ed-foot{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;}
 .st-ed-foot .btn-block{min-height:48px; font-size:16px;}
 .st-mbar button{height:40px; min-width:40px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center;}
@@ -965,13 +978,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.54.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.55.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.55.0': [
+    '構成表の前後の曲ボタン（＜ ＞）を横に長くして押しやすく',
+    'テンポをたたんだときは、前後の曲ボタンとテンポのつまみを画面の一番下の帯に固定（下の余白をなくしました）'
+  ],
   '1.54.1': [
     '曲マスタの「曲を登録」で、キャンセルボタンと下の曲一覧の間をあけて見やすく'
   ],
