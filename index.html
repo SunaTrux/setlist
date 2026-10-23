@@ -264,6 +264,9 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .setlist-row1{display:flex; align-items:center; gap:8px; padding:10px 12px 6px;}
 .setlist-num{font-size:16px; color:var(--accent); font-weight:700; min-width:20px; flex-shrink:0;}
 .setlist-name-btn{flex:1; text-align:left; background:none; border:none; color:var(--text); font-size:16px; font-weight:700; padding:0; overflow-wrap:anywhere; cursor:pointer;}
+/* セットリストの最小表示：曲名は1行（はみ出しは…） */
+body.cards-min .setlist-item[data-drag-list="live"] .setlist-name-btn{min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal;}
+.hint-1line{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .setlist-name-btn .chev{color:var(--muted); font-weight:400; margin-left:2px;}
 .metro-btn{flex-shrink:0; width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:var(--surface2); font-size:14px; cursor:pointer; color:var(--text); display:flex; align-items:center; justify-content:center;}
 .metro-btn.playing{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
@@ -1008,13 +1011,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.60.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.60.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.60.1': [
+    'セットリストの最小表示：説明文を1行に短く、曲名も1行に収めて長いものは「…」で省略',
+    'セットリストのロック中は、ジャンルの絞り込みと並び替えを出さないように'
+  ],
   '1.60.0': [
     'セットリスト画面の一番上、「イベント一覧」の右に「構成表 →」ボタン（1曲目から構成表を開く）',
     'イベント一覧のカードの「構成」ボタンはなくしました'
@@ -4930,14 +4937,15 @@ function renderLiveEdit(){
   // ---- セットリストエリア ----
   html += totalsCardHtml;   // 見出し（セットリスト・合計時間）→ 絞り込み・並べ替え → 表示切り替え
   const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
-  if(slSongs.length > 1) html += `<div class="stock-tools sl-tools">
+  if(lk){ slFilter = 'all'; slSort = 'order'; }   // ロック中は絞り込み・並び替えを出さない（本番の曲順のまま）
+  if(slSongs.length > 1 && !lk) html += `<div class="stock-tools sl-tools">
     ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
     <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
   </div>`;
   html += `<div class="list-opts">${viewSegHtml()}${live.setlist.length ? `<button type="button" class="lock-btn${lk ? ' on' : ''}" onclick="toggleLiveLock()" aria-pressed="${lk}" title="${lk ? 'ロックを解除' : '曲順をロック'}">${lk ? '🔒 ロック中' : '🔓 ロック'}</button>` : ''}</div>`;
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
-  if(!showOthers && otherCount) html += `<div class="hint">最小表示では曲以外（${otherCount}件）は出しません。合計時間には含まれています。</div>`;
+  if(!showOthers && otherCount) html += `<div class="hint hint-1line">曲以外（${otherCount}件）は非表示・合計時間には含む</div>`;
   if(cardMode!=='min') html += `<div class="hint">曲名タップで構成表（曲情報の編集は構成表の「編集」から）。♩BPMタップでメトロノーム。</div>`;
 
   let seq = 0;
