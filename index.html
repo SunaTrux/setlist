@@ -691,6 +691,7 @@ body.struct-open header{display:none;}
 .st-chip-plain b{margin-left:0;}
 .st-filters{display:flex; gap:4px; margin:10px 0;}
 .st-chordbar{display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin:-2px 0 10px;}
+.st-chordbar[hidden]{display:none;}
 .st-cmode button, .st-capo button{padding:5px 6px; font-size:12px;}
 .st-cmode button:disabled{opacity:.4;}
 .st-trans{display:flex; align-items:center; gap:3px; margin-left:auto;}
@@ -1006,13 +1007,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.59.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.59.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.59.2': [
+    '構成表で「コード」のチップをオフにしたら、コード／度数と移調の切り替えもすぐ隠れるように'
+  ],
   '1.59.1': [
     'ホーム画面のアプリで、構成表のテンポ窓の再生ボタンだけ大きくするのをやめ、テンポ窓のバー全体を少し高くして押しやすく'
   ],
@@ -2710,6 +2714,7 @@ window.toggleStructFilter = k => {
   const t = document.getElementById('st-table');
   if(t) t.classList.toggle('hide-'+k, !v[k]);
   document.querySelectorAll(`.st-fbtn[data-f="${k}"]`).forEach(b => b.setAttribute('aria-pressed', v[k]));
+  if(k==='chord'){ const cb = document.getElementById('st-chordbar'); if(cb) cb.hidden = !v[k]; }
 };
 
 function stTotalBars(s){ return ((s.struct && s.struct.sections) || []).reduce((a, x) => a + stInt(x.bars) * stTimes(x), 0); }
@@ -2774,7 +2779,7 @@ function renderStruct(){
     ? `${memo ? `<div class="st-se st-se-min st-memo">${esc(memo)}</div>` : ''}${(start || end) ? `<div class="st-se st-se-min">${esc(start || '-')} → ${esc(end || '-')}</div>` : ''}`   // 最小：全体のメモ → はじめかた → おわりかた
     : `${memo ? seLine('全体のメモ', memo, 'st-memo') : ''}${start ? seLine('はじめかた', start) : ''}`;   // 標準：全体のメモ → はじめかた →（構成表）→ おわりかた
   html += `<div class="st-info-row"><div class="st-info">${infoInner}</div>${minBtn}</div>`;
-  if(hasChords && v.chord && !stMin) html += stChordBarHtml(s, e, stCC);
+  if(hasChords && !stMin) html += stChordBarHtml(s, e, stCC).replace('<div class="st-chordbar">', `<div class="st-chordbar" id="st-chordbar"${v.chord ? '' : ' hidden'}>`);   // コードのチップがオフのときは、コード／度数・移調の切り替えを隠す
   // 横向きでは左の列（曲の情報・操作）と右の列（構成表）に分ける。縦向きでは今まで通り上から順に並ぶ
   const sideHtml = html; html = '';
   if(!secs.length){
