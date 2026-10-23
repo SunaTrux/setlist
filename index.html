@@ -761,7 +761,7 @@ body.struct-open header{display:none;}
 .st-mbar, .st-mbar button{touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
 .st-mbar-in{max-width:520px; margin:0 auto; display:flex; align-items:center; gap:6px;}
 /* たたむボタン：バーの右上に出るつまみ */
-.st-mbar .st-fold{position:absolute; right:12px; top:-28px; height:28px; min-width:44px; padding:0 10px; border:1px solid var(--border); border-bottom:none; border-radius:10px 10px 0 0; background:var(--surface); color:var(--muted);}
+.st-mbar .st-fold{position:absolute; right:12px; top:-54px; height:44px; min-width:120px; padding:0 12px; gap:4px; border:1px solid var(--border); border-radius:999px; background:var(--surface); color:var(--text); font-size:14px; box-shadow:0 2px 8px rgba(0,0,0,.15);}   /* 開くつまみ（♩ 120 ▲）と同じ大きさ */
 .st-mbar .st-fold svg, .st-mbar-tab svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;}
 .st-mbar .st-mbar-tab{display:none;}
 /* たたんだ状態：右下の小さなつまみだけ（テンポと再生中の印） */
@@ -789,7 +789,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
 /* 縦向き・PC（スマホ横の2列表示以外） */
 @media (orientation:portrait), (min-height:601px){
   /* 前後の曲ボタンは横に長く（テンポのつまみの手前まで）。縦向き・PCのとき */
-  body.struct-open .st-navgrp{right:76px; max-width:560px;}
+  body.struct-open .st-navgrp{right:144px; max-width:560px;}
   body.struct-open .st-navgrp button{flex:1; width:auto;}
   /* テンポをたたんだとき：前後の曲とテンポを画面の一番下の帯にまとめて固定（下に余白を作らない） */
   body.struct-open.st-bar-folded::after{content:''; position:fixed; left:0; right:0; bottom:0; z-index:79; height:calc(64px + env(safe-area-inset-bottom,0px)); background:var(--bg); border-top:1px solid var(--border);}
@@ -883,8 +883,14 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   body.st-viewing .st-mbar:not(.folded) .st-go{width:44px;}
   body.st-viewing .st-mbar:not(.folded) .st-dots{order:9; width:100%; justify-content:center; margin:0; gap:6px;}
   body.st-viewing .st-mbar:not(.folded) .st-dots i{width:8px; height:8px;}
-  body.st-viewing .st-mbar.folded{left:12px; right:auto; bottom:calc(12px + env(safe-area-inset-bottom,0px));}
-  body.st-viewing .st-navgrp{left:auto; right:calc(12px + env(safe-area-inset-right,0px)); bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+  /* 前後の曲ボタンは左の列の下（テンポ窓の上）に、押しやすい大きさで。たたむ／開くつまみはその右 */
+  body.st-viewing .st-mbar.folded{left:calc(var(--side-w) - 132px); right:auto; bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+  body.st-viewing .st-mbar.folded .st-mbar-tab{height:44px; min-width:120px; justify-content:center;}
+  body.st-viewing .st-navgrp{left:calc(12px + env(safe-area-inset-left,0px)); right:auto; width:calc(var(--side-w) - 152px - env(safe-area-inset-left,0px)); bottom:calc(var(--st-mbar-h, 96px) + 10px);}
+  body.st-viewing .st-navgrp button{flex:1; width:auto; height:44px;}
+  body.st-viewing.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+  body.st-viewing .st-side{padding-bottom:calc(var(--st-mbar-h, 96px) + 72px);}
+  body.st-viewing.st-bar-folded .st-side{padding-bottom:80px;}
   body.st-viewing .st-navgrp[hidden]{display:none;}
   body.st-viewing .st-flash{left:calc(var(--side-w) + (100vw - var(--side-w)) / 2);}
 }
@@ -981,13 +987,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.55.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.56.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.56.0': [
+    '構成表のテンポ窓の「たたむ」ボタンを、開くボタンと同じ大きさにして押しやすく',
+    'スマホ横向きの構成表で、前後の曲ボタンを左の列の下に、押しやすい大きさで表示'
+  ],
   '1.55.1': [
     'iPhoneのホーム画面アプリで、構成表が短い曲のとき、下の前後の曲ボタン・テンポのバーが画面の下から浮いていたのを修正（いつも画面の一番下に）'
   ],
@@ -3510,7 +3520,7 @@ function stMetroBar(show){
   if(!el){
     el = document.createElement('div');
     el.id = 'st-mbar'; el.className = 'st-mbar';
-    el.innerHTML = `<button type="button" class="st-fold" onclick="stFoldBar(true)" aria-label="テンポ窓をたたむ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    el.innerHTML = `<button type="button" class="st-fold" onclick="stFoldBar(true)" aria-label="テンポ窓をたたむ"><span>たたむ</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
     <button type="button" class="st-mbar-tab" id="st-mbar-tab" onclick="stFoldBar(false)" aria-label="テンポ窓を開く"><i></i>♩<span id="st-tab-bpm">120</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
     <div class="st-mbar-in">
       <button type="button" data-step="-1" aria-label="テンポを下げる（長押しで連続）">−</button>
@@ -3523,6 +3533,10 @@ function stMetroBar(show){
       <button type="button" class="st-go" id="st-go" onclick="stM.on ? stMetroStop() : stMetroStart()"></button>
     </div>`;
     document.body.appendChild(el);
+    // テンポ窓の高さを覚えておき、スマホ横で前後の曲ボタンをそのすぐ上に置く
+    const setH = () => { if(!el.classList.contains('folded') && el.offsetHeight) document.documentElement.style.setProperty('--st-mbar-h', el.offsetHeight + 'px'); };
+    try{ new ResizeObserver(setH).observe(el); }catch(e){ window.addEventListener('resize', setH); }
+    setTimeout(setH, 0);
     stBindSteps(el);
   }
   el.hidden = false;
