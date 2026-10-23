@@ -48,9 +48,8 @@
 *{box-sizing:border-box;}
 html,body{height:100%;}
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
-/* iPhoneのホーム画面アプリ（時計・電池の上まで使う表示）では、ページが画面より短いと
-   画面の下に固定したバーが上の余白ぶん浮いてしまう。ページの高さを上の余白ぶん足して、常に一番下に付くように */
-html{min-height:calc(100% + env(safe-area-inset-top,0px));}
+/* 構成表の下のバーは、iPhoneのホームバー（画面下の横線）の余白を全部はとらず、少しだけ詰めて下に寄せる */
+:root{--st-sb:max(0px, calc(env(safe-area-inset-bottom,0px) - 24px));}
 body{
   margin:0; background:var(--bg); color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
@@ -757,7 +756,7 @@ body.struct-open header{display:none;}
 @media (max-width:420px){ .st-ed-memos{grid-template-columns:minmax(0,1fr);} }
 
 /* 構成画面のメトロノーム（下に固定） */
-.st-mbar{position:fixed; left:0; right:0; bottom:0; z-index:80; background:var(--surface); border-top:1px solid var(--border); padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));}
+.st-mbar{position:fixed; left:0; right:0; bottom:0; z-index:80; background:var(--surface); border-top:1px solid var(--border); padding:8px 12px calc(8px + var(--st-sb));}
 .st-mbar, .st-mbar button{touch-action:manipulation; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
 .st-mbar-in{max-width:520px; margin:0 auto; display:flex; align-items:center; gap:6px;}
 /* たたむボタン：バーの右上に出るつまみ */
@@ -765,7 +764,7 @@ body.struct-open header{display:none;}
 .st-mbar .st-fold svg, .st-mbar-tab svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;}
 .st-mbar .st-mbar-tab{display:none;}
 /* たたんだ状態：右下の小さなつまみだけ（テンポと再生中の印） */
-.st-mbar.folded{left:auto; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px)); padding:0; background:none; border:none;}
+.st-mbar.folded{left:auto; right:12px; bottom:calc(12px + var(--st-sb)); padding:0; background:none; border:none;}
 .st-mbar.folded .st-mbar-in, .st-mbar.folded .st-fold{display:none;}
 .st-mbar.folded .st-mbar-tab{display:inline-flex; gap:4px; height:40px; padding:0 12px; border-radius:999px; background:var(--surface); border:1px solid var(--border); box-shadow:0 4px 14px rgba(0,0,0,.18); font-size:15px;}
 .st-mbar-tab span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums;}
@@ -779,8 +778,8 @@ body.struct-open.st-bar-folded main{padding-bottom:84px;}
 .st-flash small{display:block; font-size:12px; font-weight:700; opacity:.75; margin-bottom:2px;}
 .st-flash b{display:block; font-size:22px; font-weight:800; line-height:1.25; overflow-wrap:anywhere;}
 @media (prefers-reduced-motion: reduce){ .st-flash{transition:none;} }
-.st-navgrp{position:fixed; left:12px; bottom:calc(66px + env(safe-area-inset-bottom,0px)); z-index:81; display:flex; gap:8px;}
-body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+.st-navgrp{position:fixed; left:12px; bottom:calc(66px + var(--st-sb)); z-index:81; display:flex; gap:8px;}
+body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 .st-navgrp[hidden]{display:none;}
 /* 前後の曲：小さくシンプルな矢印だけ（曲の切り替えは左右スワイプでもできる） */
 .st-navgrp button{width:44px; height:44px; padding:0; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--text); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.15); cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
@@ -792,12 +791,12 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   body.struct-open .st-navgrp{right:144px; max-width:560px;}
   body.struct-open .st-navgrp button{flex:1; width:auto;}
   /* テンポをたたんだとき：前後の曲とテンポを画面の一番下の帯にまとめて固定（下に余白を作らない） */
-  body.struct-open.st-bar-folded::after{content:''; position:fixed; left:0; right:0; bottom:0; z-index:79; height:calc(64px + env(safe-area-inset-bottom,0px)); background:var(--bg); border-top:1px solid var(--border);}
-  body.struct-open.st-bar-folded .st-navgrp{bottom:calc(10px + env(safe-area-inset-bottom,0px)); right:144px; z-index:81;}
+  body.struct-open.st-bar-folded::after{content:''; position:fixed; left:0; right:0; bottom:0; z-index:79; height:calc(64px + var(--st-sb)); background:var(--bg); border-top:1px solid var(--border);}
+  body.struct-open.st-bar-folded .st-navgrp{bottom:calc(10px + var(--st-sb)); right:144px; z-index:81;}
   body.struct-open.st-bar-folded .st-navgrp button{box-shadow:none;}
-  body.struct-open.st-bar-folded .st-mbar.folded{bottom:calc(10px + env(safe-area-inset-bottom,0px)); z-index:82;}
+  body.struct-open.st-bar-folded .st-mbar.folded{bottom:calc(10px + var(--st-sb)); z-index:82;}
   body.struct-open.st-bar-folded .st-mbar.folded .st-mbar-tab{height:44px; min-width:120px; justify-content:center; box-shadow:none;}
-  body.struct-open.st-bar-folded main{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));}
+  body.struct-open.st-bar-folded main{padding-bottom:calc(76px + var(--st-sb));}
 }
 .st-ed-foot{display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-top:8px;}
 .st-ed-foot .btn-block{min-height:48px; font-size:16px;}
@@ -875,7 +874,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   body.st-viewing .st-se{font-size:12px;}
   /* テンポ窓は左の列の下に2段で収める。前後の曲ボタンは左の列の＜＞を使う */
   body.st-viewing .st-mbar:not(.folded){right:auto; width:var(--side-w); border-right:1px solid var(--border); padding-left:calc(12px + env(safe-area-inset-left,0px));}
-  body.st-viewing .st-mbar:not(.folded){padding-top:6px; padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));}
+  body.st-viewing .st-mbar:not(.folded){padding-top:6px; padding-bottom:calc(6px + var(--st-sb));}
   body.st-viewing .st-mbar:not(.folded) .st-mbar-in{flex-wrap:wrap; justify-content:space-between; row-gap:5px; gap:5px;}
   body.st-viewing .st-mbar:not(.folded) button{height:36px; min-width:36px; padding:0 6px; font-size:13px;}
   body.st-viewing .st-mbar:not(.folded) .st-bpm{min-width:3em;}
@@ -884,11 +883,11 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px)
   body.st-viewing .st-mbar:not(.folded) .st-dots{order:9; width:100%; justify-content:center; margin:0; gap:6px;}
   body.st-viewing .st-mbar:not(.folded) .st-dots i{width:8px; height:8px;}
   /* 前後の曲ボタンは左の列の下（テンポ窓の上）に、押しやすい大きさで。たたむ／開くつまみはその右 */
-  body.st-viewing .st-mbar.folded{left:calc(var(--side-w) - 132px); right:auto; bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+  body.st-viewing .st-mbar.folded{left:calc(var(--side-w) - 132px); right:auto; bottom:calc(12px + var(--st-sb));}
   body.st-viewing .st-mbar.folded .st-mbar-tab{height:44px; min-width:120px; justify-content:center;}
   body.st-viewing .st-navgrp{left:calc(12px + env(safe-area-inset-left,0px)); right:auto; width:calc(var(--side-w) - 152px - env(safe-area-inset-left,0px)); bottom:calc(var(--st-mbar-h, 96px) + 10px);}
   body.st-viewing .st-navgrp button{flex:1; width:auto; height:44px;}
-  body.st-viewing.st-bar-folded .st-navgrp{bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+  body.st-viewing.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
   body.st-viewing .st-side{padding-bottom:calc(var(--st-mbar-h, 96px) + 72px);}
   body.st-viewing.st-bar-folded .st-side{padding-bottom:80px;}
   body.st-viewing .st-navgrp[hidden]{display:none;}
@@ -987,13 +986,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.56.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.56.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.56.1': [
+    '構成表の下のボタン（前後の曲・テンポ）を、iPhoneの画面の下ぎりぎりまで寄せて、下の余白を小さく'
+  ],
   '1.56.0': [
     '構成表のテンポ窓の「たたむ」ボタンを、開くボタンと同じ大きさにして押しやすく',
     'スマホ横向きの構成表で、前後の曲ボタンを左の列の下に、押しやすい大きさで表示'
