@@ -145,7 +145,7 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .live-songs-sep{opacity:.5;}
 .lv-full .live-card-wrap .live-card{padding-bottom:52px;}   /* 下のボタンに文字がかからないように */
 .lv-full .live-count{position:absolute; left:14px; bottom:20px; margin:0;}
-.lv-min .live-card-wrap .live-card{min-height:0; padding:10px 12px 10px 14px; padding-right:152px;}
+.lv-min .live-card-wrap .live-card{min-height:0; padding:10px 12px 10px 14px; padding-right:116px;}
 .lv-min .live-card-acts{right:10px; gap:4px;}
 .lv-min .live-card-acts .row-struct{height:32px; padding:0 9px; font-size:12px;}
 .lv-full .live-title-line{flex-wrap:wrap; row-gap:0;}
@@ -340,6 +340,7 @@ select.mini-input{width:64px; padding:5px 2px;}
 .stock-total .totals-value{font-size:20px; font-weight:700; color:var(--accent);}
 
 .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.topbar-struct{padding:8px 12px 8px 18px; color:var(--accent); border-color:var(--accent);}
 
 .theme-row{display:flex; gap:6px;}
 .theme-btn{flex:1; padding:9px 0; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:13px; font-weight:600; cursor:pointer;}
@@ -1007,13 +1008,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.59.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.60.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.60.0': [
+    'セットリスト画面の一番上、「イベント一覧」の右に「構成表 →」ボタン（1曲目から構成表を開く）',
+    'イベント一覧のカードの「構成」ボタンはなくしました'
+  ],
   '1.59.2': [
     '構成表で「コード」のチップをオフにしたら、コード／度数と移調の切り替えもすぐ隠れるように'
   ],
@@ -2639,12 +2644,13 @@ window.openStruct = (idx) => {
   render(); scrollToTop();
 };
 // イベント一覧から：そのイベントの1曲目の構成表を直接開く（戻るとイベント一覧へ）
-window.openLiveStruct = (liveId) => {
+window.openLiveStruct = (liveId, fromDetail) => {
   const live = lives.find(l => l.id===liveId); if(!live) return;
   const idx = live.setlist.findIndex(e => e.type!=='other' && songs.some(x => x.id===e.songId));
   if(idx<0) return;
   stopMetro();
-  structOpen = {liveId, idx, fromList: true}; structEdit = false; stOpenSec = null; stTrans = 0;
+  if(fromDetail) applyLiveForm();   // セットリスト画面から：入力途中のイベント情報を保存してから
+  structOpen = fromDetail ? {liveId, idx} : {liveId, idx, fromList: true};   // セットリスト画面から開いたら「セットリスト」に戻る structEdit = false; stOpenSec = null; stTrans = 0;
   stMetroStop();
   stSetBpm(stSongBpm());
   render(); scrollToTop();
@@ -4695,7 +4701,7 @@ function renderLives(){
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         ${fullHtml}
         <div class="live-count">${l.locked ? '<span class="lock-mark" title="ロック中">🔒</span>' : ''}${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
-      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button>${songCount ? `<button type="button" class="row-struct has live-struct-btn" onclick="openLiveStruct('${l.id}')" aria-label="このイベントの構成表を開く（1曲目から）" title="構成">構成</button>` : ''}</div>${noDel ? '' : `<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button>`}</div></div>`;
+      </button><div class="live-card-acts"><button type="button" class="row-struct live-setlist-btn" onclick="openLiveSetlist('${l.id}')" aria-label="このイベントのセットリストを開く" title="セットリスト">セットリスト</button></div>${noDel ? '' : `<button type="button" class="row-del live-del-btn" onclick="removeLiveById('${l.id}')" aria-label="このイベントを削除" title="削除">✕</button>`}</div></div>`;
     });
     html += `</div>`;
   }
@@ -4803,6 +4809,7 @@ function renderLiveEdit(){
   let html = `
   <div class="topbar">
     <button type="button" class="back-btn" onclick="backToLives()"><span class="back-arrow">←</span>イベント一覧</button>
+    ${songCount ? `<button type="button" class="back-btn topbar-struct" onclick="openLiveStruct('${live.id}', true)" aria-label="構成表を1曲目から開く">構成表<span class="back-arrow">→</span></button>` : ''}
   </div>`;
   if(justCopiedId===live.id){
     html += `<div class="new-copy-note">コピーから作った新しいイベントです。イベント名や日付を変更してください。</div>`;
