@@ -994,13 +994,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.57.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.57.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.57.2': [
+    '構成表のテンポ窓の開閉を、曲ごとではなく全体で覚えるように。開いたら、曲を移っても開いたままです'
+  ],
   '1.57.1': [
     'ホーム画面のアプリでは、構成表の下のボタン（前後の曲・テンポ）の下にホームバーの分の余白をとらず、画面の一番下に表示'
   ],
@@ -3525,7 +3528,7 @@ function stGoBtn(){
 // テンポ窓のたたみ／展開：曲ごとに覚える（曲の構成に保存）。まだ決めていない曲は、最後に選んだ状態で開く
 let stBarFoldBase = !!store.get('setlist_struct_bar_folded', false);
 let stBarFolded = stBarFoldBase;
-function stFoldFor(s){ return s && s.struct && typeof s.struct.barFolded==='boolean' ? s.struct.barFolded : stBarFoldBase; }
+function stFoldFor(s){ return stBarFoldBase; }   // テンポ窓の開閉は曲ごとではなく全体で1つ（曲を移っても開いたまま／たたんだまま）
 function stApplyFold(){
   const el = document.getElementById('st-mbar'); if(!el) return;
   stBarFolded = stFoldFor(stSong());
@@ -3533,8 +3536,7 @@ function stApplyFold(){
   document.body.classList.toggle('st-bar-folded', stBarFolded);
 }
 window.stFoldBar = on => {
-  const s = stSong(); on = !!on;
-  if(s){ stEnsure(s).barFolded = on; saveSongs(); }   // 表示の切り替えなので更新日時は変えない
+  on = !!on;
   stBarFoldBase = on; store.set('setlist_struct_bar_folded', on);
   stApplyFold();
 };
