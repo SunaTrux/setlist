@@ -50,6 +50,7 @@ html,body{height:100%;}
 html{scroll-padding-top:env(safe-area-inset-top,0px);}
 /* 構成表の下のバーは、iPhoneのホームバー（画面下の横線）の余白を全部はとらず、少しだけ詰めて下に寄せる */
 :root{--st-sb:max(0px, calc(env(safe-area-inset-bottom,0px) - 24px));}
+html.is-standalone{--st-sb:0px;}   /* ホーム画面のアプリは、ホームバーの分の余白をとらない */
 body{
   margin:0; background:var(--bg); color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
@@ -993,13 +994,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.57.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.57.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.57.1': [
+    'ホーム画面のアプリでは、構成表の下のボタン（前後の曲・テンポ）の下にホームバーの分の余白をとらず、画面の一番下に表示'
+  ],
   '1.57.0': [
     '設定の一番下に「アプリの更新」を追加。「更新を確認」で最新版があるか調べ、あればその場で更新できます'
   ],
@@ -3679,6 +3683,7 @@ window.onTaglineBlur = el => { if(!el.value.trim()){ el.value = DEFAULT_TAGLINE;
 window.resetTagline = () => { store.set('setlist_tagline', ''); const el = document.getElementById('tagline-input'); if(el) el.value = DEFAULT_TAGLINE; onTaglineInput(''); store.set('setlist_tagline', ''); showToast('ヒント文を初期の文に戻しました'); };
 function render(){
   applyTagline();
+  document.documentElement.classList.toggle('is-standalone', isStandaloneApp());
   showOthers = cardMode!=='min';
   document.body.dataset.view = structOpen ? 'struct' : tab==='lives' ? (liveEditId ? 'live' : 'lives') : tab;   // 画面ごとのレイアウト用
   document.getElementById('tab-lives').classList.toggle('active', tab==='lives');
