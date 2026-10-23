@@ -179,6 +179,7 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .dur-row select{flex:0 0 auto; padding:9px 8px; width:auto; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:15px;}
 .dur-sep{font-size:13px; color:var(--muted);}
 .form-actions{display:flex; gap:8px; margin-top:4px;}
+.stock-reg-actions{margin:12px 0 28px;}   /* 曲を登録（ネット検索・ライブラリ）のキャンセルと、下の曲一覧の間をあける */
 
 .data-place{background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; line-height:1.65; color:var(--text);}
 .data-place p{margin:6px 0 0;}
@@ -964,13 +965,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.54.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.54.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-23';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.54.1': [
+    '曲マスタの「曲を登録」で、キャンセルボタンと下の曲一覧の間をあけて見やすく'
+  ],
   '1.54.0': [
     'タイトルの下にアプリのヒント文を表示。設定 →「表示」で好きな言葉に変えられます（「初期の文に戻す」で元どおり）',
     'イベント・曲マスタ・設定のタブにアイコンを追加'
@@ -6013,7 +6017,7 @@ function stockRegPanelHtml(){
       ${stockPosSegHtml()}
       ${regSearchHtml('stock')}
     </div>
-    <div class="form-actions"><button type="button" class="btn" id="song-cancel">キャンセル</button></div>`;
+    <div class="form-actions stock-reg-actions"><button type="button" class="btn" id="song-cancel">キャンセル</button></div>`;
 }
 window.setRegTab = (t, ctx='live') => {
   if(ctx==='stock'){
