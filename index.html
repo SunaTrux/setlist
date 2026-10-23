@@ -51,6 +51,10 @@ html{scroll-padding-top:env(safe-area-inset-top,0px);}
 /* 構成表の下のバーは、iPhoneのホームバー（画面下の横線）の余白を全部はとらず、少しだけ詰めて下に寄せる */
 :root{--st-sb:max(0px, calc(env(safe-area-inset-bottom,0px) - 24px));}
 html.is-standalone{--st-sb:0px;}   /* ホーム画面のアプリは、ホームバーの分の余白をとらない */
+/* iPhoneのホーム画面アプリ（時計・電池の上まで使う表示）では、ページが画面より短いと、iOSが画面の高さを
+   上の余白（ステータスバー）ぶん短く扱い、下に固定したバーがその分だけ浮いてしまう。
+   ページの高さを上の余白ぶん足して、表の長さにかかわらず一番下に付くようにする */
+html.is-standalone{min-height:calc(100% + env(safe-area-inset-top,0px));}
 body{
   margin:0; background:var(--bg); color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
@@ -994,13 +998,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.57.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-23';
+const APP_VERSION = '1.57.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.57.3': [
+    'ホーム画面のアプリで、表の短い曲だけ構成表の下のバーが画面の下から浮いていたのを修正'
+  ],
   '1.57.2': [
     '構成表のテンポ窓の開閉を、曲ごとではなく全体で覚えるように。開いたら、曲を移っても開いたままです'
   ],
