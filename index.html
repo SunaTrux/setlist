@@ -1038,13 +1038,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.67.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.67.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.67.2': [
+    '「曲を追加」でセットリストに入れる位置の初期値を「最後」に（曲マスタに入れる位置は「先頭」のまま）'
+  ],
   '1.67.1': [
     'セットリストの表示切り替えの横に「曲以外」チップ。消灯でMC・SEなどを隠し、点灯で表示（最小表示も同じ）',
     'セットリストに曲がないときは表示切り替えを出さないように。イベントカードとセットリストのカードの間を詰めました'
@@ -1990,7 +1993,9 @@ let slShowOthers = store.get('setlist_show_others', true) !== false;   // セッ
 let showOthers = true;  // セットリストに曲以外（MC・SEなど）を出すか（＝「曲以外」チップの状態）
 window.toggleSlOthers = () => { slShowOthers = !slShowOthers; store.set('setlist_show_others', slShowOthers); entryExpandedIdx = null; render(); };
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
-let registerAddPos = store.get('setlist_register_pos','start'); // 「曲を登録」の追加位置
+// 「曲を追加」でセットリストに入れる位置。初期値は「最後」（v1.67.2 で変更。それ以前の設定は一度だけ「最後」に戻す）
+if(!store.get('setlist_register_pos_reset_1672', false)){ store.set('setlist_register_pos', 'end'); store.set('setlist_register_pos_reset_1672', true); }
+let registerAddPos = store.get('setlist_register_pos','end');
 // 追加位置の切り替え（先頭／最後）
 function posSegHtml(kind, pos, label='追加する位置'){
   return `<div class="pos-row">
