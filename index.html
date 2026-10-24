@@ -679,6 +679,7 @@ body.struct-open header{display:none;}
 .st-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
 .st-title-row{display:flex; align-items:center; gap:10px;}
 .st-head-r{display:flex; align-items:center; gap:6px; flex:none;}
+.st-edit-btn{flex:none; height:34px; padding:0 14px; border-radius:999px; border:1px solid var(--accent); background:var(--surface); color:var(--accent); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-lock-btn{flex:none; width:34px; height:34px; padding:0; border-radius:999px; border:1px solid var(--border); background:var(--surface2); font-size:14px; line-height:1; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-lock-tag{flex:none; height:34px; display:inline-flex; align-items:center; padding:0 12px; border-radius:999px; border:none; background:var(--text); color:var(--bg); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .st-lock-mini{font-size:14px; margin-right:4px;}
@@ -1017,13 +1018,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.62.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.62.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-24';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.62.1': [
+    '構成表の右上の「構成表／編集」の切り替えを、「✎ 曲を編集」ボタン1つに'
+  ],
   '1.62.0': [
     '構成表で最後のセクションをタップして編集するときに「セクションを追加」ボタンを表示',
     '「編集」画面の Markdown 取り込みを、構成がないときと同じ案内・手順に（今のセクションは上書き）',
@@ -2787,7 +2791,7 @@ function renderStruct(){
   const compact = stMin && !structEdit;   // 最小表示では「戻る・構成表／編集」の行を出さず、曲名の左に小さな戻るボタンだけ
   let html = compact ? '' : `<div class="st-head">
     ${structEdit ? `<button type="button" class="back-btn" onclick="setStructEdit(false)"><span class="back-arrow">←</span>構成表</button>` : `<button type="button" class="back-btn" onclick="closeStruct()"><span class="back-arrow">←</span>${backLabel}</button>`}
-    ${stEditLocked ? `<button type="button" class="st-lock-tag" onclick="stSetLock(false)" title="押すとロックを解除" aria-label="構成表はロック中（押すと解除）">🔒 ロック中</button>` : `<div class="st-head-r"><button type="button" class="st-lock-btn" onclick="stSetLock(true)" title="構成表をロック（編集できなくする）" aria-label="構成表をロック">🔓</button><div class="pos-seg"><button type="button" class="${structEdit?'':'on'}" onclick="setStructEdit(false)">構成表</button><button type="button" class="${structEdit?'on':''}" onclick="setStructEdit(true)">編集</button></div></div>`}
+    ${stEditLocked ? `<button type="button" class="st-lock-tag" onclick="stSetLock(false)" title="押すとロックを解除" aria-label="構成表はロック中（押すと解除）">🔒 ロック中</button>` : structEdit ? '' : `<div class="st-head-r"><button type="button" class="st-lock-btn" onclick="stSetLock(true)" title="構成表をロック（編集できなくする）" aria-label="構成表をロック">🔓</button><button type="button" class="st-edit-btn" onclick="setStructEdit(true)">✎ 曲を編集</button></div>`}
   </div>`;
   html += `<div class="st-title-row">
     ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
