@@ -872,12 +872,14 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
   .metro-inner{border-radius:16px 16px 0 0;}
 }
 @media (min-width:820px){
-  .le-grid{display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); grid-template-rows:auto 1fr; grid-template-areas:"side main" "acts main"; column-gap:28px; align-items:start;}
-  .le-side{grid-area:side; min-width:0;}
+  .le-grid{display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); grid-template-rows:auto auto auto 1fr; grid-template-areas:"ev main" "timer main" "create main" "acts main"; column-gap:28px; align-items:start;}
+  .le-ev{grid-area:ev; min-width:0;}
+  .le-timer{grid-area:timer; min-width:0;}
   .le-main{grid-area:main; min-width:0;}
+  .le-create{grid-area:create; min-width:0;}
   .le-acts{grid-area:acts; min-width:0;}
-  .le-main > .sl-head-card{margin-top:0;}
-  .le-side > .create-head:first-child, .le-side > .fold-card:first-child{margin-top:0;}
+  .le-timer > .sl-head-card{margin-top:12px;}
+  .le-main > .sl-tools:first-child, .le-main > .list-opts:first-child{margin-top:0;}
   .le-acts > .action-group:first-child{margin-top:12px;}
 }
 /* スマホ横向き：タイトルとタブを1行にして、縦の余白をかせぐ（左右のノッチも避ける） */
@@ -1024,13 +1026,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.65.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.66.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.66.0': [
+    'セットリスト画面の並びを「イベント → セットリスト（合計・タイマー）→ セットリスト → セットリスト作成 → その他の操作」に'
+  ],
   '1.65.1': [
     'セットリスト作成の「曲を登録」を、曲マスタの「曲を登録」を押した後と同じ画面に（たたまずに表示。ネット検索｜ライブラリ｜手入力｜一括）。一括登録もセットリストに入れられるように'
   ],
@@ -4982,7 +4987,9 @@ function renderLiveEdit(){
     html += `<div class="new-copy-note">コピーから作った新しいイベントです。イベント名や日付を変更してください。</div>`;
   }
   // 広い画面（PC・タブレット・スマホ横）では、左にイベント情報・セットリスト作成・操作、右にセットリスト
-  html += `<div class="le-grid"><div class="le-side">`;
+  // 並び：イベント → セットリスト（タイマー）→ セットリスト → セットリスト作成 → その他の操作
+  // 広い画面では、左にイベント・タイマー・作成・その他、右にセットリスト
+  html += `<div class="le-grid"><div class="le-ev">`;
   const liveSt = liveDateStatus(live.date);
   html += `<div class="fold-card st-card-${liveSt.kind}"><button type="button" class="fold-head" onclick="toggleLiveInfo()">
     <div class="fold-head-main">${liveInfoOpen
@@ -5024,7 +5031,8 @@ function renderLiveEdit(){
     <div class="form-actions"><button type="submit" class="btn btn-accent">保存</button></div>
   </form>`;
   const lk = showMode;   // 🔒 本番モード：曲順を固定（追加・削除・並べ替えをしない）
-  html += `</div>` + (lk ? showModeNoteHtml('曲の追加・削除・並べ替え').replace('class="lock-note"', 'class="lock-note" id="setlist-section"') : `
+  html += `</div></div>`;   // イベントカード / le-ev
+  let createHtml = (lk ? showModeNoteHtml('曲の追加・削除・並べ替え').replace('class="lock-note"', 'class="lock-note" id="setlist-section"') : `
   <button type="button" class="create-head${liveCreateOpen ? ' open' : ''}" id="setlist-section" onclick="toggleLiveCreate()" aria-expanded="${liveCreateOpen}">
     <span class="create-title">セットリスト作成</span>${liveCreateOpen ? '' : '<span class="create-sub">曲を登録・曲以外を追加</span>'}${foldToggleHtml(liveCreateOpen)}
   </button>`);
@@ -5088,13 +5096,12 @@ function renderLiveEdit(){
   </div>`;
 
 
-  if(liveCreateOpen && !lk) html += `<div class="live-reg-box">${songRegisterInner}</div>`;   // 曲を登録：たたまずに、曲マスタの「曲を登録」と同じ画面をそのまま出す
-  if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
+  if(liveCreateOpen && !lk) createHtml += `<div class="live-reg-box">${songRegisterInner}</div>`;   // 曲を登録：たたまずに、曲マスタの「曲を登録」と同じ画面をそのまま出す
+  if(liveCreateOpen && !lk) createHtml += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
-  html += `</div><div class="le-main">`;
-  // ---- セットリストエリア ----
-  html += totalsCardHtml;   // 見出し（セットリスト・合計時間）→ 絞り込み・並べ替え → 表示切り替え
+  html += `<div class="le-timer">${totalsCardHtml}</div><div class="le-main">`;   // セットリスト（合計時間・タイマー）のカード
+  // ---- セットリストエリア ---- 絞り込み・並べ替え → 表示切り替え → 曲
   const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
   if(lk){ slFilter = 'all'; slSort = 'order'; }   // ロック中は絞り込み・並び替えを出さない（本番の曲順のまま）
   if(slSongs.length > 1 && !lk) html += `<div class="stock-tools sl-tools">
@@ -5182,7 +5189,7 @@ function renderLiveEdit(){
     html += shown.length ? shown.map(r => slSort==='order' ? r.p.h : r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
   }
 
-  html += `</div><div class="le-acts">`;
+  html += `</div><div class="le-create">${createHtml}</div><div class="le-acts">`;
   // 画面下の操作は見出しだけ出して、押したら開く（初期値は閉じる）
   const actGroup = (key, title, sub, inner) => `<div class="action-group${actOpen[key] ? ' open' : ''}">
     <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
