@@ -192,6 +192,8 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .dur-row select{flex:0 0 auto; padding:9px 8px; width:auto; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:15px;}
 .dur-sep{font-size:13px; color:var(--muted);}
 .form-actions{display:flex; gap:8px; margin-top:4px;}
+.live-reg-box{margin-top:10px;}
+.live-reg-box .stock-reg-actions{margin-bottom:16px;}
 .stock-reg-actions{margin:12px 0 28px;}   /* 曲を登録（ネット検索・ライブラリ）のキャンセルと、下の曲一覧の間をあける */
 
 .data-place{background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; line-height:1.65; color:var(--text);}
@@ -1022,13 +1024,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.65.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.65.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.65.1': [
+    'セットリスト作成の「曲を登録」を、曲マスタの「曲を登録」を押した後と同じ画面に（たたまずに表示。ネット検索｜ライブラリ｜手入力｜一括）。一括登録もセットリストに入れられるように'
+  ],
   '1.65.0': [
     'セットリストのテキスト書き出しに「曲以外」（MC・SEなど）を載せるかの選択を追加。「イベントをテキストで書き出し」はセットリストの書き出しにまとめました（「イベント情報」で切り替え）',
     'イベントと曲マスタのタブを、左右にドラッグして並べ替えられるように（アプリを開いたときは左のタブから）',
@@ -1961,9 +1966,9 @@ let showOthers = true;  // セットリストに曲以外（MC・SEなど）を�
 let selectAddPos = store.get('setlist_select_pos','end');   // 「曲を選択」の追加位置
 let registerAddPos = store.get('setlist_register_pos','start'); // 「曲を登録」の追加位置
 // 追加位置の切り替え（先頭／最後）
-function posSegHtml(kind, pos){
+function posSegHtml(kind, pos, label='追加する位置'){
   return `<div class="pos-row">
-    <span class="add-sub-title" style="margin:0;">追加する位置</span>
+    <span class="add-sub-title" style="margin:0;">${label}</span>
     <div class="pos-seg">
       <button type="button" class="${pos==='start'?'on':''}" onclick="setAddPos('${kind}','start')">先頭</button>
       <button type="button" class="${pos!=='start'?'on':''}" onclick="setAddPos('${kind}','end')">最後</button>
@@ -4188,8 +4193,8 @@ function songFormHtml(f, ctx='stock'){
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${safeUrl(f.url) ? `<a class="ref-link" href="${esc(safeUrl(f.url))}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
-    ${!f.id && !isLive ? stockPosSegHtml() : ''}
-    ${isLive ? `<div class="hint" style="padding:0 0 8px;">保存すると曲マスタに登録して、セットリストにも追加します。</div>` : returnToLiveId ? `<div class="hint" style="padding:0 0 8px;">保存またはキャンセルすると、イベント画面に戻ります。</div>` : ''}
+    ${!f.id ? (isLive ? posSegHtml('register', registerAddPos, 'セットリストに入れる位置') : stockPosSegHtml()) : ''}
+    ${!isLive && returnToLiveId ? `<div class="hint" style="padding:0 0 8px;">保存またはキャンセルすると、イベント画面に戻ります。</div>` : ''}
     <div class="form-actions">
       <button type="submit" class="btn btn-accent">保存</button>
       <button type="button" class="btn" id="song-cancel">キャンセル</button>
@@ -4239,7 +4244,7 @@ document.addEventListener('submit', e => {
 });
 document.addEventListener('click', e => {
   if(e.target.id!=='song-cancel') return;
-  if(songForm && songForm.__ctx==='live'){ songForm = null; netQ = ''; render(); return; }   // イベントの手入力：入力を消すだけ
+  if(songForm && songForm.__ctx==='live'){ closeLiveCreate(); return; }   // イベントの手入力：入力を消して、セットリスト作成を閉じる
   finishSongEdit();
 });
 // 手入力：Markdownの曲情報をフォームに入れ、構成表は保存時に一緒に登録する
@@ -4276,7 +4281,7 @@ function finishSongEdit(){
   render();
 }
 // ---- テキストからまとめて登録（端末の中だけで完結。通信なし）----
-const bulk = {text:'', items:[]};
+const bulk = {text:'', items:[], liveId:null};
 const BULK_JUNK = /^(シャッフル|再生|すべて再生|ライブラリ|ライブラリに追加|ダウンロード|編集|共有|プレイリスト|アルバム|曲|ミュージック|検索|ラジオ|見つける|今すぐ聴く|最近追加した項目|次はこちら|explicit|e|play|shuffle|library|songs?|albums?|playlists?|more|もっと見る|\.{2,}|…)$/i;
 function bulkOverlay(inner){
   let ov = document.getElementById('bulk-overlay');
@@ -4481,12 +4486,20 @@ window.commitBulk = () => {
     const dur = /^\d{1,2}:\d{2}$/.test(x.duration) ? fmtDur(parseDur(x.duration)) : x.ph;
     return {id:uid(), name:x.name, bpm:'-', key:'-', duration:dur, start:SE_START_DEFAULT, end:'', url:'', notes:'', orig: x.artist || '', rhythm:'', genre: x.pk ? x.pk.genre : '', updatedAt: now - k};
   });
-  songs = stockAddPos==='start' ? add.concat(songs) : songs.concat(add);
-  saveSongs();
-  bulk.text = ''; bulk.items = [];
+  const live = bulk.liveId ? lives.find(l => l.id===bulk.liveId) : null;
+  if(live){
+    // イベントから：曲マスタの最後に登録して、セットリストの選んだ位置にも入れる
+    songs = songs.concat(add); saveSongs();
+    insertEntries(live, add.map(x => ({type:'song', songId:x.id})), registerAddPos);
+    live.updatedAt = Date.now(); saveLives();
+  } else {
+    songs = stockAddPos==='start' ? add.concat(songs) : songs.concat(add);
+    saveSongs();
+  }
+  bulk.text = ''; bulk.items = []; bulk.liveId = null;
   closeBulk();
   render();
-  showToast(`${add.length}曲を曲マスタの${posLabel(stockAddPos)}に登録しました。`);
+  showToast(live ? `${add.length}曲を曲マスタに登録して、セットリストの${posLabel(registerAddPos)}に追加しました。` : `${add.length}曲を曲マスタの${posLabel(stockAddPos)}に登録しました。`);
 };
 let stockQuery = '';        // 曲マスタの検索語
 let stockFocusQ = false;    // 検索を開いた直後は入力欄にカーソル
@@ -5075,8 +5088,7 @@ function renderLiveEdit(){
   </div>`;
 
 
-  if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveRegister()"><div class="fold-head-main"><span class="fold-title">曲を登録</span><span class="fold-sub">曲マスタ・定番曲・手入力</span></div>${foldToggleHtml(liveRegisterOpen)}</button>
-    ${liveRegisterOpen ? `<div class="fold-body">${songRegisterInner}</div>` : ''}</div>`;
+  if(liveCreateOpen && !lk) html += `<div class="live-reg-box">${songRegisterInner}</div>`;   // 曲を登録：たたまずに、曲マスタの「曲を登録」と同じ画面をそのまま出す
   if(liveCreateOpen && !lk) html += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
     ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
 
@@ -6306,7 +6318,7 @@ const catalogCache = new Map();
 const REG_TABS = [['net','ネット検索'],['lib','ライブラリ'],['manual','手入力']];
 function regCurrentTab(ctx){ return ctx==='stock' ? stockRegTab : regTab; }
 function regSegHtml(tab, ctx){
-  const tabs = ctx==='stock' ? [...REG_TABS, ['bulk','一括']] : REG_TABS;   // 「ネット検索｜ライブラリ｜手入力」。曲マスタは「一括」（テキストからまとめて登録）も
+  const tabs = [...REG_TABS, ['bulk','一括']];   // 曲マスタ・イベントとも「ネット検索｜ライブラリ｜手入力｜一括」
   return `<div class="reg-seg" role="tablist">${tabs.map(([k,l]) => `<button type="button" class="${tab===k?'on':''}" onclick="setRegTab('${k}','${ctx}')" role="tab" aria-selected="${tab===k}">${l}</button>`).join('')}</div>`;
 }
 function regSearchHtml(ctx){
@@ -6315,14 +6327,19 @@ function regSearchHtml(ctx){
 }
 // イベント画面の「曲を登録」の中身
 function regBodyHtml(){
+  // 曲マスタの「曲を登録」を押した後と同じ画面（ネット検索｜ライブラリ｜手入力｜一括）。入れる先はセットリスト（曲マスタにも登録）
   const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
-    // 曲マスタの「手入力」と同じフォーム（Markdown取り込みつき）。保存すると曲マスタに登録して、セットリストにも追加
     if(!songForm || songForm.__ctx!=='live') songForm = {id:null, name:netQ.trim(), bpm:'-', key:'-', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:'', __ctx:'live'};
-    return `${seg}${posSegHtml('register', registerAddPos)}${songFormHtml(songForm, 'live')}`;
+    return `${seg}${songFormHtml(songForm, 'live')}`;
   }
-  return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}`;
+  return `${seg}<div class="panel stock-reg-panel">
+      ${posSegHtml('register', registerAddPos, 'セットリストに入れる位置')}
+      ${regSearchHtml('live')}
+    </div>
+    <div class="form-actions stock-reg-actions"><button type="button" class="btn" onclick="closeLiveCreate()">キャンセル</button></div>`;
 }
+window.closeLiveCreate = () => { if(songForm && songForm.__ctx==='live') songForm = null; netQ = ''; liveCreateOpen = false; render(); };
 // 曲マスタの「曲を登録」（手入力以外のタブ）の中身
 function stockRegPanelHtml(){
   return `${regSegHtml(stockRegTab, 'stock')}<div class="panel stock-reg-panel">
@@ -6332,7 +6349,7 @@ function stockRegPanelHtml(){
     <div class="form-actions stock-reg-actions"><button type="button" class="btn" id="song-cancel">キャンセル</button></div>`;
 }
 window.setRegTab = (t, ctx='live') => {
-  if(t==='bulk'){ openBulkText(); return; }   // 一括はタブを切り替えず、まとめて登録の画面を開く
+  if(t==='bulk'){ bulk.liveId = ctx==='live' ? liveEditId : null; openBulkText(); return; }   // 一括はタブを切り替えず、まとめて登録の画面を開く（イベントからならセットリストにも入れる）
   if(ctx==='stock'){
     syncSongFormDom();
     // 検索欄の文字を手入力の曲名へ、手入力の曲名を検索欄へ引き継ぐ（空いている方にだけ入れる）
