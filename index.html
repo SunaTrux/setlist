@@ -412,6 +412,18 @@ select.mini-input{width:64px; padding:5px 2px;}
 .action-group-sub{font-size:12px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .action-group-head .fold-toggle{margin-left:auto;}
 .action-group-body{padding:0 12px 12px;}
+/* セットリスト画面の下のパネル（曲を追加・曲以外を追加・その他の操作）：1枚につなげて、それぞれアコーディオン */
+.acc-panel{margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+.acc-panel:empty{display:none;}
+.acc-item + .acc-item{border-top:1px solid var(--border);}
+.acc-head{display:flex; align-items:center; gap:8px; width:100%; min-height:52px; padding:10px 12px 10px 14px; border:none; background:none; color:var(--text); font-family:inherit; text-align:left; cursor:pointer; scroll-margin-top:8px;}
+.acc-title{font-size:14px; font-weight:700; flex:none;}
+.acc-sub{font-size:12px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.acc-head .fold-toggle{margin-left:auto;}
+.acc-body{padding:2px 12px 14px;}
+.acc-body > button + button, .acc-body > .btn + .btn-danger-block, .acc-body > .btn-danger-block + .btn-danger-block{margin-top:8px;}
+.acc-body .stock-reg-actions{margin:12px 0 0;}
+.acc-item#setlist-section{scroll-margin-top:8px;}
 .action-group-body > button{margin:0;}
 .action-group-body > button + button{margin-top:8px;}
 .modal-text{width:100%; margin-bottom:14px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; line-height:1.7; font-family:inherit; resize:none;}
@@ -872,12 +884,11 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
   .metro-inner{border-radius:16px 16px 0 0;}
 }
 @media (min-width:820px){
-  .le-grid{display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); grid-template-rows:auto auto auto 1fr; grid-template-areas:"ev main" "timer main" "create main" "acts main"; column-gap:28px; align-items:start;}
+  .le-grid{display:grid; grid-template-columns:minmax(300px, 380px) minmax(0, 1fr); grid-template-rows:auto auto 1fr; grid-template-areas:"ev main" "timer main" "create main"; column-gap:28px; align-items:start;}
   .le-ev{grid-area:ev; min-width:0;}
   .le-timer{grid-area:timer; min-width:0;}
   .le-main{grid-area:main; min-width:0;}
   .le-create{grid-area:create; min-width:0;}
-  .le-acts{grid-area:acts; min-width:0;}
   .le-timer > .sl-head-card{margin-top:12px;}
   .le-main > .sl-tools:first-child, .le-main > .list-opts:first-child{margin-top:0;}
   .le-acts > .action-group:first-child{margin-top:12px;}
@@ -1026,13 +1037,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.66.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.67.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.67.0': [
+    'セットリスト画面の下を、「曲を追加」「曲以外を追加」「その他の操作」の3つがつながった1枚のパネルに。それぞれ見出しを押すと開きます'
+  ],
   '1.66.0': [
     'セットリスト画面の並びを「イベント → セットリスト（合計・タイマー）→ セットリスト → セットリスト作成 → その他の操作」に'
   ],
@@ -4929,8 +4943,8 @@ window.openLiveSetlist = id => {
   openLive(id);
   const l = lives.find(x => x.id===id);
   const hasSongs = l && l.setlist.some(e => e.type!=='other');
-  if(hasSongs){ if(liveCreateOpen){ liveCreateOpen = false; render(); } }
-  else if(!liveCreateOpen){ liveCreateOpen = true; liveRegisterOpen = true; render(); }
+  if(hasSongs){ if(liveRegisterOpen){ liveRegisterOpen = false; render(); } }
+  else if(!liveRegisterOpen){ liveRegisterOpen = true; render(); }
   const el = document.getElementById(hasSongs ? 'setlist-main' : 'setlist-section');
   if(el) requestAnimationFrame(() => {
     // 上に固定のタイトル・タブがあるので、その高さ分ずらして見出しが隠れないようにする
@@ -5032,10 +5046,11 @@ function renderLiveEdit(){
   </form>`;
   const lk = showMode;   // 🔒 本番モード：曲順を固定（追加・削除・並べ替えをしない）
   html += `</div></div>`;   // イベントカード / le-ev
-  let createHtml = (lk ? showModeNoteHtml('曲の追加・削除・並べ替え').replace('class="lock-note"', 'class="lock-note" id="setlist-section"') : `
-  <button type="button" class="create-head${liveCreateOpen ? ' open' : ''}" id="setlist-section" onclick="toggleLiveCreate()" aria-expanded="${liveCreateOpen}">
-    <span class="create-title">セットリスト作成</span>${liveCreateOpen ? '' : '<span class="create-sub">曲を登録・曲以外を追加</span>'}${foldToggleHtml(liveCreateOpen)}
-  </button>`);
+  // 画面下のパネル：「曲を追加」「曲以外を追加」「その他の操作」を1枚にまとめ、それぞれアコーディオンで開く
+  const accItem = (title, sub, open, toggle, inner, id) => `<div class="acc-item${open ? ' open' : ''}"${id ? ` id="${id}"` : ''}>
+    <button type="button" class="acc-head" onclick="${toggle}" aria-expanded="${open}"><span class="acc-title">${title}</span>${open ? '' : `<span class="acc-sub">${sub}</span>`}${foldToggleHtml(open)}</button>
+    ${open ? `<div class="acc-body">${inner}</div>` : ''}</div>`;
+  let createHtml = lk ? showModeNoteHtml('曲の追加・削除・並べ替え').replace('class="lock-note"', 'class="lock-note" id="setlist-section"') : '';
 
   const songRegisterInner = regBodyHtml(live);
 
@@ -5096,9 +5111,8 @@ function renderLiveEdit(){
   </div>`;
 
 
-  if(liveCreateOpen && !lk) createHtml += `<div class="live-reg-box">${songRegisterInner}</div>`;   // 曲を登録：たたまずに、曲マスタの「曲を登録」と同じ画面をそのまま出す
-  if(liveCreateOpen && !lk) createHtml += `<div class="fold-card"><button type="button" class="fold-head" onclick="toggleLiveOther()"><div class="fold-head-main"><span class="fold-title">曲以外を追加</span><span class="fold-sub">MC・SE・セッティングなど</span></div>${foldToggleHtml(liveOtherOpen)}</button>
-    ${liveOtherOpen ? `<div class="fold-body">${otherAddInner}</div>` : ''}</div>`;
+  if(!lk) createHtml += accItem('曲を追加', 'ネット検索・ライブラリ・手入力・一括', liveRegisterOpen, 'toggleLiveRegister()', songRegisterInner, 'setlist-section');   // 中身は曲マスタの「曲を登録」と同じ画面
+  if(!lk) createHtml += accItem('曲以外を追加', 'MC・SE・セッティングなど', liveOtherOpen, 'toggleLiveOther()', otherAddInner);
 
   html += `<div class="le-timer">${totalsCardHtml}</div><div class="le-main">`;   // セットリスト（合計時間・タイマー）のカード
   // ---- セットリストエリア ---- 絞り込み・並べ替え → 表示切り替え → 曲
@@ -5189,22 +5203,17 @@ function renderLiveEdit(){
     html += shown.length ? shown.map(r => slSort==='order' ? r.p.h : r.p.h.replace(/<span class="drag-handle"[\s\S]*?<\/svg><\/span>/, '')).join('') : `<div class="empty">絞り込みに合う曲がありません。</div>`;
   }
 
-  html += `</div><div class="le-create">${createHtml}</div><div class="le-acts">`;
-  // 画面下の操作は見出しだけ出して、押したら開く（初期値は閉じる）
-  const actGroup = (key, title, sub, inner) => `<div class="action-group${actOpen[key] ? ' open' : ''}">
-    <button type="button" class="action-group-head" onclick="toggleActGroup('${key}')" aria-expanded="${!!actOpen[key]}"><span class="action-group-title">${title}</span>${actOpen[key] ? '' : `<span class="action-group-sub">${sub}</span>`}${foldToggleHtml(!!actOpen[key])}</button>
-    ${actOpen[key] ? `<div class="action-group-body">${inner}</div>` : ''}</div>`;
   {
     // 「その他の操作」：セットリストとイベントの、たまにしか使わない操作を1つにまとめる
     const hasSl = live.setlist.length > 0, canImport = !lk && lives.some(l => l.id!==live.id && l.setlist.length);
     const sub = [canImport ? '読み込み' : '', '書き出し', showMode ? '' : 'コピー', showMode ? '' : '削除'].filter(Boolean).join('・');
-    html += actGroup('more', 'その他の操作', sub, `
+    createHtml += accItem('その他の操作', sub, !!actOpen.more, "toggleActGroup('more')", `
       ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(false)">セットリストをテキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${showMode ? '' : `<button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">イベントをコピーして新規で開く${COPY_ICON_SVG}</button>`}
       ${showMode ? `<div class="hint">🔒 本番モード中のため、読み込み・コピー・削除はできません。</div>` : `${hasSl ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}<button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`}`);
   }
-  html += `</div></div>`;   // le-acts / le-grid
+  html += `</div><div class="le-create"><div class="acc-panel">${createHtml.replace(/^(<div class="lock-note"[\s\S]*?<\/div>)/, '</div>$1<div class="acc-panel">')}</div></div></div>`;   // le-main を閉じて、下のパネル / le-grid
 
   main.innerHTML = html;
   if(timer.running && !timer.intervalId){ timer.intervalId = setInterval(tickTimer, 1000); }
@@ -6346,7 +6355,7 @@ function regBodyHtml(){
     </div>
     <div class="form-actions stock-reg-actions"><button type="button" class="btn" onclick="closeLiveCreate()">キャンセル</button></div>`;
 }
-window.closeLiveCreate = () => { if(songForm && songForm.__ctx==='live') songForm = null; netQ = ''; liveCreateOpen = false; render(); };
+window.closeLiveCreate = () => { if(songForm && songForm.__ctx==='live') songForm = null; netQ = ''; liveRegisterOpen = false; render(); };
 // 曲マスタの「曲を登録」（手入力以外のタブ）の中身
 function stockRegPanelHtml(){
   return `${regSegHtml(stockRegTab, 'stock')}<div class="panel stock-reg-panel">
