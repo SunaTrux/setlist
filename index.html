@@ -78,6 +78,8 @@ h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
 .tagline-next.spin svg{transform:rotate(360deg);}
 .tagline-next[hidden]{display:none;}
 nav button{display:inline-flex; align-items:center; justify-content:center; gap:5px;}
+#tab-lives, #tab-songs{touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;}
+nav button.tab-dragging{position:relative; z-index:2; background:var(--surface); border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.18); transition:none;}
 .tab-ic{width:16px; height:16px; flex:none; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round;}
 nav{display:flex; padding:0 16px; gap:4px;}
 nav button{flex:1; padding:10px 0; background:none; border:none; color:var(--muted); font-size:14px; font-weight:600; border-bottom:2px solid transparent; cursor:pointer;}
@@ -1020,13 +1022,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.64.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-24';
+const APP_VERSION = '1.65.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.65.0': [
+    'セットリストのテキスト書き出しに「曲以外」（MC・SEなど）を載せるかの選択を追加。「イベントをテキストで書き出し」はセットリストの書き出しにまとめました（「イベント情報」で切り替え）',
+    'イベントと曲マスタのタブを、左右にドラッグして並べ替えられるように（アプリを開いたときは左のタブから）',
+    'イベントの「曲を登録」→「手入力」を、曲マスタと同じフォームに（BPM・キー・はじめかた・Markdown取り込みなど）'
+  ],
   '1.64.0': [
     'テキストで書き出しに「アーティスト」を付けるかの選択を追加（曲名 - アーティスト）',
     '「イベントをCSVで書き出す」を「イベントをテキストで書き出し」に。イベント名・日時・場所・メモとセットリスト、合計時間をまとめて書き出せます',
@@ -1922,7 +1929,9 @@ function sortLives(arr, mode){
   return a.sort((x,y)=>(y.date||'').localeCompare(x.date||'')); // date_desc (default)
 }
 
-let tab = 'lives';   // アプリを開いたときはイベント一覧から
+// イベント・曲マスタのタブの並び（ドラッグで入れ替え。端末ごとに保存）。アプリを開いたときは左のタブから
+let tabOrder = (o => Array.isArray(o) && o[0]==='songs' ? ['songs','lives'] : ['lives','songs'])(store.get('setlist_tab_order', null));
+let tab = tabOrder[0];
 let songForm = null;
 let liveEditId = null;
 let songExpandedId = null;
@@ -1965,7 +1974,8 @@ window.setAddPos = (kind, pos) => {
   if(kind==='select'){ selectAddPos = pos; store.set('setlist_select_pos', pos); }
   else if(kind==='register'){ registerAddPos = pos; store.set('setlist_register_pos', pos); }
   else { otherAddPos = pos; store.set('setlist_other_pos', pos); }
-  // 入力途中の曲名・時間は残す
+  // 入力途中の内容は残す
+  if(songForm && songForm.__ctx==='live') syncSongFormDom();
   const n = document.getElementById('quick-song-name'), d = document.getElementById('quick-song-dur');
   const keep = n ? {name:n.value, dur:d?d.value:'', touched:d?d.dataset.touched:''} : null;
   render();
@@ -3772,6 +3782,47 @@ function stFlash(title, sub){
 }
 
 const main = document.getElementById('main');
+// タブの並びを画面に反映
+function applyTabOrder(){
+  const nav = document.querySelector('header nav'), a = document.getElementById('tab-lives'), b = document.getElementById('tab-songs');
+  if(!nav || !a || !b) return;
+  const first = tabOrder[0]==='songs' ? b : a, second = first===a ? b : a;
+  if(first.nextElementSibling !== second || nav.firstElementChild !== first){ nav.insertBefore(second, nav.firstElementChild); nav.insertBefore(first, second); }
+}
+applyTabOrder();
+// タブを左右にドラッグすると、イベントと曲マスタの並びを入れ替える（設定は右端のまま）
+(() => {
+  let d = null, suppress = false;
+  const ids = ['tab-lives','tab-songs'];
+  document.addEventListener('pointerdown', e => {
+    const el = e.target.closest && e.target.closest('#tab-lives, #tab-songs'); if(!el) return;
+    d = {el, id:e.pointerId, x0:e.clientX, moved:false};
+  });
+  document.addEventListener('pointermove', e => {
+    if(!d || e.pointerId!==d.id) return;
+    const dx = e.clientX - d.x0;
+    if(!d.moved && Math.abs(dx) < 10) return;
+    d.moved = true; d.el.classList.add('tab-dragging');
+    d.el.style.transform = `translateX(${dx}px)`;
+    const other = document.getElementById(ids.find(i => i!==d.el.id)); const r = other.getBoundingClientRect(), me = d.el.getBoundingClientRect();
+    const dist = (r.left + r.width/2) - (me.left - dx + me.width/2);   // 元の位置から相手のタブの中心までの距離
+    if((dist > 0 && dx > dist/2) || (dist < 0 && dx < dist/2)){   // 半分を超えたら入れ替え
+      tabOrder = tabOrder.slice().reverse(); store.set('setlist_tab_order', tabOrder);
+      const before = d.el.getBoundingClientRect().left - dx;
+      applyTabOrder();
+      const after = d.el.getBoundingClientRect().left - dx;   // 入れ替わった分だけ基準をずらす
+      d.x0 += (after - before);
+      d.el.style.transform = `translateX(${e.clientX - d.x0}px)`;
+    }
+  });
+  const end = e => {
+    if(!d || e.pointerId!==d.id) return;
+    if(d.moved){ suppress = true; d.el.style.transform = ''; d.el.classList.remove('tab-dragging'); }
+    d = null;
+  };
+  document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
+  document.addEventListener('click', e => { if(suppress && e.target.closest && e.target.closest('#tab-lives, #tab-songs')){ suppress = false; e.stopPropagation(); e.preventDefault(); } else suppress = false; }, true);
+})();
 document.getElementById('tab-lives').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='lives'; liveEditId=null; render(); };
 document.getElementById('tab-songs').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='songs'; songForm=null; render(); };
 document.getElementById('tab-settings').onclick = () => { structOpen = null; structEdit = false; stOpenSec = null; stTrans = 0; returnToLiveId = null; stockSelectMode = false; stockSelected = new Set(); stopMetro(); stopTimerInterval(); cleanupEmptyLive(); tab='settings'; render(); };
@@ -4089,10 +4140,11 @@ function readStartEnd(id){
   if(!sel) return input ? input.value.trim() : '';
   return sel.value === '__free' ? (input ? input.value.trim() : '') : sel.value;
 }
-function songFormHtml(f){
+function songFormHtml(f, ctx='stock'){
+  const isLive = ctx==='live';   // イベントの「曲を登録」→「手入力」から
   // 新しい曲：ネット検索・ライブラリはタブのパネル、手入力は下のフォーム
-  if(!f.id && stockRegTab !== 'manual') return stockRegPanelHtml();
-  const seg = !f.id ? regSegHtml(stockRegTab, 'stock') : '';
+  if(!isLive && !f.id && stockRegTab !== 'manual') return stockRegPanelHtml();
+  const seg = !f.id && !isLive ? regSegHtml(stockRegTab, 'stock') : '';
   const nSec = f.struct && f.struct.sections ? f.struct.sections.length : 0;
   const mdPanel = f.id ? '' : `<details class="panel song-md" open>
     <summary>Markdownから取り込む</summary>
@@ -4136,8 +4188,8 @@ function songFormHtml(f){
     <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${safeUrl(f.url) ? `<a class="ref-link" href="${esc(safeUrl(f.url))}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
-    ${!f.id ? stockPosSegHtml() : ''}
-    ${returnToLiveId ? `<div class="hint" style="padding:0 0 8px;">保存またはキャンセルすると、イベント画面に戻ります。</div>` : ''}
+    ${!f.id && !isLive ? stockPosSegHtml() : ''}
+    ${isLive ? `<div class="hint" style="padding:0 0 8px;">保存すると曲マスタに登録して、セットリストにも追加します。</div>` : returnToLiveId ? `<div class="hint" style="padding:0 0 8px;">保存またはキャンセルすると、イベント画面に戻ります。</div>` : ''}
     <div class="form-actions">
       <button type="submit" class="btn btn-accent">保存</button>
       <button type="button" class="btn" id="song-cancel">キャンセル</button>
@@ -4163,6 +4215,17 @@ document.addEventListener('submit', e => {
     f.orig = document.getElementById('song-orig').value.trim();
     if(!f.name) return;
     f.updatedAt = Date.now();
+    if(f.__ctx==='live'){
+      // イベントから：曲マスタに登録して、セットリストの選んだ位置に追加。フォームは空にして続けて登録できるように
+      const live = lives.find(l => l.id===liveEditId); if(!live) return;
+      delete f.__ctx; f.id = uid(); songs.push(f); saveSongs();
+      insertEntries(live, [{type:'song', songId:f.id}], registerAddPos);
+      live.updatedAt = Date.now(); saveLives();
+      songForm = null; netQ = '';
+      render();
+      showToast(`「${f.name}」を曲マスタに登録して、セットリストの${registerAddPos==='start' ? '先頭' : '最後'}に追加しました。`);
+      return;
+    }
     if(f.id){ songs[songs.findIndex(s=>s.id===f.id)] = f; }
     else { f.id = uid(); if(stockAddPos==='start') songs.unshift(f); else songs.push(f); }
     saveSongs(); finishSongEdit();
@@ -4174,7 +4237,11 @@ document.addEventListener('submit', e => {
     render();
   }
 });
-document.addEventListener('click', e => { if(e.target.id==='song-cancel'){ finishSongEdit(); } });
+document.addEventListener('click', e => {
+  if(e.target.id!=='song-cancel') return;
+  if(songForm && songForm.__ctx==='live'){ songForm = null; netQ = ''; render(); return; }   // イベントの手入力：入力を消すだけ
+  finishSongEdit();
+});
 // 手入力：Markdownの曲情報をフォームに入れ、構成表は保存時に一緒に登録する
 window.songMdImport = () => {
   const f = songForm; if(!f) return;
@@ -4828,6 +4895,7 @@ window.toggleLiveLock = () => setShowMode(!showMode);
 function liveLockedGuard(live){ if(showMode){ showToast(SHOW_LOCK_MSG); return true; } return false; }
 window.resetSlView = () => { slFilter = 'all'; slSort = 'order'; render(); };
 window.openLive = id => {
+  if(songForm && songForm.__ctx==='live') songForm = null;
   actOpen = {more:false};
   slFilter = 'all'; slSort = 'order';
   entryExpandedIdx = null; entryEditIdx = null; liveEditId = id; justCopiedId = null; liveTotalsOpen = false; liveOtherOpen = false;
@@ -5115,7 +5183,6 @@ function renderLiveEdit(){
       ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(false)">セットリストをテキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${showMode ? '' : `<button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">イベントをコピーして新規で開く${COPY_ICON_SVG}</button>`}
-      <button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(true)">イベントをテキストで書き出し${TEXT_ICON_SVG}</button>
       ${showMode ? `<div class="hint">🔒 本番モード中のため、読み込み・コピー・削除はできません。</div>` : `${hasSl ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}<button type="button" class="btn-danger-block" onclick="removeLive()">イベントを削除</button>`}`);
   }
   html += `</div></div>`;   // le-acts / le-grid
@@ -5432,7 +5499,7 @@ window.applyOverridesToMaster = () => {
   showToast(`「${s.name}」の曲マスタを更新しました。`);
 };
 window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
-window.backToLives = () => { stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; entryEditIdx=null; render(); scrollToTop(); };
+window.backToLives = () => { if(songForm && songForm.__ctx==='live') songForm = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; entryEditIdx=null; render(); scrollToTop(); };
 // イベント一覧から削除（✕ボタン・左スワイプ）
 window.removeLiveById = (id) => {
   const live = lives.find(l=>l.id===id); if(!live) return;
@@ -5490,7 +5557,8 @@ function buildSetlistText(live, numbered=true, o=null){
   live.setlist.forEach(e => {
     if(e.type==='other'){
       const label = e.label || 'その他';
-      if(!showOthers){ if(e.numbered) seq++; return; }
+      const inclOthers = o && typeof o.others==='boolean' ? o.others : showOthers;   // 書き出しの「曲以外」で選ぶ（番号は数えたまま）
+      if(!inclOthers){ if(e.numbered) seq++; return; }
       if(e.numbered){ seq++; lines.push(numbered ? `${seq}. ${label}` : label); }
       else lines.push(`・${label}`);
     } else {
@@ -5540,7 +5608,7 @@ function showTextModal(text){
 }
 // テキスト書き出し：番号あり／なしを選んで、内容を確かめてからコピーする
 let textNumbered = store.get('setlist_text_numbered', true);
-let textOpts = Object.assign({bpm:false, key:false}, store.get('setlist_text_opts', {}));  // 書き出しに BPM・Key を付けるか
+let textOpts = Object.assign({bpm:false, key:false, others:true}, store.get('setlist_text_opts', {}));  // 書き出しに BPM・Key を付けるか
 // 曲名の後ろに付ける「 (BPM 92 / Key Cm)」。未設定や「-」は付けない。e があればイベントの値
 function songSuffix(s, e, o){
   if(!o) return '';
@@ -5571,7 +5639,7 @@ function openTextExport(title, build, withEvent){
         <button type="button" class="opt-chip ${textOpts.bpm?'on':''}" data-opt="bpm" aria-pressed="${textOpts.bpm}">BPM</button>
         <button type="button" class="opt-chip ${textOpts.key?'on':''}" data-opt="key" aria-pressed="${textOpts.key}">Key</button>
         <button type="button" class="opt-chip ${textOpts.artist?'on':''}" data-opt="artist" aria-pressed="${!!textOpts.artist}">アーティスト</button>
-        ${withEvent ? `<button type="button" class="opt-chip ${textOpts.event?'on':''}" data-opt="event" aria-pressed="${!!textOpts.event}">イベント情報</button>` : ''}
+        ${withEvent ? `<button type="button" class="opt-chip ${textOpts.others?'on':''}" data-opt="others" aria-pressed="${!!textOpts.others}">曲以外</button><button type="button" class="opt-chip ${textOpts.event?'on':''}" data-opt="event" aria-pressed="${!!textOpts.event}">イベント情報</button>` : ''}
       </div>
       <textarea class="modal-text" readonly rows="${Math.min(12, text.split('\n').length+1)}">${esc(text)}</textarea>
       <div class="modal-actions">
@@ -5600,8 +5668,7 @@ window.copySetlistText = (withEventInfo) => {
   if(!live) return;
   applyLiveForm();
   if(!withEventInfo && !buildSetlistText(live)){ showToast('セットリストが空です。'); return; }
-  textOpts.event = !!withEventInfo;   // 「イベントをテキストで書き出し」はイベント情報つきで開く（中で切り替えられる）
-  openTextExport(withEventInfo ? 'イベント' : 'セットリスト', (n, o) => o && o.event ? buildEventText(live, n, o) : buildSetlistText(live, n, o), true);
+  openTextExport('セットリスト', (n, o) => o && o.event ? buildEventText(live, n, o) : buildSetlistText(live, n, o), true);
 };
 // イベント情報（名前・アーティスト・日時・場所・メモ）＋セットリスト＋合計
 function buildEventText(live, n, o){
@@ -6250,12 +6317,9 @@ function regSearchHtml(ctx){
 function regBodyHtml(){
   const seg = regSegHtml(regTab, 'live');
   if(regTab==='manual'){
-    return `${seg}${posSegHtml('register', registerAddPos)}<div class="quick-song-row">
-      <input id="quick-song-name" placeholder="曲名" value="${esc(netQ.trim())}" enterkeyhint="done" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAddSong();}">
-      <select id="quick-song-dur" class="mono" aria-label="曲時間" onchange="this.dataset.touched='1'">${durationSelectHtml(DEFAULT_SONG_DUR)}</select>
-      <button type="button" class="btn btn-accent" onclick="quickAddSong()">追加</button>
-    </div>
-    <div class="hint" style="padding-bottom:0;">セットリストに追加し、曲マスタにも登録します。BPM・キー・メモなどの詳しい情報は、あとから曲マスタで編集できます。</div>`;
+    // 曲マスタの「手入力」と同じフォーム（Markdown取り込みつき）。保存すると曲マスタに登録して、セットリストにも追加
+    if(!songForm || songForm.__ctx!=='live') songForm = {id:null, name:netQ.trim(), bpm:'-', key:'-', duration:DEFAULT_SONG_DUR, start:SE_START_DEFAULT, end:'', url:'', notes:'', genre:'', __ctx:'live'};
+    return `${seg}${posSegHtml('register', registerAddPos)}${songFormHtml(songForm, 'live')}`;
   }
   return `${seg}${posSegHtml('register', registerAddPos)}${regSearchHtml('live')}`;
 }
@@ -6276,8 +6340,9 @@ window.setRegTab = (t, ctx='live') => {
     if(t==='manual' && songForm && !String(songForm.name||'').trim() && netQ.trim()) songForm.name = netQ.trim();
     stockRegTab = t;
   } else {
-    const qn = document.getElementById('quick-song-name');
-    if(regTab==='manual' && t!=='manual' && qn && qn.value.trim() && !netQ.trim()) netQ = qn.value.trim();
+    // イベントの手入力フォーム：入力途中の内容を残し、曲名と検索欄の文字を空いている方に引き継ぐ
+    if(regTab==='manual' && songForm && songForm.__ctx==='live'){ syncSongFormDom(); if(t!=='manual' && !netQ.trim() && songForm.name) netQ = songForm.name; }
+    if(t==='manual' && songForm && songForm.__ctx==='live' && !String(songForm.name||'').trim() && netQ.trim()) songForm.name = netQ.trim();
     regTab = t;
   }
   clearTimeout(regTimer); cancelNetSearch(); netLoading = false;
