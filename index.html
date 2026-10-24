@@ -1038,13 +1038,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.67.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.67.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.67.3': [
+    '曲の編集画面の並びを「曲マスタ → このイベント用 → セクション」に',
+    '構成表にセクションがないときは、小節・バーなどの表示チップを出さないように。構成表がない曲の案内文とボタンを見直し'
+  ],
   '1.67.2': [
     '「曲を追加」でセットリストに入れる位置の初期値を「最後」に（曲マスタに入れる位置は「先頭」のまま）'
   ],
@@ -2873,7 +2877,7 @@ function renderStruct(){
   const v = stView(s);
   stCC = stChordCtx(s, e);
   const hasChords = ((s.struct && s.struct.sections) || []).some(x => x.chord);
-  if(!stMin) html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
+  if(!stMin && ((s.struct && s.struct.sections) || []).length) html += `<div class="st-filters">${ST_FILTERS.map(([k,l]) => `<button type="button" class="st-fbtn" data-f="${k}" aria-pressed="${!!v[k]}" onclick="toggleStructFilter('${k}')">${l}</button>`).join('')}</div>`;
   const secs = (s.struct && s.struct.sections) || [];
   // はじめかた・おわりかた・全体のメモは曲情報（イベントで変えていればその値）を使う。構成側の記述より優先
   const seLine = (lab, v, cls = '') => `<div class="st-se"><span class="lab">${lab}</span><span class="${cls}">${esc(v)}</span></div>`;
@@ -2889,7 +2893,7 @@ function renderStruct(){
   if(!secs.length){
     html += `<div class="st-empty">${locked
       ? (showMode ? 'この曲の構成表を作るには、本番モードを解除してください。' : 'この曲の構成表を作るには、標準の表示にしてください。')
-      : `この曲の曲情報と構成はまだありません。セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">構成を作る</button>`}
+      : `この曲の構成表を作れます。<br>セクションを作り、セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">曲情報・構成表の編集</button>`}
       <div class="st-empty-paste"${locked ? ' hidden' : ''}>
         <div class="st-empty-or">または、AIなどで作った曲情報と構成表を Markdown で取り込めます。</div>
         <ol class="st-empty-steps"><li>Markdown のテンプレをコピーする</li><li>AIで曲名などを指定して構成表を作る</li><li>コピーして下に貼り付け、取り込む</li></ol>
@@ -3185,7 +3189,12 @@ function stInfoEditorHtml(s){
   const v = f => effVal(e, s, f);
   const ovs = ST_EV_FIELDS.filter(f => isOv(e, s, f));
   const ovNote = ovs.map(f => `${ST_FIELD_LABEL[f]}：${esc((f==='duration' ? normDurStr(songVal(s,f)) : songVal(s,f)) || '-')}`);
-  return `<div class="panel" id="st-info-ed">
+  // 並び：曲マスタ（全イベント共通）→ このイベント用（→ このあとにセクション）
+  return `<div class="panel">
+    <div class="section-title" style="margin-top:0;">曲マスタ<span class="st-save-note">全イベント共通</span></div>
+    ${stMasterOnlyHtml(s)}
+  </div>
+  <div class="panel" id="st-info-ed">
     <div class="section-title" style="margin-top:0;">このイベント用<span class="st-save-note">このイベントだけ</span></div>
     <p class="st-note">曲マスタは変わりません。曲マスタにも残したいときは、下の「曲マスタにも反映」を押してください。</p>
     ${stBpmKeyHtml(v('bpm'), v('key'), s)}
@@ -3198,10 +3207,6 @@ function stInfoEditorHtml(s){
       <button type="button" class="btn" id="st-info-to-master" onclick="stInfoToMaster()">曲マスタにも反映</button>
       <button type="button" class="btn" onclick="stInfoResetEvent()">曲マスタの値に戻す</button>
     </div>
-  </div>
-  <div class="panel">
-    <div class="section-title" style="margin-top:0;">曲マスタ<span class="st-save-note">全イベント共通</span></div>
-    ${stMasterOnlyHtml(s)}
   </div>`;
 }
 // イベント用に変えた項目を曲マスタに書き込み、イベント用の変更は外す
