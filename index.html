@@ -767,6 +767,7 @@ body.struct-open header{display:none;}
 .st-table.hide-bars .st-len .x{margin-top:0;}
 .st-empty{background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius); padding:24px 16px; text-align:center; color:var(--muted); font-size:14px; line-height:1.7;}
 .st-empty .btn{margin-top:10px;}
+.st-md-import{margin-top:12px; text-align:left;}
 .st-empty-paste{margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); text-align:left;}
 .st-empty-or{font-size:12px; color:var(--muted); margin-bottom:6px; text-align:center;}
 .st-empty-paste textarea{width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-size:14px; font-family:inherit; line-height:1.5; resize:vertical;}
@@ -1038,13 +1039,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.67.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.67.4';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.67.4': [
+    '構成表がない曲の画面で、「曲情報・構成表の編集」の下に、編集画面と同じ「Markdown で取り込む」のパネルを表示'
+  ],
   '1.67.3': [
     '曲の編集画面の並びを「曲マスタ → このイベント用 → セクション」に',
     '構成表にセクションがないときは、小節・バーなどの表示チップを出さないように。構成表がない曲の案内文とボタンを見直し'
@@ -2894,13 +2898,7 @@ function renderStruct(){
     html += `<div class="st-empty">${locked
       ? (showMode ? 'この曲の構成表を作るには、本番モードを解除してください。' : 'この曲の構成表を作るには、標準の表示にしてください。')
       : `この曲の構成表を作れます。<br>セクションを作り、セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">曲情報・構成表の編集</button>`}
-      <div class="st-empty-paste"${locked ? ' hidden' : ''}>
-        <div class="st-empty-or">または、AIなどで作った曲情報と構成表を Markdown で取り込めます。</div>
-        <ol class="st-empty-steps"><li>Markdown のテンプレをコピーする</li><li>AIで曲名などを指定して構成表を作る</li><li>コピーして下に貼り付け、取り込む</li></ol>
-        <textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea>
-        <div class="st-btns" style="margin-top:0; justify-content:center;"><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
-        <div class="st-msg" id="st-paste-msg"></div>
-      </div></div>`;
+      </div>${locked ? '' : stMdImportPanelHtml(false)}`;   // 構成表がないとき：案内と「曲情報・構成表の編集」の下に、編集画面と同じ「Markdown で取り込む」
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
     html += `<div class="st-table ${hide}" id="st-table">${stMin ? '' : `<div class="st-thead"><span>セクション</span><span class="st-th-len">小節</span><span>メモ</span></div>`}${secs.map((x, si) => stRowHtml(x, si) + (stOpenSec===si ? `<div class="st-inline-ed">${stSecEdHtml(x, si, secs.length, true)}</div>` : '')).join('')}</div>${stSecNamesDatalist()}
@@ -3100,6 +3098,17 @@ function stSecEdHtml(x, si, n, inline){
     ${inline && si===n-1 ? `<div class="st-btns" style="margin-top:10px;"><button type="button" class="btn" onclick="stAddSection()">セクションを追加</button></div>` : ''}
   </div>`;
 }
+// 「Markdown で取り込む」のパネル（構成表がないときの画面と、編集画面で同じもの。編集画面では上書きの注意つき）
+function stMdImportPanelHtml(overwrite){
+  return `<div class="panel st-md-import">
+    <div class="section-title" style="margin-top:0;">Markdown で取り込む</div>
+    <div class="st-empty-or" style="text-align:left;">AIなどで作った曲情報と構成表を Markdown で取り込めます。${overwrite ? '<b>今のセクションは上書きされます。</b>' : ''}</div>
+    <ol class="st-empty-steps"><li>Markdown のテンプレをコピーする</li><li>AIで曲名などを指定して構成表を作る</li><li>コピーして下に貼り付け、取り込む</li></ol>
+    <div class="field"><textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea></div>
+    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
+    <div class="st-msg" id="st-paste-msg"></div>
+  </div>`;
+}
 function stEditorHtml(s){
   const secs = stEnsure(s).sections;
   const eds = secs.map((x, si) => stSecEdHtml(x, si, secs.length, false)).join('');
@@ -3112,14 +3121,7 @@ function stEditorHtml(s){
     <div id="st-ed-list">${eds || '<p class="st-note">セクションがありません。下のボタンで追加するか、構成表を貼り付けてください。</p>'}</div>
     <div class="st-btns"><button type="button" class="btn" onclick="stAddSection()">セクションを追加</button></div>
   </div>
-  <div class="panel">
-    <div class="section-title" style="margin-top:0;">Markdown で取り込む</div>
-    <div class="st-empty-or" style="text-align:left;">AIなどで作った曲情報と構成表を Markdown で取り込めます。<b>今のセクションは上書きされます。</b></div>
-    <ol class="st-empty-steps"><li>Markdown のテンプレをコピーする</li><li>AIで曲名などを指定して構成表を作る</li><li>コピーして下に貼り付け、取り込む</li></ol>
-    <div class="field"><textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea></div>
-    <div class="st-btns" style="margin-top:0;"><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
-    <div class="st-msg" id="st-paste-msg"></div>
-  </div>
+  ${stMdImportPanelHtml(true)}
   <div class="panel">
     <div class="section-title" style="margin-top:0;">Markdownで書き出す</div>
     <p class="st-note">この曲の情報と構成表をMarkdownの表にします。メンバーに送ったり、バックアップしたりできます。上の貼り付け欄に戻せば同じ内容で取り込めます。</p>
