@@ -557,8 +557,15 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .setlist-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:20px 0 8px;}
 .head-toggles{display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
 .list-opts{display:flex; justify-content:flex-start; align-items:center; gap:8px; flex-wrap:wrap; margin:-4px 0 6px;}
-.lock-btn{flex:none; height:30px; padding:0 8px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; touch-action:manipulation;}
-.lock-btn.on{background:var(--text); border-color:var(--text); color:var(--bg);}
+.lock-btn{flex:none; width:34px; height:34px; padding:0; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-family:inherit; font-size:15px; line-height:1; cursor:pointer; touch-action:manipulation; display:inline-flex; align-items:center; justify-content:center;}
+.lock-btn.on{background:var(--accent); border-color:var(--accent);}
+/* 表示切り替えの行の右側：絞り込み・並び替え（アイコン）と本番モード */
+.opts-r{margin-left:auto; display:flex; align-items:center; gap:6px; flex:none;}
+.list-opts .opts-r .lock-btn{margin-left:0;}
+.icon-sel{position:relative; flex:none; width:34px; height:34px; border-radius:999px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer;}
+.icon-sel svg{width:15px; height:15px; pointer-events:none;}
+.icon-sel select{position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; font-size:16px;}
+.icon-sel.on{background:var(--accent); border-color:var(--accent); color:var(--accent-text);}
 .list-opts .lock-btn{margin-left:auto;}
 .list-opts .others-chip{flex:none; padding:5px 10px; font-size:12px;}   /* 表示切り替えは左、ロックは右 */
 .setlist-item.just-added{animation:justAdded 1.6s ease;}
@@ -576,7 +583,7 @@ body.is-dragging{-webkit-user-select:none; user-select:none; cursor:grabbing;}
 .le-ev > .fold-card{margin-bottom:0; border-bottom-left-radius:0; border-bottom-right-radius:0;}
 .le-timer > .sl-head-card{margin-top:0 !important; border-top:none; border-top-left-radius:0; border-top-right-radius:0;}
 .sl-head-card .totals-head .totals-label{font-size:15px;}
-.sl-head-card .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:2px;}
+.sl-head-card .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:6px;}
 .sl-head-card + .sl-tools{margin-top:10px;}
 .setlist-row1 .c-only{display:none;}
 body.cards-min .setlist-row1 .c-only{display:flex;}
@@ -1049,13 +1056,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.68.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.69.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.69.0': [
+    'セットリスト画面の上の部分をすっきり：絞り込み・並び替えは小さなアイコンに（使っているときはオレンジ）、本番モードは鍵のアイコンだけに',
+    'イベントカードの「終了」などの表示は色の帯だけで、セットリストの曲数は「◯曲」だけに。「表示」の文字と曲以外の説明文もなくしました'
+  ],
   '1.68.0': [
     '削除の「元に戻す」：セットリストから外した曲、全て削除、イベント・曲の削除のあと、下に出る「元に戻す」で戻せるように（8秒間）',
     'スマホなどタッチの端末では、セットリストの✕ボタンを出さないように（左スワイプで削除）',
@@ -1904,7 +1915,7 @@ window.setShowMode = (on, quiet) => {
   if(!quiet) showToast(showMode ? '🔒 本番モードにしました（イベント・セットリスト・曲マスタ・構成表の編集をオフ）' : '🔓 本番モードを解除しました');
 };
 // 一覧・セットリスト・曲マスタの表示切り替えの右に出す「本番モード」ボタン
-function showModeBtnHtml(){ return `<button type="button" class="lock-btn${showMode ? ' on' : ''}" onclick="setShowMode(!showMode)" aria-pressed="${showMode}" title="${showMode ? '本番モードを解除' : '本番モード（すべての画面の編集をオフ）'}">${showMode ? '🔒 本番モード中' : '🔓 本番モード'}</button>`; }
+function showModeBtnHtml(){ return `<button type="button" class="lock-btn${showMode ? ' on' : ''}" onclick="setShowMode(!showMode)" aria-pressed="${showMode}" aria-label="${showMode ? '本番モード中（押すと解除）' : '本番モード（すべての画面の編集をオフ）'}" title="${showMode ? '本番モード中（押すと解除）' : '本番モード（すべての画面の編集をオフ）'}">${showMode ? '🔒' : '🔓'}</button>`; }
 const showModeNoteHtml = what => `<div class="lock-note">🔒 本番モード中のため、${what}はできません。<button type="button" class="link-btn" onclick="setShowMode(false)">本番モードを解除</button></div>`;
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
 let liveSort = store.get('setlist_live_sort', 'status');  // 初期値は日付順（今日→これから→過去）
@@ -2008,7 +2019,7 @@ const CARD_MODES = [['full','フル'],['bk','標準'],['min','最小']];
 // 構成表がある曲の印（曲名の右）
 const STRUCT_MARK = `<span class="st-has-mark" title="構成表あり" aria-label="構成表あり"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="1.5" y="2" width="13" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 6h7M4.5 8.5h7M4.5 11h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>`;
 function viewSegHtml(mode = cardMode, fn = 'setCardMode'){
-  return `<div class="view-seg"><span class="view-seg-label">表示</span><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${mode===k?'on':''}" onclick="${fn}('${k}')" aria-pressed="${mode===k}">${l}</button>`).join('')}</div></div>`;
+  return `<div class="view-seg"><div class="pos-seg">${CARD_MODES.map(([k,l]) => `<button type="button" class="${mode===k?'on':''}" onclick="${fn}('${k}')" aria-pressed="${mode===k}">${l}</button>`).join('')}</div></div>`;
 }
 // イベント一覧の表示（フル／標準／最小）とロック。どちらも端末ごとに保存
 let livesMode = (m => ['full','bk','min'].includes(m) ? m : 'bk')(store.get('setlist_lives_mode', 'bk'));
@@ -5071,7 +5082,7 @@ function renderLiveEdit(){
     <div class="fold-head-main">${liveInfoOpen
       ? `<div class="fold-title">イベント情報</div>`
       : `<div class="live-title-line"><span class="live-venue">${esc(live.venue || 'イベント名未設定')}</span>${live.artist ? `<span class="live-artist">${esc(live.artist)}</span>` : ''}</div>
-        <div class="live-date mono summary-date">${liveStatusBadge(liveSt)}${live.date ? esc(shortDate(live.date))+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>`}
+        <div class="live-date mono summary-date">${live.date ? esc(shortDate(live.date))+(dowLabel(live.date)?`(${dowLabel(live.date)})`:'') : '日付未設定'}${summaryTime}${stageMinutes(live.startTime, live.endTime)!==null ? `<span class="live-stage-min">${stageMinutes(live.startTime, live.endTime)}分</span>` : ''}</div>`}
     </div>
     ${foldToggleHtml(liveInfoOpen)}
   </button>`;
@@ -5156,7 +5167,7 @@ function renderLiveEdit(){
   const totalsCardHtml = `<div class="fold-card sl-head-card" id="setlist-main" style="scroll-margin-top:8px;">
     <button type="button" class="fold-head" onclick="toggleLiveTotals()">
       <div class="fold-head-main totals-head">
-        <span class="totals-label">セットリスト${live.setlist.length ? `<small>（${songCount}曲${otherCount ? ` + ${otherCount}項目` : ''}）</small>` : ''}</span>
+        <span class="totals-label">セットリスト${songCount ? `<small>${songCount}曲</small>` : ''}</span>
         <span class="totals-value mono">${fmtDur(total)}</span>
       </div>
       ${foldToggleHtml(liveTotalsOpen)}
@@ -5180,14 +5191,11 @@ function renderLiveEdit(){
   // ---- セットリストエリア ---- 絞り込み・並べ替え → 表示切り替え → 曲
   const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
   if(lk){ slFilter = 'all'; slSort = 'order'; }   // ロック中は絞り込み・並び替えを出さない（本番の曲順のまま）
-  if(slSongs.length > 1 && !lk) html += `<div class="stock-tools sl-tools">
-    ${songFilterSelectHtml('sl-filter', slFilter, slSongs)}
-    <label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>
-  </div>`;
-  if(live.setlist.length) html += `<div class="list-opts">${viewSegHtml()}${otherCount ? `<button type="button" class="opt-chip others-chip${showOthers ? ' on' : ''}" onclick="toggleSlOthers()" aria-pressed="${showOthers}" title="${showOthers ? '曲以外（MC・SEなど）を隠す' : '曲以外（MC・SEなど）を表示'}">曲以外</button>` : ''}${showModeBtnHtml()}</div>`;   // 曲がないときは表示切り替えを出さない
+  // 絞り込み・並び替えは小さなアイコン（押すと選択肢）。使っているときはオレンジ
+  const slIcons = (slSongs.length > 1 && !lk) ? `${songFilterSelectHtml('sl-filter', slFilter, slSongs).replace('class="sort-chip"', `class="icon-sel${slFilter!=='all' ? ' on' : ''}"`)}<label class="icon-sel${slSort!=='order' ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>` : '';
+  if(live.setlist.length) html += `<div class="list-opts">${viewSegHtml()}${otherCount ? `<button type="button" class="opt-chip others-chip${showOthers ? ' on' : ''}" onclick="toggleSlOthers()" aria-pressed="${showOthers}" title="${showOthers ? '曲以外（MC・SEなど）を隠す' : '曲以外（MC・SEなど）を表示'}">曲以外</button>` : ''}<span class="opts-r">${slIcons}${showModeBtnHtml()}</span></div>`;   // 曲がないときは表示切り替えを出さない
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
-  if(!showOthers && otherCount) html += `<div class="hint hint-1line">曲以外（${otherCount}件）は非表示・合計時間には含む</div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
