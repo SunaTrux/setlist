@@ -427,6 +427,13 @@ select.mini-input{width:64px; padding:5px 2px;}
 .action-group-body > button{margin:0;}
 .action-group-body > button + button{margin-top:8px;}
 .modal-text{width:100%; margin-bottom:14px; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); font-size:14px; line-height:1.7; font-family:inherit; resize:none;}
+.toast-undo{display:flex; align-items:center; gap:12px; width:min(92vw, 440px); max-width:none; padding:6px 6px 6px 18px; text-align:left; pointer-events:auto; border-radius:14px;}
+.toast-undo span{flex:1; min-width:0;}
+.toast-undo button{flex:none; height:34px; padding:0 14px; border-radius:999px; border:none; background:var(--accent); color:var(--accent-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
+/* スワイプで消せる端末（タッチ）では、セットリストの✕ボタンは出さない（左スワイプで削除） */
+@media (hover:none) and (pointer:coarse){
+  .setlist-item[data-drag-list="live"] .row-del{display:none;}
+}
 .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:999px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:200; max-width:88%; text-align:center;}
 
 .sort-field{margin-bottom:14px;}
@@ -1042,13 +1049,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.67.5';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.68.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.68.0': [
+    '削除の「元に戻す」：セットリストから外した曲、全て削除、イベント・曲の削除のあと、下に出る「元に戻す」で戻せるように（8秒間）',
+    'スマホなどタッチの端末では、セットリストの✕ボタンを出さないように（左スワイプで削除）',
+    '「曲を追加」「曲以外を追加」「その他の操作」の見出しの説明文をなくして、すっきり'
+  ],
   '1.67.5': [
     'セットリスト画面のイベントカードとセットリスト（合計時間）のカードを、枠をくっつけて1枚に見せるように'
   ],
@@ -2529,6 +2541,29 @@ function choiceDialog(message, buttons){
   overlay.querySelectorAll('[data-i]').forEach(btn => btn.onclick = () => { const i = +btn.dataset.i; cleanup(); if(i>=0) buttons[i].fn(); });
   overlay.addEventListener('click', e => { if(e.target===overlay) cleanup(); });
 }
+// ---- 元に戻す：削除の直前の曲マスタ・イベント一覧を覚えておき、トーストの「元に戻す」で戻す（直近の1回分）----
+let undoSnap = null, undoTimer = null;
+function snapForUndo(){ undoSnap = {songs: JSON.stringify(songs), lives: JSON.stringify(lives), liveEditId, tab}; }
+function undoToast(message){
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div');
+  t.className = 'toast toast-undo';
+  t.innerHTML = `<span></span><button type="button" onclick="undoLast()">元に戻す</button>`;
+  t.firstChild.textContent = message;
+  document.body.appendChild(t);
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => { t.remove(); }, 8000);
+}
+window.undoLast = () => {
+  if(!undoSnap) return;
+  try{ songs = JSON.parse(undoSnap.songs); lives = JSON.parse(undoSnap.lives); }catch(e){ return; }
+  saveSongs(); saveLives();
+  if(undoSnap.liveEditId && lives.some(l => l.id===undoSnap.liveEditId)){ tab = 'lives'; liveEditId = undoSnap.liveEditId; }
+  undoSnap = null; clearTimeout(undoTimer);
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  closeSwipes(); render();
+  showToast('元に戻しました。');
+};
 function showToast(message){
   const t = document.createElement('div');
   t.className = 'toast';
@@ -4749,12 +4784,13 @@ window.deleteSelectedStock = () => {
   const usedSongs = [...ids].filter(id => songUsage(id).length).length;
   const usedLives = lives.filter(l => (l.setlist||[]).some(e => e.type!=='other' && ids.has(e.songId))).length;
   confirmAction(`選んだ${n}曲を削除しますか？${usedSongs ? `\nうち${usedSongs}曲は ${usedLives}件のイベントで使われていて、そのセットリストからも消えます。（どのイベントかは、1曲ずつ削除すると確認できます）` : ''}`, () => {
+    snapForUndo();
     songs = songs.filter(s => !ids.has(s.id));
     lives.forEach(l => l.setlist = l.setlist.filter(e => e.type==='other' || !ids.has(e.songId)));
     saveSongs(); saveLives();
     stockSelectMode = false; stockSelected = new Set();
     render();
-    showToast(`${n}曲を削除しました。`);
+    undoToast(`${n}曲を削除しました。`);
   }, '削除する');
 };
 window.copyStockText = () => {
@@ -4830,10 +4866,11 @@ window.deleteSong = id => {
   const used = songUsage(id);
   const doDelete = () => {
     if(metroPanel && (metroPanel.songId===id || (metroPanel.entry && metroPanel.entry.songId===id))) stopMetro();
+    snapForUndo();
     songs = songs.filter(s=>s.id!==id);
     lives.forEach(l => l.setlist = l.setlist.filter(e=>e.songId!==id));
     saveSongs(); saveLives(); render();
-    showToast(`「${target.name}」を削除しました。`);
+    undoToast(`「${target.name}」を削除しました。`);
   };
   closeSwipes();
   if(!used.length){ confirmAction(`「${target.name}」を削除しますか？`, doDelete, '削除する'); return; }
@@ -5073,7 +5110,7 @@ function renderLiveEdit(){
   html += `</div></div>`;   // イベントカード / le-ev
   // 画面下のパネル：「曲を追加」「曲以外を追加」「その他の操作」を1枚にまとめ、それぞれアコーディオンで開く
   const accItem = (title, sub, open, toggle, inner, id) => `<div class="acc-item${open ? ' open' : ''}"${id ? ` id="${id}"` : ''}>
-    <button type="button" class="acc-head" onclick="${toggle}" aria-expanded="${open}"><span class="acc-title">${title}</span>${open ? '' : `<span class="acc-sub">${sub}</span>`}${foldToggleHtml(open)}</button>
+    <button type="button" class="acc-head" onclick="${toggle}" aria-expanded="${open}"><span class="acc-title">${title}</span>${foldToggleHtml(open)}</button>
     ${open ? `<div class="acc-body">${inner}</div>` : ''}</div>`;
   let createHtml = lk ? showModeNoteHtml('曲の追加・削除・並べ替え').replace('class="lock-note"', 'class="lock-note" id="setlist-section"') : '';
 
@@ -5357,10 +5394,11 @@ window.clearSetlist = () => {
   if(!live || live.setlist.length===0) return;
   if(liveLockedGuard(live)) return;
   confirmAction('このイベントのセットリスト（曲・MC/SEなど）を全て削除します。よろしいですか？', () => {
+    snapForUndo();
     live.setlist = [];
     live.updatedAt = Date.now();
     saveLives(); render();
-    showToast('セットリストを全て削除しました。');
+    undoToast('セットリストを全て削除しました。');
   }, '全て削除する');
 };
 window.addOther = (label, duration) => {
@@ -5559,21 +5597,24 @@ window.removeLiveById = (id) => {
   if(showModeGuard()) return;
   const label = [live.date, live.venue, live.artist].filter(Boolean).join(' ');
   closeSwipes();
-  confirmAction(`「${label || 'このイベント'}」を削除しますか？\nセットリストも一緒に削除されます。この操作は取り消せません。`, () => {
+  confirmAction(`「${label || 'このイベント'}」を削除しますか？\nセットリストも一緒に削除されます。`, () => {
     if(metroPanel && metroPanel.liveId===id) stopMetro();
+    snapForUndo();
     lives = lives.filter(l=>l.id!==id);
     saveLives(); render();
-    showToast('イベントを削除しました。');
+    undoToast('イベントを削除しました。');
   }, '削除する');
 };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
   if(showModeGuard()) return;
   const label = live ? [live.date, live.venue, live.artist].filter(Boolean).join(' ') : 'このイベント';
-  confirmAction(`「${label || 'このイベント'}」を削除しますか？\nこの操作は取り消せません。`, () => {
+  confirmAction(`「${label || 'このイベント'}」を削除しますか？`, () => {
     stopMetro(); resetTimerState();
+    snapForUndo(); undoSnap.liveEditId = null;
     lives = lives.filter(l=>l.id!==liveEditId);
     saveLives(); liveEditId=null; render();
+    undoToast('イベントを削除しました。');
   }, '削除する');
 };
 window.moveSong = (i, dir) => {
@@ -5590,9 +5631,13 @@ window.removeSongFromLive = i => {
   if(liveLockedGuard(live)) return;
   entryEditIdx = null;
   if(metroPanel && metroPanel.entry===live.setlist[i]) stopMetro();
+  const e = live.setlist[i]; if(!e) return;
+  const name = e.type==='other' ? (e.label || 'その他') : ((songs.find(x => x.id===e.songId) || {}).name || '曲');
+  snapForUndo();
   live.setlist.splice(i,1);
   live.updatedAt = Date.now();
   saveLives(); render();
+  undoToast(`「${name}」をセットリストから外しました。`);
 };
 window.updateEntry = (i, field, value) => {
   const live = lives.find(l=>l.id===liveEditId);
