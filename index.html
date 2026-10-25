@@ -1094,13 +1094,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.73.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.73.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.73.2': [
+    'Markdown の貼り付け欄の薄い見本を、テンプレと同じ形（曲情報の表＋構成表の表）に'
+  ],
   '1.73.1': [
     '曲の編集画面の説明文を見直し（構成表でどんなセクションが作れるか、構成表から個別に編集できることなど）'
   ],
@@ -3248,12 +3251,14 @@ function stSecEdHtml(x, si, n, inline){
   </div>`;
 }
 // 「Markdown で取り込む」のパネル（構成表がないときの画面と、編集画面で同じもの。編集画面では上書きの注意つき）
+// 貼り付け欄の薄い見本（「テンプレをコピー」と同じ形：曲情報の表と構成表の表）
+const MD_PASTE_PH = '### 曲情報&#10;| 項目 | 内容 |&#10;|------|------|&#10;| 曲名 | Get Back |&#10;| オリジナルアーティスト | The Beatles |&#10;| キー | A |&#10;| BPM | 123 |&#10;（…）&#10;&#10;### 構成表&#10;| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;|------|------|------|------|------|------|------|------|&#10;| Intro | 4 | — | A → D | — | リフ | — | — |&#10;（…）';
 function stMdImportPanelHtml(overwrite){
   return `<div class="panel st-md-import">
     <div class="section-title" style="margin-top:0;">Markdown で取り込む</div>
     <div class="st-empty-or" style="text-align:left;">AIなどで作った曲情報と構成表を Markdown で取り込めます。${overwrite ? '<b>今のセクションは上書きされます。</b>' : ''}</div>
     <ol class="st-empty-steps"><li>Markdown のテンプレをコピーする</li><li>AIで曲名などを指定して構成表を作る</li><li>コピーして下に貼り付け、取り込む</li></ol>
-    <div class="field"><textarea id="st-paste" rows="5" placeholder="| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |&#10;| Intro | 4 | — | A → D | — | リフ | — | — |"></textarea></div>
+    <div class="field"><textarea id="st-paste" rows="8" placeholder="${MD_PASTE_PH}"></textarea></div>
     <div class="st-btns" style="margin-top:0;"><button type="button" class="btn" onclick="stCopyTemplate('st-paste','st-paste-msg')">テンプレをコピー</button><button type="button" class="btn btn-accent" onclick="stDoPaste()">取り込む</button></div>
     <div class="st-msg" id="st-paste-msg"></div>
   </div>`;
@@ -4377,7 +4382,7 @@ function songFormHtml(f, ctx='stock'){
   const mdPanel = f.id ? '' : `<details class="panel song-md" open>
     <summary>Markdownから取り込む</summary>
     <p class="st-note" style="margin-top:8px;">「テンプレをコピー」したものをAIに曲名と一緒に渡すか、自分で埋めて貼り付けると、下のフォームに曲情報が入り、構成表も一緒に登録されます。内容を確かめてから「保存」してください。</p>
-    <div class="field"><textarea id="song-md-paste" rows="6" placeholder="### 曲情報&#10;| 項目 | 内容 |&#10;| 曲名 | … |&#10;&#10;### 構成表&#10;| 区間 | 小節数 | 回数 | コード | 歌 | 演奏 | キメ | キメ小節 |"></textarea></div>
+    <div class="field"><textarea id="song-md-paste" rows="8" placeholder="${MD_PASTE_PH}"></textarea></div>
     <div class="st-btns" style="margin-top:0;"><button type="button" class="btn btn-accent" onclick="songMdImport()">フォームに入れる</button><button type="button" class="btn" onclick="stCopyTemplate('song-md-paste','song-md-msg')">テンプレをコピー</button></div>
     <div class="st-msg" id="song-md-msg"></div>
     ${nSec ? `<div class="song-md-struct">構成表 ${nSec}セクションも一緒に登録されます</div>` : ''}
