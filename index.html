@@ -830,6 +830,12 @@ body.struct-open header{display:none;}
 /* 構成の編集 */
 .st-ed{border-left:4px solid var(--c); padding-left:10px;}
 .st-ed + .st-ed{margin-top:14px;}
+/* 曲の編集画面の「曲情報／曲マスタ／このイベント用」のアコーディオン */
+.ed-acc > .ed-acc-sum{list-style:none; display:flex; align-items:center; cursor:pointer; padding:0;}
+.ed-acc > .ed-acc-sum::-webkit-details-marker{display:none;}
+.ed-acc > .ed-acc-sum::after{content:''; margin-left:auto; flex:none; width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg) translateY(-3px); transition:transform .15s;}
+.ed-acc[open] > .ed-acc-sum::after{transform:rotate(-135deg) translateY(-1px);}
+.ed-acc[open] > .ed-acc-body{margin-top:10px;}
 /* 編集画面のセクション：1つずつアコーディオン */
 .st-ed-acc{border:1px solid var(--border); border-left:4px solid var(--c); border-radius:10px; background:var(--surface);}
 .st-ed-acc + .st-ed-acc{margin-top:8px;}
@@ -1108,13 +1114,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.74.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.75.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.75.0': [
+    '曲の編集画面の「曲マスタ」「このイベント用」（曲マスタから開いたときは「曲情報」）を、見出しを押して開閉できるアコーディオンに'
+  ],
   '1.74.3': [
     '追従の最初のカウントに「なし（すぐ始める）」を追加（0〜8小節）',
     '「表だけ」表示で一番上のセクションのとき、カウントなどの表示が切れていたのを修正'
@@ -3371,28 +3380,32 @@ function stMasterOnlyHtml(s){
     <div class="field"><label>オリジナルアーティスト</label><input id="st-f-orig" value="${esc(s.orig||'')}" placeholder="例：The Beatles／クラシックは作曲者" autocomplete="off" list="st-orig-list"><datalist id="st-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" id="st-f-url" value="${esc(s.url||'')}" placeholder="https://music.apple.com/..."></div>`;
 }
+// 曲の編集画面の「曲情報／曲マスタ／このイベント用」はアコーディオン（開閉は端末ごとに覚える。初めは開いている）
+let stEdPanels = Object.assign({info:true, master:true, event:true}, store.get('setlist_ed_panels', {}));
+document.addEventListener('toggle', ev => {
+  const d = ev.target; if(!d.classList || !d.classList.contains('ed-acc')) return;
+  stEdPanels[d.dataset.k] = d.open; store.set('setlist_ed_panels', stEdPanels);
+}, true);
+const edAccOpen = (k, title, note, id) => `<details class="panel ed-acc" data-k="${k}"${id ? ` id="${id}"` : ''}${stEdPanels[k] ? ' open' : ''}><summary class="ed-acc-sum"><span class="section-title" style="margin:0;">${title}<span class="st-save-note">${note}</span></span></summary><div class="ed-acc-body">`;
 function stInfoEditorHtml(s){
   const e = stEntry();
   if(!e){
-    return `<div class="panel" id="st-info-ed">
-      <div class="section-title" style="margin-top:0;">曲情報<span class="st-save-note">曲マスタに保存</span></div>
+    return `${edAccOpen('info', '曲情報', '曲マスタに保存', 'st-info-ed')}
       <p class="st-note">この曲を使うイベントにも反映されます（イベント用に変えている項目を除く）。入力するとすぐ保存されます。</p>
       ${stMasterOnlyHtml(s).replace('</div>\n    <div class="field-row">', `</div>${stBpmKeyHtml(s.bpm, s.key, s)}${stDurHtml(s.duration)}<div class="field-row">`)}
       ${startEndHtml('st-start', 'はじめかた', s.start, SE_START_OPTS)}
       ${startEndHtml('st-end', 'おわりかた', s.end, SE_END_OPTS)}
       <div class="field"><label>全体のメモ（曲のメモ）</label><textarea id="st-notes" rows="3">${esc(s.notes||'')}</textarea></div>
-    </div>`;
+    </div></details>`;
   }
   const v = f => effVal(e, s, f);
   const ovs = ST_EV_FIELDS.filter(f => isOv(e, s, f));
   const ovNote = ovs.map(f => `${ST_FIELD_LABEL[f]}：${esc((f==='duration' ? normDurStr(songVal(s,f)) : songVal(s,f)) || '-')}`);
   // 並び：曲マスタ（全イベント共通）→ このイベント用（→ このあとにセクション）
-  return `<div class="panel">
-    <div class="section-title" style="margin-top:0;">曲マスタ<span class="st-save-note">全イベント共通</span></div>
+  return `${edAccOpen('master', '曲マスタ', '全イベント共通')}
     ${stMasterOnlyHtml(s)}
-  </div>
-  <div class="panel" id="st-info-ed">
-    <div class="section-title" style="margin-top:0;">このイベント用<span class="st-save-note">このイベントだけ</span></div>
+  </div></details>
+  ${edAccOpen('event', 'このイベント用', 'このイベントだけ', 'st-info-ed')}
     <div class="field"><label>出演者</label><input id="st-f-perf" list="st-perf-list" value="${esc(e.performer||'')}" placeholder="${esc(stLive() && stLive().artist ? `空欄なら「${stLive().artist}」` : '空欄ならイベントのアーティスト')}" autocomplete="off">${perfDatalistHtml(stLive(), 'st-perf-list')}</div>
     <p class="st-note">曲マスタは変わりません。曲マスタにも残したいときは、下の「曲マスタにも反映」を押してください。</p>
     ${stBpmKeyHtml(v('bpm'), v('key'), s)}
@@ -3405,7 +3418,7 @@ function stInfoEditorHtml(s){
       <button type="button" class="btn" id="st-info-to-master" onclick="stInfoToMaster()">曲マスタにも反映</button>
       <button type="button" class="btn" onclick="stInfoResetEvent()">曲マスタの値に戻す</button>
     </div>
-  </div>`;
+  </div></details>`;
 }
 // イベント用に変えた項目を曲マスタに書き込み、イベント用の変更は外す
 window.stInfoToMaster = () => {
