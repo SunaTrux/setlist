@@ -826,6 +826,17 @@ body.struct-open header{display:none;}
 /* 構成の編集 */
 .st-ed{border-left:4px solid var(--c); padding-left:10px;}
 .st-ed + .st-ed{margin-top:14px;}
+/* 編集画面のセクション：1つずつアコーディオン */
+.st-ed-acc{border:1px solid var(--border); border-left:4px solid var(--c); border-radius:10px; background:var(--surface);}
+.st-ed-acc + .st-ed-acc{margin-top:8px;}
+.st-ed-sum{list-style:none; display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer;}
+.st-ed-sum::-webkit-details-marker{display:none;}
+.st-ed-sum::after{content:''; margin-left:auto; flex:none; width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg) translateY(-3px); transition:transform .15s;}
+.st-ed-acc[open] > .st-ed-sum::after{transform:rotate(-135deg) translateY(-1px);}
+.st-ed-sum-name{font-weight:700; font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.st-ed-sum-len{font-size:12px; color:var(--muted); flex:none;}
+.st-ed-acc > .st-ed{border-left:none; padding:0 12px 12px;}
+.st-add-sec{margin-top:12px;}
 .st-ed-top{display:grid; grid-template-columns:minmax(0,1fr) 3.8em 3.8em 4.4em; gap:6px; align-items:end;}
 .st-ed-memos{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 8px; margin-top:6px;}
 .st-ed .field{margin:0;}
@@ -1083,13 +1094,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.72.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.73.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.73.0': [
+    '曲の編集画面のセクションを「構成表」の見出しの下に、1つずつ開閉できるアコーディオンに（見出しに名前と小節数）。「＋ セクションを追加」はその下に',
+    '構成表がない曲の案内を「この曲の曲情報を編集したり、演奏や練習に便利な構成表を作ったりできます。」と「✎ 曲を編集」ボタンに'
+  ],
   '1.72.1': [
     '構成表がない曲では、曲名の下のチップ（キー・時間など）と「表だけ」ボタンを出さないように'
   ],
@@ -3028,7 +3043,7 @@ function renderStruct(){
   if(!secs.length){
     html += `<div class="st-empty">${locked
       ? (showMode ? 'この曲の構成表を作るには、本番モードを解除してください。' : 'この曲の構成表を作るには、標準の表示にしてください。')
-      : `この曲の構成表を作れます。<br>セクションを作り、セクションごとに小節数とコード・歌・演奏・キメのメモを書けます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">曲情報・構成表の編集</button>`}
+      : `この曲の曲情報を編集したり、演奏や練習に便利な構成表を作ったりできます。<br><button type="button" class="btn btn-accent" onclick="setStructEdit(true)">✎ 曲を編集</button>`}
       </div>${locked ? '' : stMdImportPanelHtml(false)}`;   // 構成表がないとき：案内と「曲情報・構成表の編集」の下に、編集画面と同じ「Markdown で取り込む」
   } else {
     const hide = Object.keys(ST_VIEW_ALL).filter(k => !v[k]).map(k => 'hide-'+k).join(' ');
@@ -3242,15 +3257,18 @@ function stMdImportPanelHtml(overwrite){
 }
 function stEditorHtml(s){
   const secs = stEnsure(s).sections;
-  const eds = secs.map((x, si) => stSecEdHtml(x, si, secs.length, false)).join('');
+  // セクションは1つずつアコーディオン（見出しに名前と小節数。押すと開く）
+  const eds = secs.map((x, si) => `<details class="st-ed-acc" style="--c:${stColor(x.name)}"${stEdOpen.has(x) ? ' open' : ''} data-si="${si}">
+    <summary class="st-ed-sum"><span class="st-ed-sum-name">${esc(x.name || '（名前なし）')}</span><span class="st-ed-sum-len mono">${esc(String(x.bars||''))}小節${stTimes(x) > 1 ? `×${stTimes(x)}` : ''}</span></summary>
+    ${stSecEdHtml(x, si, secs.length, false)}</details>`).join('');
   return `${stSecNamesDatalist()}
   <p class="hint" style="padding-top:10px;">曲情報とセクションをここで編集できます。入力するとすぐ保存されます。セクションは、構成表からも各セクションを選択すると個別に編集できます。</p>
   ${stInfoEditorHtml(s)}
   <div class="panel">
-    <div class="section-title" style="margin-top:0;">セクション<span class="st-save-note">曲マスタに保存（全イベント共通）</span></div>
+    <div class="section-title" style="margin-top:0;">構成表<span class="st-save-note">曲マスタに保存（全イベント共通）</span></div>
     <p class="st-note">このイベントだけ構成を変えたいときは、曲を新しく登録するか、曲マスタの「選択」→「コピーして開く」で曲をコピーし、セットリストの曲を入れ替えてください。</p>
     <div id="st-ed-list">${eds || '<p class="st-note">セクションがありません。下のボタンで追加するか、構成表を貼り付けてください。</p>'}</div>
-    <div class="st-btns"><button type="button" class="btn" onclick="stAddSection()">セクションを追加</button></div>
+    <div class="st-btns st-add-sec"><button type="button" class="btn btn-block" onclick="stAddSection()">＋ セクションを追加</button></div>
   </div>
   ${stMdImportPanelHtml(true)}
   <div class="panel">
@@ -3467,6 +3485,11 @@ document.addEventListener('input', ev => {
   sec[t.dataset.k] = t.value;
   if(t.dataset.k==='name') ed.style.setProperty('--c', stColor(t.value));
   stTouch(s);
+  const acc = ed.closest('.st-ed-acc');   // 編集画面のアコーディオンの見出しもすぐ更新
+  if(acc){
+    if(t.dataset.k==='name'){ acc.style.setProperty('--c', stColor(t.value)); acc.querySelector('.st-ed-sum-name').textContent = t.value || '（名前なし）'; }
+    if(t.dataset.k==='bars' || t.dataset.k==='times') acc.querySelector('.st-ed-sum-len').textContent = `${sec.bars||''}小節${stTimes(sec) > 1 ? `×${stTimes(sec)}` : ''}`;
+  }
   // 構成表の中で開いているときは、上の行の表示もすぐ更新する
   if(!structEdit){
     const row = document.querySelector(`.st-row[data-si="${ed.dataset.si}"]`);
@@ -3485,7 +3508,7 @@ document.addEventListener('click', ev => {
   }
   if(a==='up' && si>0) [L[si-1], L[si]] = [L[si], L[si-1]];
   if(a==='down' && si<L.length-1) [L[si+1], L[si]] = [L[si], L[si+1]];
-  if(a==='dup') L.splice(si+1, 0, {...L[si]});
+  if(a==='dup'){ const c = {...L[si]}; L.splice(si+1, 0, c); if(stEdOpen.has(L[si])) stEdOpen.add(c); }
   if(a==='del') L.splice(si, 1);
   if(stOpenSec!==null){  // その場の編集は、動かしたセクションについていく
     if(a==='up' && si>0) stOpenSec = si-1;
@@ -3495,9 +3518,17 @@ document.addEventListener('click', ev => {
   }
   stTouch(s); render();
 });
+// 編集画面で開いているセクション（セクションそのものを覚えるので、並べ替えてもついていく）
+const stEdOpen = new WeakSet();
+document.addEventListener('toggle', ev => {
+  const d = ev.target; if(!d.classList || !d.classList.contains('st-ed-acc')) return;
+  const s = stSong(); const sec = s && stEnsure(s).sections[+d.dataset.si]; if(!sec) return;
+  if(d.open) stEdOpen.add(sec); else stEdOpen.delete(sec);
+}, true);
 window.stAddSection = () => {
   const s = stSong(); if(!s) return;
-  stEnsure(s).sections.push(ST_SEC('', 8)); stTouch(s);
+  const ns = ST_SEC('', 8); stEdOpen.add(ns);   // 追加したセクションは開いておく
+  stEnsure(s).sections.push(ns); stTouch(s);
   if(!structEdit) stOpenSec = stEnsure(s).sections.length - 1;   // 構成表のその場編集から追加したら、新しいセクションの編集欄を開く
   render();
   const inputs = document.querySelectorAll('.st-ed input[data-k="name"]');
