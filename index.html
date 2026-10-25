@@ -1137,13 +1137,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.78.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.79.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.79.0': [
+    '設定に「このアプリを友達に勧める」を追加。アプリのURLと説明を、LINEなどでそのまま送れます（文章は送る前に書きかえOK）'
+  ],
   '1.78.2': [
     '曲マスタの合計時間の文字も、ほかと同じくらいの大きさに'
   ],
@@ -6227,6 +6230,28 @@ try{ setSplitMq.addEventListener('change', () => { if(tab==='settings' && !struc
 let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
 window.setFollow = on => { stFollowOn = !!on; store.set('setlist_struct_follow', stFollowOn); render(); };
 window.setCountIn = v => { const n = parseInt(v, 10); if(n >= 0 && n <= 8){ stCountIn = n; store.set('setlist_struct_countin_bars', n); } };
+// ---- 友達に勧める（文章は送る前に書きかえOK。書きかえた文章はこの画面を開いている間だけ覚えておく） ----
+const SHARE_URL = 'https://sunatrux.github.io/setlist/';
+let shareDraft = null;
+function defaultShareText(){
+  return 'プレイヤーズセットリスト\n' +
+    'ライブやイベントのセットリストを、曲の時間・テンポ・キーと一緒にまとめられるアプリです。合計時間の計算、曲ごとの構成表、メトロノームもついていて、本番中もステージで迷いません。ホーム画面に追加すると、アプリのように使えます。入力したデータはこの端末の中だけに保存され、サーバーには送られません。\n' +
+    SHARE_URL;
+}
+function shareTextNow(){ return shareDraft===null ? defaultShareText() : shareDraft; }
+window.sendShare = () => {
+  const text = shareTextNow();
+  if(navigator.share){
+    // 本文にURLが入っているので、text だけで送る（URLが二重にならないように）
+    navigator.share({title:'プレイヤーズセットリスト', text}).catch(err => {
+      if(err && err.name==='AbortError') return;
+      copyShareText(text, '送れなかったので、文章をコピーしました。LINEなどに貼り付けて送ってください。');
+    });
+  } else copyShareText(text, 'この端末では直接送れないので、文章をコピーしました。LINEやメールに貼り付けて送ってください。');
+};
+async function copyShareText(text, msg){ if(await copyTextToClipboard(text)) showToast(msg); else showTextModal(text); }
+window.copyShare = () => copyShareText(shareTextNow(), '文章をコピーしました。');
+window.resetShare = () => { shareDraft = null; render(); };
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
   // 横に広い画面（スマホ横・タブレット・PC）は、iOSの設定のように左に項目一覧、右に中身の2カラム
@@ -6311,6 +6336,15 @@ function renderSettings(){
       <button type="button" class="btn" onclick="loadSampleData('piano')">ピアノ演奏会</button>
     </div>
     <div class="hint">バンド編成（曲7曲・イベント1件）またはピアノ演奏会（曲5曲・イベント1件）を選んで追加できます。既存のデータは消えません。</div>
+`)}
+  ${acc('share', 'このアプリを友達に勧める', 'URLと説明を送る', `
+    <div class="hint" style="margin-top:0">友達に、このアプリのURLと簡単な説明を送れます。送る前に、文章を確認・書きかえできます。</div>
+    <div class="field" style="margin-bottom:0"><textarea id="share-text" rows="9" oninput="shareDraft = this.value" aria-label="送る文章">${esc(shareTextNow())}</textarea></div>
+    <div class="settings-btn-row" style="margin-top:10px">
+      <button type="button" class="btn btn-accent" onclick="sendShare()">友達に送る</button>
+      <button type="button" class="btn" onclick="copyShare()">文章をコピー</button>
+    </div>
+    ${shareDraft!==null && shareDraft!==defaultShareText() ? `<button type="button" class="btn btn-block" style="margin:8px 0 0; font-size:13px" onclick="resetShare()">最初の文章に戻す</button>` : ''}
 `)}
   ${acc('feedback', 'ご意見・不具合報告', 'フォームを開く', `
     <div class="hint" style="margin-top:0">使ってみた感想や「ここが使いにくい」「動かない」などは、下のフォームから気軽にどうぞ。不具合の場合は、どの画面で何をしたかと、使っている端末・ブラウザを書いてもらえると助かります（今のバージョン：${APP_VERSION}）。</div>
