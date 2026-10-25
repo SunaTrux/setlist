@@ -424,6 +424,8 @@ select.mini-input{width:64px; padding:5px 2px;}
 .reg-more{display:block; width:100%; margin:6px 0 2px; padding:10px; border:1px dashed var(--border); border-radius:10px; background:none; color:var(--accent); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
 .live-form-foot{display:flex; align-items:center; justify-content:space-between; gap:8px;}
 .live-form-foot .hint{margin:0; padding:0;}
+.touch-only{display:none;}
+@media (hover:none) and (pointer:coarse){ .touch-only{display:block;} }
 .acc-panel{margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
 .acc-panel:empty{display:none;}
 .acc-item + .acc-item{border-top:1px solid var(--border);}
@@ -443,8 +445,10 @@ select.mini-input{width:64px; padding:5px 2px;}
 .toast-undo button{flex:none; height:34px; padding:0 14px; border-radius:999px; border:none; background:var(--accent); color:var(--accent-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
 /* スワイプで消せる端末（タッチ）では、セットリストの✕ボタンは出さない（左スワイプで削除） */
 @media (hover:none) and (pointer:coarse){
-  .setlist-item[data-drag-list="live"] .row-del,
-  .setlist-item[data-swipe="stock"] .row-del,
+  body .setlist-item[data-drag-list="live"] .row-del,
+  body .setlist-item[data-swipe="stock"] .row-del,
+  body.cards-min .setlist-item[data-drag-list="live"] .setlist-row1 .row-del.c-only,
+  body.cards-min .setlist-item[data-swipe="stock"] .setlist-row1 .row-del.c-only,
   .live-card-wrap .live-del-btn{display:none;}
   .live-card-wrap .live-card{padding-right:14px;}
   .lv-min .live-card-wrap .live-card{padding-right:116px;}
@@ -1071,13 +1075,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.70.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.70.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.70.2': [
+    'スマホで、最小表示のときも曲カードの✕が残っていたのを修正（左スワイプで削除）',
+    '「その他の操作」に「左にスワイプすると削除できます」のヒントを追加（スマホのみ）'
+  ],
   '1.70.1': [
     '構成表の表示チップの初期値を「小節」と「コード」だけ点灯に（チップで表示を切り替えられます）',
     '曲の編集画面では、曲名の下のチップを出さないように。説明文に「構成表からも各セクションを選ぶと個別に編集できます」を追加',
@@ -4073,7 +4081,7 @@ function stockBodyHtml(){
   const editingInList = songForm && songForm.id && sortSongs(songs, songSort).some(s => s.id===songForm.id && matchesSongFilter(s));
   if(songForm && !editingInList) html += songFormHtml(songForm);
   if(songs.length===0 && !songForm){
-    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。<br>曲名の一覧をコピーしてあれば、「曲を登録」の「一括」からまとめて登録できます。</div>`;
+    html += `<div class="empty">まだ曲が登録されていません。<br>「曲を登録」から登録しましょう。</div>`;
   } else {
     const sortedSongs = sortSongs(songs, songSort);
     const hiddenCount = songs.filter(s => s.hidden).length;
@@ -4148,7 +4156,7 @@ function stockBodyHtml(){
       // その他の操作（セットリストと同じ形）：見えている曲（絞り込み中はその曲だけ）をテキストで書き出し。選んで書き出すときは「🔍」から
       html += `<div class="acc-panel stock-more"><div class="acc-item${stockMoreOpen ? ' open' : ''}">
         <button type="button" class="acc-head" onclick="toggleStockMore()" aria-expanded="${stockMoreOpen}"><span class="acc-title">その他の操作</span>${foldToggleHtml(stockMoreOpen)}</button>
-        ${stockMoreOpen ? `<div class="acc-body"><button type="button" class="btn btn-block btn-with-icon" onclick="copyStockText()">${filtered ? '絞り込んだ曲' : '曲マスタの曲'}をテキストで書き出し${TEXT_ICON_SVG}</button><div class="hint">曲を選んで書き出すときは、🔍 から選んで「テキストで書き出し」。</div></div>` : ''}
+        ${stockMoreOpen ? `<div class="acc-body"><button type="button" class="btn btn-block btn-with-icon" onclick="copyStockText()">${filtered ? '絞り込んだ曲' : '曲マスタの曲'}をテキストで書き出し${TEXT_ICON_SVG}</button><div class="hint">曲を選んで書き出すときは、🔍 から選んで「テキストで書き出し」。</div>${showMode ? '' : '<div class="hint touch-only" style="padding-top:0;">曲は、左にスワイプすると削除できます（削除後は「元に戻す」で戻せます）。</div>'}</div>` : ''}
       </div></div>`;
     }
     if(stockSelectMode){
@@ -5347,6 +5355,7 @@ function renderLiveEdit(){
     const hasSl = live.setlist.length > 0, canImport = !lk && lives.some(l => l.id!==live.id && l.setlist.length);
     const sub = [canImport ? '読み込み' : '', '書き出し', showMode ? '' : 'コピー', showMode ? '' : '削除'].filter(Boolean).join('・');
     createHtml += accItem('その他の操作', sub, !!actOpen.more, "toggleActGroup('more')", `
+      ${showMode ? '' : '<div class="hint touch-only" style="margin:0 0 10px; padding:0;">曲や曲以外の項目は、左にスワイプすると削除できます（削除後は「元に戻す」で戻せます）。</div>'}
       ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(false)">セットリストをテキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${showMode ? '' : `<button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">イベントをコピーして新規で開く${COPY_ICON_SVG}</button>`}
