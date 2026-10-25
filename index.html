@@ -367,7 +367,7 @@ select.mini-input{width:64px; padding:5px 2px;}
 .stock-total{display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;}
 .stock-total .totals-label{font-weight:700; color:var(--text); font-size:15px;}
 .stock-total .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:6px;}
-.stock-total .totals-value{font-size:20px; font-weight:700; color:var(--accent);}
+.stock-total .totals-value{font-size:15px; font-weight:700; color:var(--accent);}
 
 .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
 /* セットリスト画面の上のボタンは、構成表の「← セットリスト」「✎ 曲を編集」と同じ大きさ */
@@ -1137,13 +1137,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.78.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.78.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.78.2': [
+    '曲マスタの合計時間の文字も、ほかと同じくらいの大きさに'
+  ],
   '1.78.1': [
     'セットリスト画面の合計時間の文字を、ほかと同じくらいの大きさに'
   ],
