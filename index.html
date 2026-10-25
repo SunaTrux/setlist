@@ -847,6 +847,7 @@ body.struct-open header{display:none;}
 .st-segs i.now{background:var(--c); opacity:1; transform:scaleY(1.6);}
 .st-pos{position:absolute; right:8px; top:-11px; z-index:3; box-shadow:0 1px 4px rgba(0,0,0,.2); font-size:11px; font-weight:700; color:#fff; background:var(--c); padding:1px 7px; border-radius:999px; white-space:nowrap; pointer-events:none;}
 .st-row{scroll-margin-top:12px; position:relative;}
+.st-table > .st-row:first-child .st-pos{top:4px;}   /* 表だけ表示で一番上の行のときは、枠で切れないよう内側に */
 .st-ed-acc.dragging{position:relative; z-index:20; box-shadow:0 10px 24px rgba(0,0,0,.28); opacity:.97;}
 .st-ed-acc > .st-ed{border-left:none; padding:0 12px 12px;}
 .st-add-sec{margin-top:12px;}
@@ -1107,13 +1108,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.74.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.74.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.74.3': [
+    '追従の最初のカウントに「なし（すぐ始める）」を追加（0〜8小節）',
+    '「表だけ」表示で一番上のセクションのとき、カウントなどの表示が切れていたのを修正'
+  ],
   '1.74.2': [
     '構成表の追従の最初のカウントを2小節に。設定 →「表示」で1〜8小節から選べます'
   ],
@@ -3827,7 +3832,7 @@ window.stSaveMd = async () => {
 const stM = {bpm:120, on:false, sound:true, next:0, beat:0, timer:null, taps:[]};
 // ---- 追従：テンポを鳴らすと、小節を数えて構成表の今の場所を光らせ、画面も送る ----
 let stFollowOn = store.get('setlist_struct_follow', true) !== false;   // 設定でオン／オフ
-let stCountIn = (n => Number.isInteger(n) && n >= 1 && n <= 8 ? n : 2)(store.get('setlist_struct_countin_bars', 2));   // 最初に何小節カウントするか（1〜8、初期値2）
+let stCountIn = (n => Number.isInteger(n) && n >= 0 && n <= 8 ? n : 2)(store.get('setlist_struct_countin_bars', 2));   // 最初に何小節カウントするか（1〜8、初期値2）
 const stF = {bar:-2, key:''};    // bar：今の小節（0 が1小節目、マイナスはカウント中）
 let stUserScrollAt = 0;          // 指で画面を動かした時刻（しばらくは自動で送らない）
 ['touchstart','wheel'].forEach(k => document.addEventListener(k, () => { if(stM.on) stUserScrollAt = Date.now(); }, {passive:true}));
@@ -6090,7 +6095,7 @@ window.selectSetSec = id => {
 try{ setSplitMq.addEventListener('change', () => { if(tab==='settings' && !structOpen) render(); }); }catch(e){ try{ setSplitMq.addListener(() => { if(tab==='settings' && !structOpen) render(); }); }catch(_){} }
 let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
 window.setFollow = on => { stFollowOn = !!on; store.set('setlist_struct_follow', stFollowOn); render(); };
-window.setCountIn = v => { const n = parseInt(v, 10); if(n >= 1 && n <= 8){ stCountIn = n; store.set('setlist_struct_countin_bars', n); } };
+window.setCountIn = v => { const n = parseInt(v, 10); if(n >= 0 && n <= 8){ stCountIn = n; store.set('setlist_struct_countin_bars', n); } };
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
   // 横に広い画面（スマホ横・タブレット・PC）は、iOSの設定のように左に項目一覧、右に中身の2カラム
@@ -6125,7 +6130,7 @@ function renderSettings(){
         <button type="button" class="theme-btn ${stFollowOn ? 'active' : ''}" onclick="setFollow(true)">進める</button>
         <button type="button" class="theme-btn ${stFollowOn ? '' : 'active'}" onclick="setFollow(false)">しない</button>
       </div>
-      <div class="count-row"${stFollowOn ? '' : ' hidden'}><span>最初のカウント</span><select id="st-countin" onchange="setCountIn(this.value)" aria-label="最初のカウントの小節数">${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n===stCountIn ? 'selected' : ''}>${n}小節</option>`).join('')}</select></div>
+      <div class="count-row"${stFollowOn ? '' : ' hidden'}><span>最初のカウント</span><select id="st-countin" onchange="setCountIn(this.value)" aria-label="最初のカウントの小節数">${[0,1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n===stCountIn ? 'selected' : ''}>${n ? `${n}小節` : 'なし（すぐ始める）'}</option>`).join('')}</select></div>
       <div class="hint" style="padding:6px 0 0;">構成表でテンポを鳴らすと、小節を数えて今のセクションを光らせ、画面を送ります。ずれたら、セクション名をタップするとその頭から数え直します。</div>
     </div>
     <div class="field" style="margin:14px 0 0;"><label for="tagline-input">アプリのヒント文（タイトルの下の一文。1行に1つ、🔄で順に切り替え）</label>
