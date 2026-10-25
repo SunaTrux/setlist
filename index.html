@@ -413,6 +413,7 @@ select.mini-input{width:64px; padding:5px 2px;}
 .action-group-head .fold-toggle{margin-left:auto;}
 .action-group-body{padding:0 12px 12px;}
 /* セットリスト画面の下のパネル（曲を追加・曲以外を追加・その他の操作）：1枚につなげて、それぞれアコーディオン */
+.reg-more{display:block; width:100%; margin:6px 0 2px; padding:10px; border:1px dashed var(--border); border-radius:10px; background:none; color:var(--accent); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
 .acc-panel{margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
 .acc-panel:empty{display:none;}
 .acc-item + .acc-item{border-top:1px solid var(--border);}
@@ -1056,13 +1057,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.69.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.69.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.69.2': [
+    '「曲を追加」「曲を登録」のライブラリは、最初は3曲だけ表示。「もっと表示」で10曲ずつ続きが出ます（曲名で探すときは最初から10曲）'
+  ],
   '1.69.1': [
     '曲情報の「原曲（オリジナルアーティスト）」を「オリジナルアーティスト」に。カバーなら原曲のアーティスト、クラシックなら作曲者（モーツァルトなど）を入れる欄です'
   ],
@@ -6460,11 +6464,11 @@ window.setRegTab = (t, ctx='live') => {
     if(t==='manual' && songForm && songForm.__ctx==='live' && !String(songForm.name||'').trim() && netQ.trim()) songForm.name = netQ.trim();
     regTab = t;
   }
-  clearTimeout(regTimer); cancelNetSearch(); netLoading = false;
+  clearTimeout(regTimer); cancelNetSearch(); netLoading = false; regMore = {};
   render();
 };
 window.onRegQuery = (q, ctx='live') => {
-  netQ = q;
+  netQ = q; regMore = {};
   clearTimeout(regTimer);
   const nq = normName(q);
   if(regCurrentTab(ctx) !== 'net'){ updateRegResults(ctx); return; }
@@ -6530,6 +6534,15 @@ function packHitsFor(nq){
     .filter(x => !nq || normName(x.p.name).includes(nq) || normName(x.p.who).includes(nq))
     .slice(0, 30);
 }
+// ライブラリの一覧は最初は少しだけ（検索語がないとき3曲、あるとき10曲）。「もっと表示」で10曲ずつ続きを出す
+let regMore = {};
+const regFirst = nq => nq ? 10 : 3;
+window.regShowMore = (key, ctx) => { regMore[key] = (regMore[key] || regFirst(normName(netQ))) + 10; updateRegResults(ctx); };
+function regLimit(list, key, nq, ctx){
+  const n = regMore[key] || regFirst(nq);
+  const rest = list.length - n;
+  return {items: list.slice(0, n), more: rest > 0 ? `<button type="button" class="reg-more" onclick="regShowMore('${key}','${ctx}')">もっと表示（残り${rest}曲）</button>` : ''};
+}
 function regResultsHtml(ctx){
   const tab = regCurrentTab(ctx);
   const isStock = ctx === 'stock';
@@ -6550,8 +6563,9 @@ function regResultsHtml(ctx){
     const packHits = packHitsFor(nq);
     if(isStock){
       if(!packHits.length) return `<div class="reg-empty">該当する定番曲がありません。「ネット検索」か「手入力」から登録できます。</div>`;
+      const lp = regLimit(packHits, 'pack', nq, ctx);
       return `<div class="reg-count">定番曲から曲マスタに登録します。</div><div class="reg-list">` +
-        packHits.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, inStock(x.p.name) ? doneTag : addBtn(`addPackToStock(${x.idx})`))).join('') + `</div>`;
+        lp.items.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, inStock(x.p.name) ? doneTag : addBtn(`addPackToStock(${x.idx})`))).join('') + `</div>` + lp.more;
     }
     const stockHits = songs
       .filter(s => !s.hidden && (!nq || normName(s.name).includes(nq) || normName(s.notes||'').includes(nq)))
@@ -6561,12 +6575,14 @@ function regResultsHtml(ctx){
     }
     let html = '';
     if(stockHits.length){
-      html += `<div class="reg-list">` + stockHits.map(s => row('', s.name, s.duration || '',
+      const ls = regLimit(stockHits, 'stock', nq, ctx);
+      html += `<div class="reg-count">曲マスタ</div><div class="reg-list">` + ls.items.map(s => row('', s.name, s.duration || '',
         inSetlist(s.name) ? '<span class="suggest-used">追加済み</span>' : addBtn(`addStockSongToLive('${s.id}')`)
-      )).join('') + `</div>`;
+      )).join('') + `</div>` + ls.more;
     }
     if(packHits.length){
-      html += `<div class="reg-count">定番曲</div><div class="reg-list">` + packHits.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, addBtn(`addPackToLive(${x.idx})`))).join('') + `</div>`;
+      const lp = regLimit(packHits, 'pack', nq, ctx);
+      html += `<div class="reg-count">定番曲</div><div class="reg-list">` + lp.items.map(x => row('', x.p.name, `${x.p.who} · ${x.p.dur}`, addBtn(`addPackToLive(${x.idx})`))).join('') + `</div>` + lp.more;
     }
     return html;
   }
