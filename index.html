@@ -307,10 +307,12 @@ select.mini-input{width:64px; padding:5px 2px;}
 .swipe-bg{position:absolute; top:0; right:0; bottom:0; width:88px; display:flex; background:var(--danger);}
 .swipe-del{flex:1; border:none; background:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
 .swipe-del.swipe-hide{background:#7a7268;}
-.live-card-wrap[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin){width:176px;}
+.live-card-wrap[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin), .setlist-item[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin){width:176px;}
 .live-card-wrap[data-swipe-w="96"] .swipe-bg:not(.swipe-bg-pin){width:96px;}
 .swipe-full .swipe-del.swipe-hide{display:none;}   /* 最後まで引いているときは「削除」だけを大きく */
-.is-hidden-live .live-card{opacity:.6;}
+.is-hidden-live .live-card > *{opacity:.55;}
+.is-hidden-entry > .swipe-face > *{opacity:.5;}   /* 面の背景は不透明のまま（後ろのボタンが透けない） */
+.is-hidden-entry .setlist-name-btn .hidden-ic{margin-left:5px; vertical-align:-2px;}
 .hidden-ic{display:inline-flex; align-self:center; flex:none; margin-left:6px; color:var(--muted);}
 .hidden-ic svg{width:15px; height:15px;}
 .swipe-face{position:relative; background:inherit; transition:transform .18s ease; touch-action:pan-y;}
@@ -1134,13 +1136,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.77.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.78.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.78.0': [
+    'セットリストの曲・曲以外の項目と、曲マスタの曲も、左スワイプで「非表示」「削除」を選べるように（最後まで引くとすぐ削除。「元に戻す」で戻せます）',
+    '非表示にした項目は合計時間・曲数・番号に入りません。目のアイコンで表示を切り替えられます'
+  ],
   '1.77.2': [
     'イベントカードの「非表示」の印を、目のアイコンに'
   ],
@@ -1999,6 +2005,7 @@ function normalizeOverrides(){
   if(changed) saveLives();
 }
 function entryDuration(entry){
+  if(entry.hidden) return 0;   // 非表示の項目は合計に入れない
   if(entry.type==='other') return parseDur(entry.duration);
   const s = songs.find(x=>x.id===entry.songId);
   if(isOv(entry, s, 'duration')) return parseDur(entry.duration);  // このイベントだけ変えた曲時間
@@ -2971,7 +2978,7 @@ function stSong(){
 // ＜＞で回る順番。イベントはセットリスト順（曲だけ）、曲マスタは画面の並び順（絞り込み・非表示を反映）
 function stSeq(){
   if(stFromStock()){ const ids = stockOrderIds(); return ids.includes(structOpen.songId) ? ids : [structOpen.songId]; }
-  const l = stLive(); return l ? l.setlist.map((e,i) => e.type==='other' ? null : i).filter(i => i!==null) : [];
+  const l = stLive(); return l ? l.setlist.map((e,i) => e.type==='other' || (e.hidden && i!==structOpen.idx) ? null : i).filter(i => i!==null) : [];   // 非表示の曲はとばす（開いている曲は除く）
 }
 function stCur(){ return stFromStock() ? structOpen.songId : structOpen.idx; }
 function stView(s){ return {...ST_VIEW_DEFAULT, ...structBaseView, ...((s.struct && s.struct.view) || {})}; }
@@ -3160,13 +3167,13 @@ let stLastKey = '';
 function stCardTotal(seq){
   if(stFromStock()) return seq.length;
   const l = stLive(); if(!l) return seq.length;
-  return l.setlist.filter(e => e.type!=='other' || e.numbered).length;
+  return l.setlist.filter(e => !e.hidden && (e.type!=='other' || e.numbered)).length;
 }
 function stCardNo(pos){
   if(stFromStock()) return pos + 1;
   const l = stLive(); if(!l) return pos + 1;
   let n = 0;
-  for(let i = 0; i <= structOpen.idx && i < l.setlist.length; i++){ const e = l.setlist[i]; if(e.type!=='other' || e.numbered) n++; }
+  for(let i = 0; i <= structOpen.idx && i < l.setlist.length; i++){ const e = l.setlist[i]; if(!e.hidden && (e.type!=='other' || e.numbered)) n++; }
   return n;
 }
 
@@ -4292,7 +4299,9 @@ function renderSongs(){
 function stockOptsHtml(){
   const list = songs.filter(x => !x.hidden);
   const icons = `<button type="button" class="icon-sel" onclick="enterStockSelect()" title="検索・選んでまとめて操作" aria-label="曲マスタを検索・選択">${SEARCH_ICON_SVG}</button>${songFilterSelectHtml('song-genre-filter', songGenreFilter, list).replace('class="sort-chip"', `class="icon-sel${songGenreFilter!=='all' ? ' on' : ''}"`)}<label class="icon-sel${songSort!=='order' ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="song-sort-quick" aria-label="並び替え">${songSortOptionsHtml(songSort)}</select></label>`;
-  return `<div class="list-opts">${viewSegHtml()}<span class="opts-r">${icons}${showModeBtnHtml()}</span></div>`;
+  const nHid = songs.filter(x => x.hidden).length;
+  if(!nHid) stockShowHidden = false;
+  return `<div class="list-opts">${viewSegHtml()}<span class="opts-r">${nHid ? eyeToggleHtml(stockShowHidden, 'toggleStockShowHidden()', '非表示の曲') : ''}${icons}${showModeBtnHtml()}</span></div>`;
 }
 const SEARCH_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`;
 function stockBodyHtml(){
@@ -4307,15 +4316,16 @@ function stockBodyHtml(){
     const hiddenCount = songs.filter(s => s.hidden).length;
     const visNum = stockVisibleNumbers();
     const filteredSongs = sortedSongs.filter(s => {
-      if(s.hidden && !stockSelectMode) return false;  // 非表示の曲は、検索・選択の画面でだけ出す
+      if(s.hidden && !stockSelectMode && !stockShowHidden) return false;  // 非表示の曲は、目のアイコンを点けたとき（と検索・選択の画面）だけ出す
       return matchesSongFilter(s) && matchesStockQuery(s);
     });
     const canMove = songSort==='order' && !songForm && !stockSelectMode && !showMode;  // 絞り込み中も、見えている曲どうしで並べ替えできる
     const filtered = songGenreFilter!=='all' || (stockSelectMode && !!normQ(stockQuery));
     if(filteredSongs.length){
-      const tot = filteredSongs.reduce((t,s)=>t+parseDur(s.duration),0);
+      const visSongs = stockSelectMode ? filteredSongs : filteredSongs.filter(s => !s.hidden);   // 非表示の曲は数・合計に入れない
+      const tot = visSongs.reduce((t,s)=>t+parseDur(s.duration),0);
       html += `<div class="stock-total">
-        <span class="totals-label">曲マスタ<small>${filteredSongs.length}曲${filtered ? '・絞り込み中' : ''}</small></span>
+        <span class="totals-label">曲マスタ<small>${visSongs.length}曲${filtered ? '・絞り込み中' : ''}</small></span>
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
       if(!songForm && !stockSelectMode) html += stockOptsHtml();
@@ -4328,7 +4338,6 @@ function stockBodyHtml(){
     if(filteredSongs.length===0 && !songForm){
       html += `<div class="empty">${stockSelectMode && normQ(stockQuery) ? `「${esc(stockQuery.trim())}」に合う曲がありません。` : hiddenCount && songGenreFilter==='all' ? 'すべての曲が非表示です。' : '絞り込みに合う曲がありません。'}</div>`;
     }
-    if(hiddenCount && !songForm && !stockSelectMode) html += `<div class="hint">非表示の曲：${hiddenCount}曲（「🔍 検索」から表示に戻せます）</div>`;
     // 📌 ピン留めの曲を上にまとめる（並べ替えのドラッグは、ピン留めしていない曲どうしで）
     const nPin = stockSelectMode ? 0 : filteredSongs.filter(s => s.pinned).length;
     if(nPin){ const pin = filteredSongs.filter(s => s.pinned), rest = filteredSongs.filter(s => !s.pinned); filteredSongs.length = 0; filteredSongs.push(...pin, ...rest); }
@@ -4351,13 +4360,13 @@ function stockBodyHtml(){
         return;
       }
       const pinned = !!s.pinned && !stockSelectMode;
-      html += `<div class="setlist-item ${metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id?'metro-current':''}" data-drag-list="${pinned ? 'stock-pin' : 'stock'}" data-key="${s.id}" data-swipe="stock">
+      html += `<div class="setlist-item ${metroPanel&&metroPanel.source==='stock'&&metroPanel.songId===s.id?'metro-current':''}${s.hidden ? ' is-hidden-entry' : ''}" data-drag-list="${pinned ? 'stock-pin' : 'stock'}" data-key="${s.id}" data-swipe="stock"${showMode ? '' : ' data-swipe-w="176" data-swipe-full="1"'}>
         ${pinBgHtml(pinned, `togglePinSong('${s.id}')`)}
-        ${showMode ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="deleteSong('${s.id}')">削除</button></div>`}
+        ${showMode ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del swipe-hide" onclick="toggleSongHidden('${s.id}')">${s.hidden ? '表示に戻す' : '非表示'}</button><button type="button" class="swipe-del" data-full-action onclick="deleteSong('${s.id}', true)">削除</button></div>`}
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${num}</span>
-          <button type="button" class="setlist-name-btn" onclick="openStockStruct('${s.id}')" title="構成表を開く">${pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}${hasStruct(s) ? STRUCT_MARK : ''}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key, null, s)}</span></button>
+          <button type="button" class="setlist-name-btn" onclick="openStockStruct('${s.id}')" title="構成表を開く">${pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${esc(s.name)}${hasStruct(s) ? STRUCT_MARK : ''}${s.hidden ? `<span class="hidden-ic" title="非表示" aria-label="非表示">${EYE_OFF_SVG}</span>` : ''}<span class="name-sub"><span class="ns-bpm mono">♩${esc(s.bpm||'-')}</span>${keyChipHtml(s.key, null, s)}</span></button>
           <span class="dur-label mono">${esc(s.duration||'')}</span>
           ${showMode ? '' : `<button type="button" class="row-del c-only" onclick="deleteSong('${s.id}')" aria-label="削除" title="削除">✕</button>`}
           ${canMove && !pinned ? dragHandleHtml('stock') : ''}
@@ -4949,7 +4958,7 @@ window.stockToExistingEvent = () => {
       ${list.map(l => `<button type="button" class="event-pick" data-id="${l.id}">
         <span class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}</span>
         <span class="event-pick-name">${esc(l.venue || 'イベント名未設定')}</span>
-        <span class="event-pick-sub">${l.setlist.filter(e=>e.type!=='other').length}曲</span>
+        <span class="event-pick-sub">${l.setlist.filter(e=>e.type!=='other' && !e.hidden).length}曲</span>
       </button>`).join('')}
     </div>
     <div class="modal-actions"><button type="button" class="btn" id="modal-cancel">キャンセル</button></div>
@@ -4970,7 +4979,7 @@ window.importSetlistFromEvent = () => {
   overlay.innerHTML = `<div class="modal-box">
     <div class="modal-message">セットリストを読み込むイベントを選んでください。\n（イベント名・日時などは読み込みません）</div>
     <div class="event-pick-list">
-      ${list.map(l => { const n = l.setlist.filter(e=>e.type!=='other').length, o = l.setlist.length - n; return `<button type="button" class="event-pick" data-id="${l.id}">
+      ${list.map(l => { const n = l.setlist.filter(e=>e.type!=='other' && !e.hidden).length, o = l.setlist.filter(e=>e.type==='other' && !e.hidden).length; return `<button type="button" class="event-pick" data-id="${l.id}">
         <span class="live-date mono">${esc(l.date || '日付未設定')}${dowLabel(l.date)?`(${dowLabel(l.date)})`:''}</span>
         <span class="event-pick-name">${esc(l.venue || 'イベント名未設定')}${l.artist ? `<span class="event-pick-artist">${esc(l.artist)}</span>` : ''}</span>
         <span class="event-pick-sub">${n}曲${o ? ` + ${o}項目` : ''}・${fmtDur(l.setlist.reduce((t,e)=>t+entryDuration(e),0))}</span>
@@ -5062,16 +5071,20 @@ window.copySelectedStockText = () => {
   if(!list.length) return;
   openTextExport(`選んだ${list.length}曲`, (n, o) => list.map((s,k) => (n ? `${k+1}. ` : '') + s.name + songSuffix(s, null, o)).join('\n'));
 };
+function eyeToggleHtml(on, fn, what){ const t = on ? `${what}を隠す` : `${what}も表示`; return `<button type="button" class="icon-sel eye-sel${on ? ' on' : ''}" onclick="${fn}" aria-pressed="${on}" title="${t}" aria-label="${t}">${on ? EYE_SVG : EYE_OFF_SVG}</button>`; }
 const EYE_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const EYE_OFF_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1C11 5 11.5 5 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.1 4.1"/><path d="M6.5 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.3-.5 4.6-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
 // 選択画面の目のアイコン：その曲だけ、すぐに表示／非表示を切り替える
 window.toggleSongHidden = id => {
   if(showModeGuard()) return;
   const s = songs.find(x=>x.id===id); if(!s) return;
+  closeSwipes(); snapForUndo();
   if(s.hidden) delete s.hidden; else s.hidden = true;
   s.updatedAt = Date.now(); saveSongs(); if(stockSelectMode) refreshStockBody(); else render();
-  showToast(`「${s.name}」を${s.hidden?'非表示に':'表示に'}しました。`);
+  undoToast(`「${s.name}」を${s.hidden?'非表示に':'表示に戻し'}ました。`);
 };
+let stockShowHidden = false;
+window.toggleStockShowHidden = () => { stockShowHidden = !stockShowHidden; render(); };
 window.setSelectedHidden = (hide) => {
   if(showModeGuard()) return;
   const ids = new Set(stockSelected); if(!ids.size) return;
@@ -5164,7 +5177,7 @@ function songUsage(id){
 function liveLabelHtml(l){
   return `<span class="use-date mono">${esc(l.date || '日付未設定')}</span><span class="use-name">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="use-artist">${esc(l.artist)}</span>` : ''}`;
 }
-window.deleteSong = id => {
+window.deleteSong = (id, fromSwipe) => {
   if(showModeGuard()) return;
   const target = songs.find(s=>s.id===id); if(!target) return;
   const used = songUsage(id);
@@ -5177,7 +5190,7 @@ window.deleteSong = id => {
     undoToast(`「${target.name}」を削除しました。`);
   };
   closeSwipes();
-  if(!used.length){ confirmAction(`「${target.name}」を削除しますか？`, doDelete, '削除する'); return; }
+  if(!used.length){ if(fromSwipe){ doDelete(); return; } confirmAction(`「${target.name}」を削除しますか？`, doDelete, '削除する'); return; }   // スワイプからは確認なし（「元に戻す」で戻せる）
   // 使われているイベントを表示。多いときは最初の5件と「すべて表示」
   const LIMIT = 5;
   const overlay = document.createElement('div');
@@ -5250,7 +5263,7 @@ function renderLives(){
       if(nPinL && li===nPinL) html += `<div class="pin-sep"></div>`;
       const st = liveDateStatus(l.date);
       const total = l.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
-      const songCount = l.setlist.filter(e=>e.type!=='other').length;
+      const songCount = l.setlist.filter(e=>e.type!=='other' && !e.hidden).length;
       const noDel = showMode;   // 本番モード中は削除できない
       const tr = timeRangeText(l.startTime, l.endTime);
       const dateTxt = livesMode==='min'
@@ -5258,7 +5271,7 @@ function renderLives(){
         : esc(l.date || '日付未設定') + (dowLabel(l.date) ? `(${dowLabel(l.date)})` : '') + (tr ? ' ' + esc(tr) : '');
       // フル：イベントメモと曲順（曲だけ）も出す
       const fullHtml = livesMode==='full' ? (() => {
-        const names = l.setlist.filter(e => e.type!=='other').map(e => (songs.find(x => x.id===e.songId) || {}).name).filter(Boolean);
+        const names = l.setlist.filter(e => e.type!=='other' && !e.hidden).map(e => (songs.find(x => x.id===e.songId) || {}).name).filter(Boolean);
         return `${l.memo ? `<div class="live-memo">${esc(l.memo)}</div>` : ''}${names.length ? `<div class="live-songs">${names.map((n, k) => `<span class="mono">${k+1}.</span>${esc(n)}`).join('<span class="live-songs-sep"> / </span>')}</div>` : ''}`;
       })() : '';
       // 左スワイプ：「非表示」「削除」。さらに大きく引くと削除（本番モード中は非表示だけ）
@@ -5354,9 +5367,11 @@ function renderLiveEdit(){
     entryEditIdx = null;
   }
   const total = live.setlist.reduce((sum,e)=>sum+entryDuration(e),0);
-  const songOnlyTotal = live.setlist.filter(e=>e.type!=='other').reduce((sum,e)=>sum+entryDuration(e),0);
-  const songCount = live.setlist.filter(e=>e.type!=='other').length;
-  const otherCount = live.setlist.length - songCount;
+  const songOnlyTotal = live.setlist.filter(e=>e.type!=='other' && !e.hidden).reduce((sum,e)=>sum+entryDuration(e),0);
+  const songCount = live.setlist.filter(e=>e.type!=='other' && !e.hidden).length;
+  const otherCount = live.setlist.filter(e=>e.type==='other').length;
+  const slHiddenCount = live.setlist.filter(e=>e.hidden).length;
+  if(!slHiddenCount) slShowHidden = false;
   const usedIds = live.setlist.filter(e=>e.type!=='other').map(e=>e.songId);
 
   if(timer.liveId !== liveEditId){
@@ -5492,29 +5507,34 @@ function renderLiveEdit(){
 
   html += `<div class="le-timer">${totalsCardHtml}</div><div class="le-main">`;   // セットリスト（合計時間・タイマー）のカード
   // ---- セットリストエリア ---- 絞り込み・並べ替え → 表示切り替え → 曲
-  const slSongs = live.setlist.filter(e => e.type!=='other').map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
+  const slSongs = live.setlist.filter(e => e.type!=='other' && (slShowHidden || !e.hidden)).map(e => songs.find(x => x.id===e.songId)).filter(Boolean);
   if(lk){ slFilter = 'all'; slSort = 'order'; }   // ロック中は絞り込み・並び替えを出さない（本番の曲順のまま）
   // 絞り込み・並び替えは小さなアイコン（押すと選択肢）。使っているときはオレンジ
   const slIcons = (slSongs.length > 1 && !lk) ? `${songFilterSelectHtml('sl-filter', slFilter, slSongs, livePerformers(live)).replace('class="sort-chip"', `class="icon-sel${slFilter!=='all' ? ' on' : ''}"`)}<label class="icon-sel${slSort!=='order' ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="sl-sort" aria-label="並び替え">${songSortOptionsHtml(slSort)}</select></label>` : '';
-  if(live.setlist.length) html += `<div class="list-opts">${viewSegHtml()}${otherCount ? `<button type="button" class="opt-chip others-chip${showOthers ? ' on' : ''}" onclick="toggleSlOthers()" aria-pressed="${showOthers}" title="${showOthers ? '曲以外（MC・SEなど）を隠す' : '曲以外（MC・SEなど）を表示'}">曲以外</button>` : ''}<span class="opts-r">${slIcons}${showModeBtnHtml()}</span></div>`;   // 曲がないときは表示切り替えを出さない
+  if(live.setlist.length) html += `<div class="list-opts">${viewSegHtml()}${otherCount ? `<button type="button" class="opt-chip others-chip${showOthers ? ' on' : ''}" onclick="toggleSlOthers()" aria-pressed="${showOthers}" title="${showOthers ? '曲以外（MC・SEなど）を隠す' : '曲以外（MC・SEなど）を表示'}">曲以外</button>` : ''}<span class="opts-r">${slHiddenCount ? eyeToggleHtml(slShowHidden, 'toggleSlShowHidden()', '非表示の項目') : ''}${slIcons}${showModeBtnHtml()}</span></div>`;   // 曲がないときは表示切り替えを出さない
   const slView = slFilter!=='all' || slSort!=='order';
   if(slView) html += `<div class="hint sl-view-hint">${slSort==='order' ? '絞り込み中です。曲以外の項目は出ません。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲やMC・SEの位置はそのままです。' : '並べ替え中は、見え方だけが変わります（本番の曲順は変わりません）。曲以外の項目は出ません。ドラッグで並べ替えるときは「番号順」に戻してください。'}<button type="button" class="link-btn" onclick="resetSlView()">元に戻す</button></div>`;
 
   let seq = 0;
   // 曲以外を隠しているときの ▲▼ 用：前後の「表示されている曲」
+  // スワイプ：非表示（表示に戻す）と削除。最後まで引くと削除
+  const slSwipeAttr = i => lk ? '' : ' data-swipe="live" data-swipe-w="176" data-swipe-full="1"';
+  const slSwipeBg = (entry, i) => lk ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del swipe-hide" onclick="toggleEntryHidden(${i})">${entry.hidden ? '表示に戻す' : '非表示'}</button><button type="button" class="swipe-del" data-full-action onclick="removeSongFromLive(${i})">削除</button></div>`;
+  const hidIc = entry => entry.hidden ? `<span class="hidden-ic" title="非表示" aria-label="非表示">${EYE_OFF_SVG}</span>` : '';
   const renderEntry = (entry,i) => {
-    if(entry.type==='other' && !showOthers){ if(entry.numbered) seq++; return; }
+    if(entry.hidden && !slShowHidden) return;   // 非表示の項目は出さない（番号も数えない）
+    if(entry.type==='other' && !showOthers){ if(entry.numbered && !entry.hidden) seq++; return; }
     if(entry.type==='other'){
       const numbered = !!entry.numbered;
-      if(numbered) seq++;
-      const numLabel = numbered ? seq : '・';
+      if(numbered && !entry.hidden) seq++;
+      const numLabel = entry.hidden ? '–' : numbered ? seq : '・';
       const exp = entryExpandedIdx===i;
-      html += `<div class="setlist-item is-other" data-drag-list="live" data-key="${i}"${lk ? '' : ' data-swipe="live"'}>
-        ${lk ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>`}
+      html += `<div class="setlist-item is-other${entry.hidden ? ' is-hidden-entry' : ''}" data-drag-list="live" data-key="${i}"${slSwipeAttr(i)}>
+        ${slSwipeBg(entry, i)}
         <div class="swipe-face">
         <div class="setlist-row1">
           <span class="setlist-num mono">${numLabel}</span>
-          <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'} <span class="chev">${exp?'▾':'▸'}</span></button>
+          <button type="button" class="setlist-name-btn" onclick="toggleEntryExpand(${i})">${otherIcon(entry.label)} ${esc(entry.label)||'(名称未設定)'}${hidIc(entry)} <span class="chev">${exp?'▾':'▸'}</span></button>
           <span class="dur-label mono">${esc(entry.duration||'')}</span>
           ${lk ? '' : `<button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
           ${dragHandleHtml('live')}`}
@@ -5532,7 +5552,7 @@ function renderLiveEdit(){
       </div>`;
       return;
     }
-    seq++;
+    if(!entry.hidden) seq++;
     const s = songs.find(x=>x.id===entry.songId);
     if(!s) return;
     const bpm = effVal(entry, s, 'bpm');
@@ -5540,12 +5560,12 @@ function renderLiveEdit(){
     const dur = effVal(entry, s, 'duration');
     const ovB = isOv(entry, s, 'bpm'), ovK = isOv(entry, s, 'key'), ovD = isOv(entry, s, 'duration');
     const anyOv = ovB || ovK || ovD;
-    html += `<div class="setlist-item ${metroPanel&&metroPanel.entry===entry?'metro-current':''}" data-drag-list="live" data-key="${i}"${lk ? '' : ' data-swipe="live"'}>
-      ${lk ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeSongFromLive(${i})">削除</button></div>`}
+    html += `<div class="setlist-item ${metroPanel&&metroPanel.entry===entry?'metro-current':''}${entry.hidden ? ' is-hidden-entry' : ''}" data-drag-list="live" data-key="${i}"${slSwipeAttr(i)}>
+      ${slSwipeBg(entry, i)}
       <div class="swipe-face">
       <div class="setlist-row1">
-        <span class="setlist-num mono">${seq}</span>
-        <button type="button" class="setlist-name-btn" onclick="openStruct(${i})" title="構成表を開く">${esc(s.name)}${entry.performer ? `<span class="perf-name">／${esc(entry.performer)}</span>` : ''}${hasStruct(s) ? STRUCT_MARK : ''}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}</span></button>
+        <span class="setlist-num mono">${entry.hidden ? '–' : seq}</span>
+        <button type="button" class="setlist-name-btn" onclick="openStruct(${i})" title="構成表を開く">${esc(s.name)}${entry.performer ? `<span class="perf-name">／${esc(entry.performer)}</span>` : ''}${hasStruct(s) ? STRUCT_MARK : ''}${hidIc(entry)}<span class="name-sub"><span class="ns-bpm mono ${ovB?'ov':''}">♩${esc(bpm||'-')}</span>${keyChipHtml(key, ovK ? songVal(s,'key') : null, s)}</span></button>
         <span class="dur-label mono ${ovD?'ov':''}">${esc(normDurStr(dur))}${ovD?`<span class="ov-master">←${esc(songVal(s,'duration'))}</span>`:''}</span>
         ${lk ? '' : `<button type="button" class="row-del c-only" onclick="removeSongFromLive(${i})" aria-label="削除" title="削除">✕</button>
         ${dragHandleHtml('live')}`}
@@ -5568,7 +5588,7 @@ function renderLiveEdit(){
     html += slParts.map(p => p.h).join('');
   } else {
     const rows = slParts.map(p => {
-      const e = live.setlist[p.i]; if(e.type==='other') return null;
+      const e = live.setlist[p.i]; if(e.type==='other' || !p.h) return null;
       const sg = songs.find(x => x.id===e.songId); if(!sg) return null;
       if(slFilter.startsWith('perf:') ? normName(e.performer||'')!==normName(slFilter.slice(5)) : !matchesSongFilter(sg, slFilter)) return null;   // プレイヤーでの絞り込みは、その行のプレイヤーで
       return {p, name: sg.name, duration: effVal(e, sg, 'duration'), updatedAt: sg.updatedAt || 0};
@@ -5581,7 +5601,7 @@ function renderLiveEdit(){
     // 何に対する操作かで分ける：「セットリストの操作」と「イベントの操作」（どちらも、開いているこのイベントだけが対象）
     const hasSl = live.setlist.length > 0, canImport = !lk && lives.some(l => l.id!==live.id && l.setlist.length);
     if(canImport || hasSl) createHtml += accItem('セットリストの操作', '', !!actOpen.sl, "toggleActGroup('sl')", `
-      ${showMode || !hasSl ? '' : '<div class="hint touch-only" style="margin:0 0 10px; padding:0;">曲や曲以外の項目は、左にスワイプすると削除できます（削除後は「元に戻す」で戻せます）。</div>'}
+      ${showMode || !hasSl ? '' : '<div class="hint touch-only" style="margin:0 0 10px; padding:0;">曲や曲以外の項目は、左にスワイプすると非表示・削除ができます。最後まで引くとすぐ削除（「元に戻す」で戻せます）。非表示にした項目は合計時間に入りません。</div>'}
       ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(false)">セットリストをテキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
       ${hasSl && !showMode ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}`);
@@ -5967,6 +5987,20 @@ window.moveSong = (i, dir) => {
   live.updatedAt = Date.now();
   saveLives(); render();
 };
+// セットリストの項目の非表示（合計時間・番号に入れない。目のアイコンで表示に切り替え）
+let slShowHidden = false;
+window.toggleEntryHidden = i => {
+  const live = lives.find(l=>l.id===liveEditId);
+  if(liveLockedGuard(live)) return;
+  const e = live.setlist[i]; if(!e) return;
+  closeSwipes(); snapForUndo();
+  if(metroPanel && metroPanel.entry===e && !e.hidden) stopMetro();
+  if(e.hidden) delete e.hidden; else e.hidden = true;
+  live.updatedAt = Date.now(); saveLives(); render();
+  const name = e.type==='other' ? (e.label || 'その他') : ((songs.find(x => x.id===e.songId) || {}).name || '曲');
+  undoToast(e.hidden ? `「${name}」を非表示にしました（合計時間に入りません）。` : `「${name}」を表示に戻しました。`);
+};
+window.toggleSlShowHidden = () => { slShowHidden = !slShowHidden; render(); };
 window.removeSongFromLive = i => {
   const live = lives.find(l=>l.id===liveEditId);
   if(liveLockedGuard(live)) return;
@@ -5994,6 +6028,7 @@ function buildSetlistText(live, numbered=true, o=null){
   let seq = 0;
   const lines = [];
   live.setlist.forEach(e => {
+    if(e.hidden) return;   // 非表示の項目は書き出さない
     if(e.type==='other'){
       const label = e.label || 'その他';
       const inclOthers = o && typeof o.others==='boolean' ? o.others : showOthers;   // 書き出しの「曲以外」で選ぶ（番号は数えたまま）
