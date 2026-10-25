@@ -847,7 +847,7 @@ body.struct-open header{display:none;}
 .st-segs i.now{background:var(--c); opacity:1; transform:scaleY(1.6);}
 .st-pos{position:absolute; right:8px; top:-11px; z-index:3; box-shadow:0 1px 4px rgba(0,0,0,.2); font-size:11px; font-weight:700; color:#fff; background:var(--c); padding:1px 7px; border-radius:999px; white-space:nowrap; pointer-events:none;}
 .st-row{scroll-margin-top:12px; position:relative;}
-.st-table > .st-row:first-child .st-pos{top:4px;}   /* 表だけ表示で一番上の行のときは、枠で切れないよう内側に */
+.st-table > .st-row:first-child:has(.st-pos){margin-top:14px;}   /* 表だけ表示で一番上の行のときは、表示の分だけ上をあけて枠で切れないように（メモも隠さない） */
 .st-ed-acc.dragging{position:relative; z-index:20; box-shadow:0 10px 24px rgba(0,0,0,.28); opacity:.97;}
 .st-ed-acc > .st-ed{border-left:none; padding:0 12px 12px;}
 .st-add-sec{margin-top:12px;}
