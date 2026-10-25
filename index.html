@@ -1094,13 +1094,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.73.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.73.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.73.1': [
+    '曲の編集画面の説明文を見直し（構成表でどんなセクションが作れるか、構成表から個別に編集できることなど）'
+  ],
   '1.73.0': [
     '曲の編集画面のセクションを「構成表」の見出しの下に、1つずつ開閉できるアコーディオンに（見出しに名前と小節数）。「＋ セクションを追加」はその下に',
     '構成表がない曲の案内を「この曲の曲情報を編集したり、演奏や練習に便利な構成表を作ったりできます。」と「✎ 曲を編集」ボタンに'
@@ -3262,11 +3265,12 @@ function stEditorHtml(s){
     <summary class="st-ed-sum"><span class="st-ed-sum-name">${esc(x.name || '（名前なし）')}</span><span class="st-ed-sum-len mono">${esc(String(x.bars||''))}小節${stTimes(x) > 1 ? `×${stTimes(x)}` : ''}</span></summary>
     ${stSecEdHtml(x, si, secs.length, false)}</details>`).join('');
   return `${stSecNamesDatalist()}
-  <p class="hint" style="padding-top:10px;">曲情報とセクションをここで編集できます。入力するとすぐ保存されます。セクションは、構成表からも各セクションを選択すると個別に編集できます。</p>
+  <p class="hint" style="padding-top:10px;">曲情報と構成表を編集できます。入力するとすぐ保存されます。</p>
   ${stInfoEditorHtml(s)}
   <div class="panel">
     <div class="section-title" style="margin-top:0;">構成表<span class="st-save-note">曲マスタに保存（全イベント共通）</span></div>
-    <p class="st-note">このイベントだけ構成を変えたいときは、曲を新しく登録するか、曲マスタの「選択」→「コピーして開く」で曲をコピーし、セットリストの曲を入れ替えてください。</p>
+    <p class="st-note">イントロ、Aメロ、Bメロ、[verse]、[chorus] などのセクション情報を作れます。一度セクションを作れば、構成表から各セクションを選択することで、個別に編集することもできます。</p>
+    <p class="st-note">このイベントだけ構成を変えたい場合は、曲を新しく登録するか、曲マスタから曲をコピーし、セットリストの曲を入れ替えてください。</p>
     <div id="st-ed-list">${eds || '<p class="st-note">セクションがありません。下のボタンで追加するか、構成表を貼り付けてください。</p>'}</div>
     <div class="st-btns st-add-sec"><button type="button" class="btn btn-block" onclick="stAddSection()">＋ セクションを追加</button></div>
   </div>
