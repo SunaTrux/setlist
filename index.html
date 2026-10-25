@@ -1114,13 +1114,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.75.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.75.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.75.1': [
+    '「出演者」の呼び方を「プレイヤー」に統一'
+  ],
   '1.75.0': [
     '曲の編集画面の「曲マスタ」「このイベント用」（曲マスタから開いたときは「曲情報」）を、見出しを押して開閉できるアコーディオンに'
   ],
@@ -2020,12 +2023,12 @@ function songFilterSelectHtml(id, cur, list, perfs){
         ${cur.startsWith('orig:') && !arts.some(a=>normName('orig:'+a.name)===normName(cur)) ? `<option value="${esc(cur)}" selected>${esc(cur.slice(5))}（0）</option>` : ''}
         <option value="__noorig__" ${cur==='__noorig__'?'selected':''}>オリジナルアーティストなし</option>
       </optgroup>
-      ${perfs && perfs.length ? `<optgroup label="出演者">${perfs.map(p => `<option value="${esc('perf:'+p)}" ${cur==='perf:'+p?'selected':''}>${esc(p)}</option>`).join('')}</optgroup>` : ''}
+      ${perfs && perfs.length ? `<optgroup label="プレイヤー">${perfs.map(p => `<option value="${esc('perf:'+p)}" ${cur==='perf:'+p?'selected':''}>${esc(p)}</option>`).join('')}</optgroup>` : ''}
     </select></label>`;
 }
 let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番号順
-// 出演者（合同ライブ・発表会など、曲ごとに演者が違うとき）。セットリストの1行（曲）ごとに entry.performer に持つ。空ならイベントのアーティスト
-let addPerformer = '';   // 「曲を追加」で入れる曲の出演者（イベントを開くたびに空に）
+// プレイヤー（合同ライブ・発表会など、曲ごとに演者が違うとき）。セットリストの1行（曲）ごとに entry.performer に持つ。空ならイベントのアーティスト
+let addPerformer = '';   // 「曲を追加」で入れる曲のプレイヤー（イベントを開くたびに空に）
 const PERF_MAX = 60;
 const clipPerf = v => Array.from(String(v||'').trim()).slice(0, PERF_MAX).join('');
 function livePerformers(live){ const m = new Map(); (live ? live.setlist : []).forEach(e => { const p = clipPerf(e.performer); if(e.type!=='other' && p && !m.has(normName(p))) m.set(normName(p), p); }); return [...m.values()]; }
@@ -2193,7 +2196,7 @@ window.setAddPos = (kind, pos) => {
 };
 // セットリストの先頭か最後に入れる（先頭のときは並びがずれるので、開いている詳細とメトロノームを閉じる）
 function insertEntries(live, entries, pos, withPerf){
-  if(withPerf && addPerformer) entries.forEach(e => { if(e.type!=='other' && !e.performer) e.performer = addPerformer; });   // 「曲を追加」の出演者を入れる
+  if(withPerf && addPerformer) entries.forEach(e => { if(e.type!=='other' && !e.performer) e.performer = addPerformer; });   // 「曲を追加」のプレイヤーを入れる
   if(showMode) return;   // 本番モード中は入れない（画面からは追加できないが念のため）
   if(pos==='start'){
     live.setlist.unshift(...entries);
@@ -3067,7 +3070,7 @@ function renderStruct(){
   </div>`;
   html += `<div class="st-title-row">
     ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
-    <div class="st-title-box">${(() => { const pe = stEntry(); return pe && pe.performer ? `<div class="st-perf">出演者：${esc(pe.performer)}</div>` : ''; })()}<h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && showMode ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
+    <div class="st-title-box">${(() => { const pe = stEntry(); return pe && pe.performer ? `<div class="st-perf">プレイヤー：${esc(pe.performer)}</div>` : ''; })()}<h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && showMode ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
   </div>
   ${!structEdit && !stMin && ((s.struct && s.struct.sections) || []).length ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;   // 編集画面・構成がないときは曲名の下のチップは出さない
   if(structEdit){ document.body.classList.remove('st-viewing'); html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
@@ -3406,7 +3409,7 @@ function stInfoEditorHtml(s){
     ${stMasterOnlyHtml(s)}
   </div></details>
   ${edAccOpen('event', 'このイベント用', 'このイベントだけ', 'st-info-ed')}
-    <div class="field"><label>出演者</label><input id="st-f-perf" list="st-perf-list" value="${esc(e.performer||'')}" placeholder="${esc(stLive() && stLive().artist ? `空欄なら「${stLive().artist}」` : '空欄ならイベントのアーティスト')}" autocomplete="off">${perfDatalistHtml(stLive(), 'st-perf-list')}</div>
+    <div class="field"><label>プレイヤー</label><input id="st-f-perf" list="st-perf-list" value="${esc(e.performer||'')}" placeholder="${esc(stLive() && stLive().artist ? `空欄なら「${stLive().artist}」` : '空欄ならイベントのアーティスト')}" autocomplete="off">${perfDatalistHtml(stLive(), 'st-perf-list')}</div>
     <p class="st-note">曲マスタは変わりません。曲マスタにも残したいときは、下の「曲マスタにも反映」を押してください。</p>
     ${stBpmKeyHtml(v('bpm'), v('key'), s)}
     ${stDurHtml(v('duration'))}
@@ -3475,7 +3478,7 @@ function stReadField(f){
 function stSaveField(f){
   const s = stSong(); if(!s || !f) return;
   const e = stEntry();
-  if(f==='performer'){   // 出演者はイベントの曲（1行）にだけ持つ
+  if(f==='performer'){   // プレイヤーはイベントの曲（1行）にだけ持つ
     if(!e) return;
     const v = clipPerf((document.getElementById('st-f-perf') || {}).value);
     if(v) e.performer = v; else delete e.performer;
@@ -5521,7 +5524,7 @@ function renderLiveEdit(){
     const rows = slParts.map(p => {
       const e = live.setlist[p.i]; if(e.type==='other') return null;
       const sg = songs.find(x => x.id===e.songId); if(!sg) return null;
-      if(slFilter.startsWith('perf:') ? normName(e.performer||'')!==normName(slFilter.slice(5)) : !matchesSongFilter(sg, slFilter)) return null;   // 出演者での絞り込みは、その行の出演者で
+      if(slFilter.startsWith('perf:') ? normName(e.performer||'')!==normName(slFilter.slice(5)) : !matchesSongFilter(sg, slFilter)) return null;   // プレイヤーでの絞り込みは、その行のプレイヤーで
       return {p, name: sg.name, duration: effVal(e, sg, 'duration'), updatedAt: sg.updatedAt || 0};
     }).filter(Boolean);
     const shown = sortSongs(rows, slSort);
@@ -6002,7 +6005,7 @@ function openTextExport(title, build, withEvent){
         <button type="button" class="opt-chip ${textOpts.bpm?'on':''}" data-opt="bpm" aria-pressed="${textOpts.bpm}">BPM</button>
         <button type="button" class="opt-chip ${textOpts.key?'on':''}" data-opt="key" aria-pressed="${textOpts.key}">Key</button>
         <button type="button" class="opt-chip ${textOpts.artist?'on':''}" data-opt="artist" aria-pressed="${!!textOpts.artist}">アーティスト</button>
-        ${withEvent ? `<button type="button" class="opt-chip ${textOpts.performer?'on':''}" data-opt="performer" aria-pressed="${!!textOpts.performer}">出演者</button><button type="button" class="opt-chip ${textOpts.others?'on':''}" data-opt="others" aria-pressed="${!!textOpts.others}">曲以外</button><button type="button" class="opt-chip ${textOpts.event?'on':''}" data-opt="event" aria-pressed="${!!textOpts.event}">イベント情報</button>` : ''}
+        ${withEvent ? `<button type="button" class="opt-chip ${textOpts.performer?'on':''}" data-opt="performer" aria-pressed="${!!textOpts.performer}">プレイヤー</button><button type="button" class="opt-chip ${textOpts.others?'on':''}" data-opt="others" aria-pressed="${!!textOpts.others}">曲以外</button><button type="button" class="opt-chip ${textOpts.event?'on':''}" data-opt="event" aria-pressed="${!!textOpts.event}">イベント情報</button>` : ''}
       </div>
       <textarea class="modal-text" readonly rows="${Math.min(12, text.split('\n').length+1)}">${esc(text)}</textarea>
       <div class="modal-actions">
@@ -6690,9 +6693,9 @@ function regSearchHtml(ctx){
 // イベント画面の「曲を登録」の中身
 function regBodyHtml(){
   // 曲マスタの「曲を登録」を押した後と同じ画面（ネット検索｜ライブラリ｜手入力｜一括）。入れる先はセットリスト（曲マスタにも登録）
-  // 上に「出演者」：入れておくと、これから追加する曲の出演者になる（空ならイベントのアーティスト）
+  // 上に「プレイヤー」：入れておくと、これから追加する曲のプレイヤーになる（空ならイベントのアーティスト）
   const live0 = lives.find(l => l.id===liveEditId);
-  const perfRow = `<div class="perf-row"><label for="add-perf">出演者</label><input id="add-perf" list="add-perf-list" value="${esc(addPerformer)}" placeholder="${esc(live0 && live0.artist ? `空欄なら「${live0.artist}」` : '空欄ならイベントのアーティスト')}" autocomplete="off" oninput="setAddPerformer(this.value)" onchange="setAddPerformer(this.value)">${perfDatalistHtml(live0, 'add-perf-list')}</div>`;
+  const perfRow = `<div class="perf-row"><label for="add-perf">プレイヤー</label><input id="add-perf" list="add-perf-list" value="${esc(addPerformer)}" placeholder="${esc(live0 && live0.artist ? `空欄なら「${live0.artist}」` : '空欄ならイベントのアーティスト')}" autocomplete="off" oninput="setAddPerformer(this.value)" onchange="setAddPerformer(this.value)">${perfDatalistHtml(live0, 'add-perf-list')}</div>`;
   const seg = perfRow + regSegHtml(regTab, 'live');
   if(regTab==='bulk'){ bulk.liveId = liveEditId; return `${seg}<div class="panel bulk-inline" id="bulk-inline">${bulkStageHtml()}</div>`; }
   if(regTab==='manual'){
