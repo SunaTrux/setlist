@@ -835,6 +835,15 @@ body.struct-open header{display:none;}
 .st-ed-acc[open] > .st-ed-sum::after{transform:rotate(-135deg) translateY(-1px);}
 .st-ed-sum-name{font-weight:700; font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .st-ed-sum-len{font-size:12px; color:var(--muted); flex:none;}
+.st-ed-grip{margin-left:auto; flex:none; width:34px; height:30px; display:inline-flex; align-items:center; justify-content:center; color:var(--muted); touch-action:none; cursor:grab;}
+.st-ed-grip + .st-ed-sum-dummy{display:none;}
+.st-ed-sum:has(.st-ed-grip)::after{margin-left:4px;}
+.st-row.st-cur{background:color-mix(in srgb, var(--c) 14%, transparent); border-radius:10px; box-shadow:inset 3px 0 0 var(--c);}
+.st-segs i.p{background:var(--c); opacity:.45;}
+.st-segs i.now{background:var(--c); opacity:1; transform:scaleY(1.6);}
+.st-pos{position:absolute; right:8px; top:6px; font-size:11px; font-weight:700; color:#fff; background:var(--c); padding:1px 7px; border-radius:999px; white-space:nowrap; pointer-events:none;}
+.st-row{scroll-margin-top:12px; position:relative;}
+.st-ed-acc.dragging{position:relative; z-index:20; box-shadow:0 10px 24px rgba(0,0,0,.28); opacity:.97;}
 .st-ed-acc > .st-ed{border-left:none; padding:0 12px 12px;}
 .st-add-sec{margin-top:12px;}
 .st-ed-top{display:grid; grid-template-columns:minmax(0,1fr) 3.8em 3.8em 4.4em; gap:6px; align-items:end;}
@@ -1094,13 +1103,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.73.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.74.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.74.0': [
+    '構成表の追従：テンポを鳴らすと小節を数えて、今のセクションを光らせ、進捗バーを進め、画面も送ります。ずれたらセクション名をタップでその頭から（設定 →「表示」で「1小節カウントして／すぐ始める／しない」）',
+    '曲の編集画面で、セクションの見出しの右のつまみ（≡）をドラッグして並べ替えられるように'
+  ],
   '1.73.2': [
     'Markdown の貼り付け欄の薄い見本を、テンプレと同じ形（曲情報の表＋構成表の表）に'
   ],
@@ -2214,9 +2227,9 @@ function dragHandleHtml(list){
 let drag = null;
 window.startDrag = (e, list) => {
   if(drag) return;
-  const row = e.target.closest('.setlist-item');
+  const row = e.target.closest('[data-drag-list]');
   if(!row) return;
-  e.preventDefault();
+  e.preventDefault(); e.stopPropagation();
   const handle = e.currentTarget || e.target;
   try{ handle.setPointerCapture(e.pointerId); }catch(_){}
   drag = {list, row, handle, pointerId:e.pointerId, startPageY:e.clientY + window.scrollY, lastClientY:e.clientY, raf:0};
@@ -2227,7 +2240,7 @@ window.startDrag = (e, list) => {
   document.addEventListener('pointercancel', endDrag);
   drag.raf = requestAnimationFrame(dragAutoScroll);
 };
-function dragRows(){ return [...document.querySelectorAll(`.setlist-item[data-drag-list="${drag.list}"]`)]; }
+function dragRows(){ return [...document.querySelectorAll(`[data-drag-list="${drag.list}"]`)]; }
 function onDragMove(e){
   if(!drag || e.pointerId!==drag.pointerId) return;
   if(e.cancelable) e.preventDefault();
@@ -2279,6 +2292,12 @@ function endDrag(e){
 }
 // 画面に見えている並びを保存する。見えていない項目（隠した曲以外）は元の位置のまま
 function applyDragOrder(list, keys){
+  if(list==='stsec'){   // 曲の編集画面のセクション
+    const sg = stSong(); if(!sg){ render(); return; }
+    const L = stEnsure(sg).sections, next = keys.map(k => L[+k]).filter(Boolean);
+    if(next.length===L.length && next.some((x,k) => x!==L[k])){ sg.struct.sections = next; stTouch(sg); }
+    render(); return;
+  }
   if(list==='stock' && showMode) return;
   if(list==='stock'){
     // 見えている曲だけを、元いた位置（スロット）に並べ直して入れる。非表示の曲は動かさない
@@ -2962,6 +2981,7 @@ function stLockedNow(){ return showMode || !!stMin; }
 window.stSetLock = on => setShowMode(on, true);   // 構成表の右上から：メッセージなし
 function stLockToast(){ if(showMode) showToast('🔒 本番モード中です。右上の「本番モード中」を押すと解除できます'); }   // 最小表示ではメッセージを出さずに何もしない
 window.stToggleSec = si => {
+  if(stM.on && stFollowOn && !structEdit){ stFollowJump(si); return; }   // テンポを鳴らしている間は、タップでそのセクションへ
   if(stLockedNow()){ stLockToast(); return; }
   stOpenSec = stOpenSec===si ? null : si;
   render();
@@ -3064,6 +3084,8 @@ function renderStruct(){
   main.innerHTML = `<div class="st-land"><div class="st-side">${sideHtml}</div><div class="st-main" id="st-main">${html}</div></div>`;
   const nm = document.getElementById('st-main'); if(nm) nm.scrollTop = keepTop;
   stMetroBar(true);
+  if(stF.songKey !== curKey){ stF.songKey = curKey; if(stM.on) stFollowReset(); }   // 曲が変わったら頭から数え直す
+  stFollowPaint(true);   // 描き直したときは光だけ付け直す（勝手に送らない）
 }
 let stLastKey = '';
 // 曲名の前の曲順：イベントではセットリストの曲カードと同じ番号（連番ありのMC・SEなども数える）、曲マスタでは並び順
@@ -3266,8 +3288,8 @@ function stMdImportPanelHtml(overwrite){
 function stEditorHtml(s){
   const secs = stEnsure(s).sections;
   // セクションは1つずつアコーディオン（見出しに名前と小節数。押すと開く）
-  const eds = secs.map((x, si) => `<details class="st-ed-acc" style="--c:${stColor(x.name)}"${stEdOpen.has(x) ? ' open' : ''} data-si="${si}">
-    <summary class="st-ed-sum"><span class="st-ed-sum-name">${esc(x.name || '（名前なし）')}</span><span class="st-ed-sum-len mono">${esc(String(x.bars||''))}小節${stTimes(x) > 1 ? `×${stTimes(x)}` : ''}</span></summary>
+  const eds = secs.map((x, si) => `<details class="st-ed-acc" style="--c:${stColor(x.name)}"${stEdOpen.has(x) ? ' open' : ''} data-si="${si}" data-drag-list="stsec" data-key="${si}">
+    <summary class="st-ed-sum"><span class="st-ed-sum-name">${esc(x.name || '（名前なし）')}</span><span class="st-ed-sum-len mono">${esc(String(x.bars||''))}小節${stTimes(x) > 1 ? `×${stTimes(x)}` : ''}</span>${secs.length > 1 ? `<span class="drag-handle st-ed-grip" onpointerdown="startDrag(event,'stsec')" onclick="event.preventDefault(); event.stopPropagation();" role="button" aria-label="ドラッグして並べ替え" title="ドラッグして並べ替え">${GRIP_SVG}</span>` : ''}</summary>
     ${stSecEdHtml(x, si, secs.length, false)}</details>`).join('');
   return `${stSecNamesDatalist()}
   <p class="hint" style="padding-top:10px;">曲情報と構成表を編集できます。入力するとすぐ保存されます。</p>
@@ -3793,6 +3815,51 @@ window.stSaveMd = async () => {
 
 // ---- 構成画面のメトロノーム（曲のテンポで待機。−＋・TAPは一時的な変更で、曲には保存しない） ----
 const stM = {bpm:120, on:false, sound:true, next:0, beat:0, timer:null, taps:[]};
+// ---- 追従：テンポを鳴らすと、小節を数えて構成表の今の場所を光らせ、画面も送る ----
+let stFollowOn = store.get('setlist_struct_follow', true) !== false;   // 設定でオン／オフ
+let stCountIn = store.get('setlist_struct_countin', 1) === 0 ? 0 : 1;   // 最初に何小節カウントするか（1 か 0）
+const stF = {bar:-2, key:''};    // bar：今の小節（0 が1小節目、マイナスはカウント中）
+let stUserScrollAt = 0;          // 指で画面を動かした時刻（しばらくは自動で送らない）
+['touchstart','wheel'].forEach(k => document.addEventListener(k, () => { if(stM.on) stUserScrollAt = Date.now(); }, {passive:true}));
+function stTimeline(){
+  const sg = stSong(); const L = (sg && sg.struct && sg.struct.sections) || []; const out = [];
+  L.forEach((x, si) => { const n = stInt(x.bars), t = stTimes(x); if(n > 0) for(let r = 0; r < t; r++) out.push({si, rep:r, reps:t, bars:n}); });
+  return out;
+}
+function stFollowReset(){ stF.bar = -stCountIn - 1; stF.key = ''; stFollowPaint(true); }
+// 今の小節から「どのセクションの何小節目か」
+function stFollowWhere(){
+  if(stF.bar < 0) return stF.bar >= -stCountIn ? {count:true} : null;
+  let b = stF.bar;
+  for(const seg of stTimeline()){ if(b < seg.bars) return {si:seg.si, rep:seg.rep, reps:seg.reps, bar:b, bars:seg.bars}; b -= seg.bars; }
+  return {end:true};
+}
+function stFollowPaint(noScroll){
+  document.querySelectorAll('.st-row.st-cur').forEach(r => r.classList.remove('st-cur'));
+  document.querySelectorAll('.st-segs i.p, .st-segs i.now').forEach(i => i.classList.remove('p','now'));
+  document.querySelectorAll('.st-pos').forEach(x => x.remove());
+  if(!stFollowOn || !stM.on || !structOpen || structEdit) return;
+  const w = stFollowWhere(); if(!w || w.end) return;
+  const si = w.count ? 0 : w.si;
+  const row = document.querySelector(`.st-row[data-si="${si}"]`); if(!row) return;
+  row.classList.add('st-cur');
+  if(!w.count) row.querySelectorAll('.st-segs i').forEach((i, k) => { i.classList.toggle('p', k < w.bar); i.classList.toggle('now', k===w.bar); });
+  { const ps = document.createElement('span'); ps.className = 'st-pos mono'; ps.textContent = w.count ? 'カウント' : `${w.bar+1}/${w.bars}${w.reps > 1 ? `（${w.rep+1}回目）` : ''}`; row.appendChild(ps); }
+  // セクションが変わったら、そのセクションが画面の上のほうに来るように送る（指で動かした直後は送らない）
+  const key = w.count ? 'c' : `${w.si}:${w.rep}`;
+  if(key!==stF.key){ stF.key = key; if(!noScroll && Date.now() - stUserScrollAt > 4000){ try{ row.scrollIntoView({block:'start', behavior:'smooth'}); }catch(e){ row.scrollIntoView(true); } } }
+}
+// セクション名をタップ：その頭から（次の小節の頭で）数え直す
+function stFollowJump(si){
+  let start = 0; for(const seg of stTimeline()){ if(seg.si===si && seg.rep===0) break; start += seg.bars; }
+  stF.bar = start - 1; stF.key = ''; stUserScrollAt = 0;
+  stFollowPaint(true);
+  document.querySelectorAll('.st-row.st-cur').forEach(r => r.classList.remove('st-cur'));
+  document.querySelectorAll('.st-segs i.p, .st-segs i.now').forEach(i => i.classList.remove('p','now'));
+  document.querySelectorAll('.st-pos').forEach(x => x.remove());
+  const row = document.querySelector(`.st-row[data-si="${si}"]`);
+  if(row){ row.classList.add('st-cur'); const ps = document.createElement('span'); ps.className = 'st-pos mono'; ps.textContent = '次の小節から'; row.appendChild(ps); }
+}
 function stSongBpm(){ const s = stSong(), e = stEntry(); const v = parseInt(s ? effVal(e, s, 'bpm') : '', 10); return v > 0 ? v : 120; }
 function stSetBpm(v){
   stM.bpm = clampBpm(v);
@@ -3819,7 +3886,10 @@ function stTick(){
     if(stM.sound) scheduleLevelClick(stM.next, onBeat ? (b===0 ? 2 : 1) : 0);
     if(onBeat){
       const delay = Math.max(0, (stM.next - ctx.currentTime) * 1000);
-      setTimeout(() => { document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k===b)); }, delay);   // 今の拍だけ光らせる
+      setTimeout(() => {
+        document.querySelectorAll('#st-dots i').forEach((d, k) => d.classList.toggle('on', stM.on && k===b));   // 今の拍だけ光らせる
+        if(b===0 && stM.on){ stF.bar++; stFollowPaint(); }   // 小節の頭で、構成表の今の場所を進める
+      }, delay);
     }
     stM.next += 60 / stM.bpm / pl.subs; stM.beat++;
   }
@@ -3828,7 +3898,7 @@ function stMetroStart(){
   const ctx = getCtx();
   // iPhone などは、タップの中で無音を一度鳴らしておくと音が出るようになる
   try{ const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); }catch(e){}
-  stM.on = true; stM.beat = 0;
+  stM.on = true; stM.beat = 0; stFollowReset();
   const go = () => {
     if(!stM.on) return;
     stM.next = ctx.currentTime + 0.06;
@@ -3856,6 +3926,7 @@ function stBindSteps(el){
 }
 function stMetroStop(){
   stM.on = false; clearInterval(stM.timer); stM.timer = null;
+  stFollowPaint();
   document.querySelectorAll('#st-dots i').forEach(d => d.classList.remove('on'));
   stGoBtn();
 }
@@ -6008,6 +6079,7 @@ window.selectSetSec = id => {
 };
 try{ setSplitMq.addEventListener('change', () => { if(tab==='settings' && !structOpen) render(); }); }catch(e){ try{ setSplitMq.addListener(() => { if(tab==='settings' && !structOpen) render(); }); }catch(_){} }
 let setAccOpen = (a => Array.isArray(a) ? a : [])(store.get('setlist_settings_open', []));  // 設定のアコーディオンで開いている項目（端末ごとに覚える）
+window.setFollow = (on, countIn) => { stFollowOn = !!on; store.set('setlist_struct_follow', stFollowOn); if(on){ stCountIn = countIn ? 1 : 0; store.set('setlist_struct_countin', stCountIn); } render(); };
 function renderSettings(){
   const theme = store.get('setlist_theme','auto');
   // 横に広い画面（スマホ横・タブレット・PC）は、iOSの設定のように左に項目一覧、右に中身の2カラム
@@ -6036,6 +6108,14 @@ function renderSettings(){
         <button type="button" class="theme-btn ${stDegreeMinor==='minor'?'active':''}" onclick="setDegreeMinor('minor')">主音から<br><small>Fm → Im</small></button>
         <button type="button" class="theme-btn ${stDegreeMinor==='relative'?'active':''}" onclick="setDegreeMinor('relative')">同じ調号のメジャーから<br><small>Fm → VIm</small></button>
       </div>
+    </div>
+    <div class="field" style="margin:14px 0 0;"><label>構成表をテンポに合わせて進める（追従）</label>
+      <div class="theme-row">
+        <button type="button" class="theme-btn ${stFollowOn && stCountIn ? 'active' : ''}" onclick="setFollow(true, 1)">1小節カウントして</button>
+        <button type="button" class="theme-btn ${stFollowOn && !stCountIn ? 'active' : ''}" onclick="setFollow(true, 0)">すぐ始める</button>
+        <button type="button" class="theme-btn ${stFollowOn ? '' : 'active'}" onclick="setFollow(false)">しない</button>
+      </div>
+      <div class="hint" style="padding:6px 0 0;">構成表でテンポを鳴らすと、小節を数えて今のセクションを光らせ、画面を送ります。ずれたら、セクション名をタップするとその頭から数え直します。</div>
     </div>
     <div class="field" style="margin:14px 0 0;"><label for="tagline-input">アプリのヒント文（タイトルの下の一文。1行に1つ、🔄で順に切り替え）</label>
       <textarea id="tagline-input" rows="6" wrap="off" style="white-space:pre; overflow-x:auto;" placeholder="${esc(DEFAULT_TAGLINES[0])}" oninput="onTaglinesInput(this.value)" onblur="onTaglinesBlur(this)">${esc(taglineList().join('\n'))}</textarea>
