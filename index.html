@@ -1071,13 +1071,18 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.70.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.70.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.70.1': [
+    '構成表の表示チップの初期値を「小節」と「コード」だけ点灯に（チップで表示を切り替えられます）',
+    '曲の編集画面では、曲名の下のチップを出さないように。説明文に「構成表からも各セクションを選ぶと個別に編集できます」を追加',
+    'サンプル（バンド編成）の Cissy Strut のリズムパターンをシャッフルに'
+  ],
   '1.70.0': [
     '画面ごとに違っていた使い方をそろえました',
     'スマホでは、曲マスタ・イベント一覧も✕ボタンを出さず、左スワイプで削除（元に戻すあり）',
@@ -1651,7 +1656,7 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 
 // サンプルデータを新しいIDで生成する（初回起動時と「設定」からの個別読み込みの両方で使う）
 function buildBandSample(){
-  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'Cm', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'セカンドライン', orig:'The Meters'};
+  const s1={id:uid(), name:'Cissy Strut', bpm:'92', key:'Cm', duration:'3:10', start:'ドラムのブレイクから', end:'キメで全員ピタッと止める', url:'', notes:'インスト。オープニングで空気を作る', genre:'funk', rhythm:'シャッフル', orig:'The Meters'};
   const s2={id:uid(), name:'Get Back', bpm:'123', key:'A', duration:'3:15', start:'ギターのカッティングから', end:'最後のコードを伸ばして止める', url:'', notes:'ギターソロは2コーラス', genre:'rock', rhythm:'8ビート', orig:'The Beatles'};
   const s3={id:uid(), name:'Kansas City', bpm:'130', key:'G', duration:'2:40', start:'ドラムのカウント4つ', end:'ブレイクからジャーンで締める', url:'', notes:'12小節ブルース。ソロ回し可', genre:'rock', rhythm:'シャッフル', orig:'Wilbert Harrison'};
   const s4={id:uid(), name:'Iko Iko', bpm:'108', key:'D', duration:'3:30', start:'ドラムのセカンドラインから', end:'リズムだけ残してフェードアウト', url:'', notes:'客席と掛け合い', genre:'rock', rhythm:'セカンドライン', orig:'Dr. John'};
@@ -2652,6 +2657,8 @@ function cleanupEmptyLive(){
 // 構成は曲マスタの曲に持つ：song.struct = {sections:[{name,bars,times,chord,vocal,play,kime,kimeBar}], view:{bars,prog,chord,vocal,play,kime}}
 const ST_SEC = (name, bars, o = {}) => ({name, bars, times: o.times || 1, chord: o.chord || '', vocal: o.vocal || '', play: o.play || '', kime: o.kime || '', kimeBar: o.kimeBar || ''});
 const ST_VIEW_ALL = {bars:true, prog:true, chord:true, vocal:true, play:true, kime:true};
+// 表示チップの初期値：小節とコードだけ点灯（チップで切り替えられることに気づいてもらうため）
+const ST_VIEW_DEFAULT = {bars:true, prog:false, chord:true, vocal:false, play:false, kime:false};
 const ST_FILTERS = [['bars','小節'],['prog','バー'],['chord','コード'],['vocal','歌'],['play','演奏'],['kime','キメ']];
 let structOpen = null;   // イベントから：{liveId, idx}（idx はセットリストの位置）／曲マスタから：{songId}
 let structEdit = false;  // 構成の編集中
@@ -2663,7 +2670,7 @@ function capoOptionsHtml(cur){ const c = parseInt(cur, 10) || 0; let h = `<optio
 let stChordMode = store.get('setlist_chord_mode', 'chord');      // 構成表のコード表示：chord / degree
 let stDegreeMinor = store.get('setlist_degree_minor', 'minor');  // マイナーキーのディグリー：minor（主音から）/ relative（同じ調号のメジャーから）
 let stCC = null;  // 描画中のコード表示の設定
-let structBaseView = store.get('setlist_struct_view', null) || {...ST_VIEW_ALL};  // 表示を決めていない曲に使う
+let structBaseView = store.get('setlist_struct_view', null) || {...ST_VIEW_DEFAULT};  // 表示を決めていない曲に使う
 
 // サンプルの構成（曲名で当てる）
 const ST_BLUES = 'C7 F7 C7 C7\nF7 F7 C7 C7\nG7 F7 C7 G7';
@@ -2828,7 +2835,7 @@ function stSeq(){
   const l = stLive(); return l ? l.setlist.map((e,i) => e.type==='other' ? null : i).filter(i => i!==null) : [];
 }
 function stCur(){ return stFromStock() ? structOpen.songId : structOpen.idx; }
-function stView(s){ return {...ST_VIEW_ALL, ...structBaseView, ...((s.struct && s.struct.view) || {})}; }
+function stView(s){ return {...ST_VIEW_DEFAULT, ...structBaseView, ...((s.struct && s.struct.view) || {})}; }
 function stEnsure(s){ if(!s.struct) s.struct = {sections:[]}; if(!s.struct.sections) s.struct.sections = []; return s.struct; }
 function stTouch(s){ s.updatedAt = Date.now(); saveSongs(); }
 
@@ -2961,7 +2968,7 @@ function renderStruct(){
     ${compact ? `<button type="button" class="st-back-mini" onclick="closeStruct()" aria-label="${backLabel}に戻る" title="${backLabel}に戻る">←</button>` : ''}
     <div class="st-title-box"><h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && showMode ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
   </div>
-  ${structEdit || !stMin ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;
+  ${!structEdit && !stMin ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;   // 編集画面では曲名の下のチップは出さない
   if(structEdit){ document.body.classList.remove('st-viewing'); html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
   document.body.classList.add('st-viewing');
 
@@ -3200,7 +3207,7 @@ function stEditorHtml(s){
   const secs = stEnsure(s).sections;
   const eds = secs.map((x, si) => stSecEdHtml(x, si, secs.length, false)).join('');
   return `${stSecNamesDatalist()}
-  <p class="hint" style="padding-top:10px;">曲情報とセクションをここで編集できます。入力するとすぐ保存されます。</p>
+  <p class="hint" style="padding-top:10px;">曲情報とセクションをここで編集できます。入力するとすぐ保存されます。セクションは、構成表からも各セクションを選択すると個別に編集できます。</p>
   ${stInfoEditorHtml(s)}
   <div class="panel">
     <div class="section-title" style="margin-top:0;">セクション<span class="st-save-note">曲マスタに保存（全イベント共通）</span></div>
