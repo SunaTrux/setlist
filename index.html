@@ -306,6 +306,11 @@ select.mini-input{width:64px; padding:5px 2px;}
 .setlist-item{position:relative;}
 .swipe-bg{position:absolute; top:0; right:0; bottom:0; width:88px; display:flex; background:var(--danger);}
 .swipe-del{flex:1; border:none; background:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
+.swipe-del.swipe-hide{background:#7a7268;}
+.live-card-wrap[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin){width:176px;}
+.live-card-wrap[data-swipe-w="96"] .swipe-bg:not(.swipe-bg-pin){width:96px;}
+.swipe-full .swipe-del.swipe-hide{display:none;}   /* 最後まで引いているときは「削除」だけを大きく */
+.is-hidden-live .live-card{opacity:.6;}
 .swipe-face{position:relative; background:inherit; transition:transform .18s ease; touch-action:pan-y;}
 .swipe-bg.swipe-bg-pin{left:0; right:auto; background:var(--pin);}
 [data-swipe] .swipe-bg-pin{visibility:hidden;}
@@ -1120,13 +1125,17 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.76.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.77.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.77.0': [
+    'イベント一覧の左スワイプで「非表示」と「削除」を選べるように。さらに大きく引くと、そのまま削除（元に戻すあり）',
+    '非表示にしたイベントは一覧に出ません。「非表示 N」チップを点灯すると表示され、左スワイプの「表示に戻す」で戻せます'
+  ],
   '1.76.1': [
     'セットリスト画面の「← イベント一覧」「構成表 →」ボタンを、構成表の「← セットリスト」「✎ 曲を編集」と同じ大きさに'
   ],
@@ -5202,11 +5211,14 @@ function renderLives(){
       ${liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && !artists.some(a => normName(a.name)===normName(liveArtistFilter)) ? `<option value="${esc(liveArtistFilter)}" selected>${esc(liveArtistFilter)}（0）</option>` : ''}
       ${noneCount ? `<option value="__none__" ${liveArtistFilter==='__none__'?'selected':''}>アーティスト未設定（${noneCount}）</option>` : ''}
     </select></label>` : ''}${lives.length>1 ? `<label class="icon-sel${liveSort!==LIVE_SORT_DEFAULT ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="live-sort-quick" aria-label="並び替え">${liveSortOptionsHtml(liveSort)}</select></label>` : ''}`;
-  const filtered0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
+  const hiddenLiveCount = lives.filter(l => l.hidden && matchesLiveFilter(l)).length;
+  if(!hiddenLiveCount) showHiddenLives = false;
+  const filtered0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l) && (showHiddenLives || !l.hidden));
   const pastCount = filtered0.filter(l => !l.pinned && liveDateStatus(l.date).kind==='past').length;
   // 「過去」チップ：点灯で過去のイベントも表示、消灯で隠す（セットリストの「曲以外」と同じ形）
   const pastChip = pastCount ? `<button type="button" class="opt-chip others-chip${hidePast ? '' : ' on'}" onclick="setHidePast(${!hidePast})" aria-pressed="${!hidePast}" title="${hidePast ? '過去のイベントを表示' : '過去のイベントを隠す'}">過去 ${pastCount}</button>` : '';
-  if(lives.length) html += `<div class="list-opts lives-opts">${viewSegHtml(livesMode, 'setLivesMode')}${pastChip}<span class="opts-r">${lvIcons}${showModeBtnHtml()}</span></div>`;
+  const hidChip = hiddenLiveCount ? `<button type="button" class="opt-chip others-chip${showHiddenLives ? ' on' : ''}" onclick="toggleShowHiddenLives()" aria-pressed="${showHiddenLives}" title="${showHiddenLives ? '非表示のイベントを隠す' : '非表示のイベントも表示'}">非表示 ${hiddenLiveCount}</button>` : '';
+  if(lives.length) html += `<div class="list-opts lives-opts">${viewSegHtml(livesMode, 'setLivesMode')}${pastChip}${hidChip}<span class="opts-r">${lvIcons}${showModeBtnHtml()}</span></div>`;
   if(showMode && lives.length) html += showModeNoteHtml('イベントの作成・コピー・削除・イベント情報の編集').replace('class="lock-note"', 'class="lock-note lives-lock-note"');
   const sorted0 = hidePast ? filtered0.filter(l => l.pinned || liveDateStatus(l.date).kind!=='past') : filtered0;
   const sorted = [...sorted0.filter(l => l.pinned), ...sorted0.filter(l => !l.pinned)];
@@ -5233,9 +5245,11 @@ function renderLives(){
         const names = l.setlist.filter(e => e.type!=='other').map(e => (songs.find(x => x.id===e.songId) || {}).name).filter(Boolean);
         return `${l.memo ? `<div class="live-memo">${esc(l.memo)}</div>` : ''}${names.length ? `<div class="live-songs">${names.map((n, k) => `<span class="mono">${k+1}.</span>${esc(n)}`).join('<span class="live-songs-sep"> / </span>')}</div>` : ''}`;
       })() : '';
-      html += `<div class="live-card-wrap st-card-${st.kind}" data-live-id="${l.id}" data-swipe="lives">${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}${noDel ? '' : `<div class="swipe-bg"><button type="button" class="swipe-del" onclick="removeLiveById('${l.id}')">削除</button></div>`}<div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
+      // 左スワイプ：「非表示」「削除」。さらに大きく引くと削除（本番モード中は非表示だけ）
+      const hideBtn = `<button type="button" class="swipe-del swipe-hide" onclick="toggleLiveHidden('${l.id}')">${l.hidden ? '表示に戻す' : '非表示'}</button>`;
+      html += `<div class="live-card-wrap st-card-${st.kind}${l.hidden ? ' is-hidden-live' : ''}" data-live-id="${l.id}" data-swipe="lives" data-swipe-w="${noDel ? 96 : 176}"${noDel ? '' : ' data-swipe-full="1"'}>${pinBgHtml(!!l.pinned, `togglePinLive('${l.id}')`)}<div class="swipe-bg">${hideBtn}${noDel ? '' : `<button type="button" class="swipe-del" data-full-action onclick="removeLiveById('${l.id}', true)">削除</button>`}</div><div class="swipe-face"><button class="live-card" onclick="openLive('${l.id}')">
         <div class="live-date mono">${l.pinned ? '<span class="pin-mark" aria-label="ピン留め">📌</span>' : ''}${liveStatusBadge(st)}${dateTxt}</div>
-        <div class="live-title-line"><span class="live-venue">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="live-artist">${esc(l.artist)}</span>` : ''}</div>
+        <div class="live-title-line"><span class="live-venue">${esc(l.venue || 'イベント名未設定')}</span>${l.artist ? `<span class="live-artist">${esc(l.artist)}</span>` : ''}${l.hidden ? '<span class="hidden-tag">非表示</span>' : ''}</div>
         ${l.place ? `<div class="live-place">${esc(l.place)}</div>` : ''}
         ${fullHtml}
         <div class="live-count">${songCount}曲${total? ' ・ 合計 ' + fmtDur(total):''}</div>
@@ -5724,8 +5738,9 @@ let swipeSuppressClick = false;
 function closeSwipes(except){
   document.querySelectorAll('.swipe-open, .swipe-open-pin').forEach(el => {
     if(el===except) return;
-    el.classList.remove('swipe-open', 'swipe-open-pin', 'swipe-to-pin');
+    el.classList.remove('swipe-open', 'swipe-open-pin', 'swipe-to-pin', 'swipe-full');
     const f = el.querySelector('.swipe-face'); if(f) f.style.transform = '';
+    const bg = el.querySelector('.swipe-bg:not(.swipe-bg-pin)'); if(bg) bg.style.width = '';
   });
 }
 document.addEventListener('pointerdown', e => {
@@ -5737,8 +5752,10 @@ document.addEventListener('pointerdown', e => {
   closeSwipes(item);
   const face = item.querySelector('.swipe-face');
   if(!face) return;
-  swipeState = {item, face, id:e.pointerId, x0:e.clientX, y0:e.clientY, locked:null, dx:0, canPin: !!item.querySelector('.swipe-bg-pin'), canDel: !!item.querySelector('.swipe-bg:not(.swipe-bg-pin)'),
-    base: item.classList.contains('swipe-open') ? -SWIPE_W : item.classList.contains('swipe-open-pin') ? SWIPE_W : 0};
+  const w = parseInt(item.dataset.swipeW, 10) || SWIPE_W;   // 左に開く幅（ボタン2つなら広く）
+  swipeState = {item, face, w, full: item.dataset.swipeFull==='1', id:e.pointerId, x0:e.clientX, y0:e.clientY, locked:null, dx:0, canPin: !!item.querySelector('.swipe-bg-pin'), canDel: !!item.querySelector('.swipe-bg:not(.swipe-bg-pin)'),
+    bg: item.querySelector('.swipe-bg:not(.swipe-bg-pin)'),
+    base: item.classList.contains('swipe-open') ? -w : item.classList.contains('swipe-open-pin') ? SWIPE_W : 0};
 });
 document.addEventListener('pointermove', e => {
   const st = swipeState; if(!st || e.pointerId !== st.id) return;
@@ -5748,8 +5765,11 @@ document.addEventListener('pointermove', e => {
     st.locked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
   }
   if(st.locked !== 'x') return;
-  st.dx = Math.min(st.canPin ? SWIPE_W : 0, Math.max(st.canDel ? -SWIPE_W : 0, st.base + dx));
+  // さらに大きく左へ：最後まで引くと削除（swipeFull のとき）
+  const maxL = st.full ? st.item.offsetWidth : st.w;
+  st.dx = Math.min(st.canPin ? SWIPE_W : 0, Math.max(st.canDel ? -maxL : 0, st.base + dx));
   st.item.classList.toggle('swipe-to-pin', st.dx > 0);
+  if(st.full && st.bg){ st.bg.style.width = Math.max(st.w, -st.dx) + 'px'; st.item.classList.toggle('swipe-full', -st.dx > st.item.offsetWidth * 0.55); }
   st.face.style.transition = 'none';
   st.face.style.transform = `translateX(${st.dx}px)`;
 });
@@ -5757,11 +5777,20 @@ function endSwipe(e){
   const st = swipeState; if(!st || e.pointerId !== st.id) return;
   swipeState = null;
   const keep = st.locked === 'y' ? st.base : 0;   // 縦スクロールなら今の開き方のまま
-  const open = st.locked === 'x' ? st.dx < -SWIPE_W/2 : keep < 0;
+  // 最後まで引いたら、そのまま削除（元に戻すあり）
+  if(st.locked === 'x' && st.full && -st.dx > st.item.offsetWidth * 0.55){
+    swipeSuppressClick = true;
+    st.face.style.transition = ''; st.face.style.transform = `translateX(-${st.item.offsetWidth}px)`;
+    const btn = st.item.querySelector('[data-full-action]');
+    setTimeout(() => { swipeSuppressClick = false; if(btn) btn.click(); }, 160);
+    return;
+  }
+  if(st.bg){ st.bg.style.width = ''; st.item.classList.remove('swipe-full'); }
+  const open = st.locked === 'x' ? st.dx < -st.w/2 : keep < 0;
   const openPin = st.locked === 'x' ? st.dx > SWIPE_W/2 : keep > 0;
   if(st.locked === 'x') swipeSuppressClick = true;
   st.face.style.transition = '';
-  st.face.style.transform = open ? `translateX(-${SWIPE_W}px)` : openPin ? `translateX(${SWIPE_W}px)` : '';
+  st.face.style.transform = open ? `translateX(-${st.w}px)` : openPin ? `translateX(${SWIPE_W}px)` : '';
   st.item.classList.toggle('swipe-open', open);
   st.item.classList.toggle('swipe-open-pin', openPin);
   if(!openPin) setTimeout(() => { if(!st.item.classList.contains('swipe-open-pin')) st.item.classList.remove('swipe-to-pin'); }, 200);
@@ -5876,19 +5905,31 @@ window.applyOverridesToMaster = () => {
 window.toggleEntryExpand = i => { entryExpandedIdx = entryExpandedIdx===i ? null : i; render(); };
 window.backToLives = () => { if(songForm && songForm.__ctx==='live') songForm = null; stopMetro(); stopTimerInterval(); cleanupEmptyLive(); liveEditId=null; justCopiedId=null; entryEditIdx=null; render(); scrollToTop(); };
 // イベント一覧から削除（✕ボタン・左スワイプ）
-window.removeLiveById = (id) => {
+window.removeLiveById = (id, fromSwipe) => {
   const live = lives.find(l=>l.id===id); if(!live) return;
   if(showModeGuard()) return;
   const label = [live.date, live.venue, live.artist].filter(Boolean).join(' ');
   closeSwipes();
-  confirmAction(`「${label || 'このイベント'}」を削除しますか？\nセットリストも一緒に削除されます。`, () => {
+  const doIt = () => {
     if(metroPanel && metroPanel.liveId===id) stopMetro();
     snapForUndo();
     lives = lives.filter(l=>l.id!==id);
     saveLives(); render();
-    undoToast('イベントを削除しました。');
-  }, '削除する');
+    undoToast(`「${live.venue || 'イベント'}」を削除しました。`);
+  };
+  if(fromSwipe){ doIt(); return; }   // スワイプからは確認なし（すぐ「元に戻す」で戻せる）
+  confirmAction(`「${label || 'このイベント'}」を削除しますか？\nセットリストも一緒に削除されます。`, doIt, '削除する');
 };
+// イベントの非表示（一覧に出さない。「非表示 N」チップで表示に切り替え）
+let showHiddenLives = false;
+window.toggleLiveHidden = id => {
+  const l = lives.find(x => x.id===id); if(!l) return;
+  closeSwipes(); snapForUndo();
+  if(l.hidden) delete l.hidden; else l.hidden = true;
+  l.updatedAt = Date.now(); saveLives(); render();
+  undoToast(l.hidden ? `「${l.venue || 'イベント'}」を非表示にしました。` : `「${l.venue || 'イベント'}」を表示に戻しました。`);
+};
+window.toggleShowHiddenLives = () => { showHiddenLives = !showHiddenLives; render(); };
 window.removeLive = () => {
   const live = lives.find(l=>l.id===liveEditId);
   if(showModeGuard()) return;
