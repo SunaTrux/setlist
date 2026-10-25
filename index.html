@@ -213,6 +213,11 @@ main{flex:1; padding:16px; padding-bottom:40px; box-sizing:border-box; width:100
 .set-acc-body > :last-child{margin-bottom:0;}
 .set-acc[open] > summary{padding-bottom:10px;}
 .set-acc-danger .set-acc-t{color:var(--danger);}
+/* 設定のアコーディオンは、グループごとに1枚につなげる（セットリスト画面の下のパネルと同じ形） */
+.set-acc{margin-bottom:0; border-radius:0;}
+.set-acc + .set-acc{border-top:none;}
+:not(.set-acc) + .set-acc, .set-acc:first-child{border-top-left-radius:var(--radius); border-top-right-radius:var(--radius);}
+.set-acc:has(+ :not(.set-acc)), .set-acc:last-child{border-bottom-left-radius:var(--radius); border-bottom-right-radius:var(--radius); margin-bottom:16px;}
 .tagline-tools{display:flex; align-items:center; gap:8px; margin-top:6px;}
 .tagline-tools .hint{flex:1; margin:0; padding:0;}
 .tagline-reset{flex:none; padding:6px 10px; font-size:12px; white-space:nowrap;}
@@ -347,7 +352,8 @@ select.mini-input{width:64px; padding:5px 2px;}
 .row-del{flex-shrink:0; width:34px; height:34px; padding:0; margin-left:auto; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--danger); font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer;}
 .reorder + .row-del{margin-left:0;}
 .stock-total{display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; margin-bottom:10px;}
-.stock-total .totals-label{font-weight:700; color:var(--text); font-size:13px;}
+.stock-total .totals-label{font-weight:700; color:var(--text); font-size:15px;}
+.stock-total .totals-label small{font-size:12px; font-weight:600; color:var(--muted); margin-left:6px;}
 .stock-total .totals-value{font-size:20px; font-weight:700; color:var(--accent);}
 
 .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
@@ -416,6 +422,8 @@ select.mini-input{width:64px; padding:5px 2px;}
 .bulk-inline .bulk-text{width:100%;}
 .bulk-inline .ocr-list{max-height:none;}
 .reg-more{display:block; width:100%; margin:6px 0 2px; padding:10px; border:1px dashed var(--border); border-radius:10px; background:none; color:var(--accent); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
+.live-form-foot{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.live-form-foot .hint{margin:0; padding:0;}
 .acc-panel{margin-top:16px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
 .acc-panel:empty{display:none;}
 .acc-item + .acc-item{border-top:1px solid var(--border);}
@@ -435,7 +443,11 @@ select.mini-input{width:64px; padding:5px 2px;}
 .toast-undo button{flex:none; height:34px; padding:0 14px; border-radius:999px; border:none; background:var(--accent); color:var(--accent-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
 /* スワイプで消せる端末（タッチ）では、セットリストの✕ボタンは出さない（左スワイプで削除） */
 @media (hover:none) and (pointer:coarse){
-  .setlist-item[data-drag-list="live"] .row-del{display:none;}
+  .setlist-item[data-drag-list="live"] .row-del,
+  .setlist-item[data-swipe="stock"] .row-del,
+  .live-card-wrap .live-del-btn{display:none;}
+  .live-card-wrap .live-card{padding-right:14px;}
+  .lv-min .live-card-wrap .live-card{padding-right:116px;}
 }
 .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:999px; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.25); z-index:200; max-width:88%; text-align:center;}
 
@@ -1059,13 +1071,21 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.69.3';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.70.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.70.0': [
+    '画面ごとに違っていた使い方をそろえました',
+    'スマホでは、曲マスタ・イベント一覧も✕ボタンを出さず、左スワイプで削除（元に戻すあり）',
+    'イベント情報も入力するとすぐ保存（「保存」ボタンはなくなりました）',
+    '曲マスタ・イベント一覧の絞り込み・並び替えも、セットリストと同じ小さなアイコンに。イベント一覧の「過去のイベントを隠す」は「過去」チップに',
+    '曲マスタの合計を「曲マスタ ◯曲」に、下に「その他の操作」（テキストで書き出し）を追加',
+    '設定のアコーディオンを、グループごとに1枚につなげた形に'
+  ],
   '1.69.3': [
     '「一括」を押したとき、別の窓ではなく、ほかのタブと同じように下に開くように'
   ],
@@ -1784,7 +1804,7 @@ function timeFieldHtml(id, value){
   </div>`;
 }
 window.syncTimeEmpty = (el) => { el.parentNode.classList.toggle('is-empty', !el.value); };
-window.clearTimeField = (id) => { const el = document.getElementById(id); if(el){ el.value=''; syncTimeEmpty(el); } };
+window.clearTimeField = (id) => { const el = document.getElementById(id); if(el){ el.value=''; syncTimeEmpty(el); if(el.closest('#live-form')) liveFormAutoSave(); } };
 // 表示用：片方だけ決まっている場合も、未定側は「-」
 function timeRangeText(start, end){
   if(!start && !end) return '';
@@ -1916,6 +1936,8 @@ let songSort = store.get('setlist_song_sort_v2', 'order');  // 初期値は番�
 let slFilter = 'all', slSort = 'order';  // イベントのセットリストの絞り込み・並べ替え（表示だけ。イベントを開くたびに戻す）
 let stockAddPos = store.get('setlist_stock_pos', 'start');
 let stockSelectMode = false;      // 曲マスタの複数選択モード
+let stockMoreOpen = false;        // 曲マスタの下の「その他の操作」
+window.toggleStockMore = () => { stockMoreOpen = !stockMoreOpen; render(); };
 // 🔒 本番モード：1つのスイッチで、イベント一覧・セットリスト・曲マスタ・構成表の編集をまとめてオフにする（端末ごとに保存）
 // 以前の画面ごとのロックのどれかがオンだったら、本番モードをオンにして引き継ぐ
 let showMode = !!store.get('setlist_show_mode', ['setlist_stock_locked','setlist_lives_locked','setlist_struct_locked'].some(k => !!store.get(k, false)));
@@ -1930,6 +1952,7 @@ window.setShowMode = (on, quiet) => {
 function showModeBtnHtml(){ return `<button type="button" class="lock-btn${showMode ? ' on' : ''}" onclick="setShowMode(!showMode)" aria-pressed="${showMode}" aria-label="${showMode ? '本番モード中（押すと解除）' : '本番モード（すべての画面の編集をオフ）'}" title="${showMode ? '本番モード中（押すと解除）' : '本番モード（すべての画面の編集をオフ）'}">${showMode ? '🔒' : '🔓'}</button>`; }
 const showModeNoteHtml = what => `<div class="lock-note">🔒 本番モード中のため、${what}はできません。<button type="button" class="link-btn" onclick="setShowMode(false)">本番モードを解除</button></div>`;
 let stockSelected = new Set();    // 選択中の曲ID    // 曲マスタに新しく入れる位置
+const LIVE_SORT_DEFAULT = 'status';
 let liveSort = store.get('setlist_live_sort', 'status');  // 初期値は日付順（今日→これから→過去）
 let hidePast = store.get('setlist_hide_past', false);   // イベント一覧で過去のイベントを隠す（ピン留めは隠さない）
 let liveArtistFilter = store.get('setlist_live_artist', 'all');  // イベント一覧の絞り込み：all / __none__ / アーティスト名
@@ -4023,16 +4046,20 @@ function renderSongs(){
   <div class="stock-tools">${filterTools}</div>` : `${showMode ? '' : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-song">+ 曲を登録</button>
   </div>`}
-  ${songs.length ? `<div class="stock-tools">
-    <button type="button" class="btn select-btn" onclick="enterStockSelect()" aria-label="曲マスタを検索・選択">🔍 検索</button>
-    ${filterTools}
-  </div>` : ''}`;
+`;
   const head = html; html = stockBodyHtml();
   main.innerHTML = head + `<div id="stock-body">${html}</div>`;
   bindStockHead();
   if(stockSelectMode && stockFocusQ){ stockFocusQ = false; const q = document.getElementById('stock-q'); if(q){ q.focus(); } }
 }
 // 曲マスタの一覧部分（検索中は入力欄を作り直さず、ここだけ描き直す）
+// 曲マスタの表示切り替えの行：右に 🔍検索・⏷絞り込み・⇅並び替え・🔒本番モード（セットリストと同じ形）
+function stockOptsHtml(){
+  const list = songs.filter(x => !x.hidden);
+  const icons = `<button type="button" class="icon-sel" onclick="enterStockSelect()" title="検索・選んでまとめて操作" aria-label="曲マスタを検索・選択">${SEARCH_ICON_SVG}</button>${songFilterSelectHtml('song-genre-filter', songGenreFilter, list).replace('class="sort-chip"', `class="icon-sel${songGenreFilter!=='all' ? ' on' : ''}"`)}<label class="icon-sel${songSort!=='order' ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="song-sort-quick" aria-label="並び替え">${songSortOptionsHtml(songSort)}</select></label>`;
+  return `<div class="list-opts">${viewSegHtml()}<span class="opts-r">${icons}${showModeBtnHtml()}</span></div>`;
+}
+const SEARCH_ICON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>`;
 function stockBodyHtml(){
   let html = '';
   // 曲の登録、または絞り込みで一覧に出ない曲の編集は、一覧の上にフォームを出す
@@ -4053,15 +4080,16 @@ function stockBodyHtml(){
     if(filteredSongs.length){
       const tot = filteredSongs.reduce((t,s)=>t+parseDur(s.duration),0);
       html += `<div class="stock-total">
-        <span class="totals-label">合計（${filteredSongs.length}曲${filtered?'・絞り込み中':''}）</span>
+        <span class="totals-label">曲マスタ<small>${filteredSongs.length}曲${filtered ? '・絞り込み中' : ''}</small></span>
         <span class="totals-value mono">${fmtDur(tot)}</span>
       </div>`;
-      if(!songForm && !stockSelectMode) html += `<div class="list-opts">${viewSegHtml()}${showModeBtnHtml()}</div>`;
+      if(!songForm && !stockSelectMode) html += stockOptsHtml();
       if(showMode && !stockSelectMode) html += showModeNoteHtml('曲の登録・削除・並べ替え・編集');
       if(stockSelectMode) html += `<div class="stock-sel-tools"><button type="button" class="btn" onclick="toggleSelectAllStock()">見えている曲をすべて選択／解除</button></div><div class="hint">曲をタップして選び、下のボタンでまとめて操作します。${showMode ? '🔒 本番モード中のため、削除・コピー・表示の切り替えはできません。' : '目のアイコンで、曲マスタに表示する／しないを切り替えます。'}</div>`;
       if(!canMove && !songForm && !stockSelectMode && !showMode) html += `<div class="hint">ドラッグで曲順を並べ替えるには、並び替えを「番号順」にしてください。</div>`;
       else if(canMove && filtered) html += `<div class="hint">絞り込み中です。ドラッグで並べ替えると、見えている曲どうしの順番だけが入れ替わり、隠れている曲の位置はそのままです。</div>`;
     }
+    if(filteredSongs.length===0 && !songForm && !stockSelectMode) html += stockOptsHtml();   // 絞り込みで0曲でも、絞り込みを戻せるように
     if(filteredSongs.length===0 && !songForm){
       html += `<div class="empty">${stockSelectMode && normQ(stockQuery) ? `「${esc(stockQuery.trim())}」に合う曲がありません。` : hiddenCount && songGenreFilter==='all' ? 'すべての曲が非表示です。' : '絞り込みに合う曲がありません。'}</div>`;
     }
@@ -4110,7 +4138,11 @@ function stockBodyHtml(){
       </div>`;
     });
     if(filteredSongs.length && !songForm && !stockSelectMode){
-      // 曲順のテキスト書き出しは「🔍 検索」で曲を選んで「テキストで書き出し」から
+      // その他の操作（セットリストと同じ形）：見えている曲（絞り込み中はその曲だけ）をテキストで書き出し。選んで書き出すときは「🔍」から
+      html += `<div class="acc-panel stock-more"><div class="acc-item${stockMoreOpen ? ' open' : ''}">
+        <button type="button" class="acc-head" onclick="toggleStockMore()" aria-expanded="${stockMoreOpen}"><span class="acc-title">その他の操作</span>${foldToggleHtml(stockMoreOpen)}</button>
+        ${stockMoreOpen ? `<div class="acc-body"><button type="button" class="btn btn-block btn-with-icon" onclick="copyStockText()">${filtered ? '絞り込んだ曲' : '曲マスタの曲'}をテキストで書き出し${TEXT_ICON_SVG}</button><div class="hint">曲を選んで書き出すときは、🔍 から選んで「テキストで書き出し」。</div></div>` : ''}
+      </div></div>`;
     }
     if(stockSelectMode){
       const n = stockSelected.size;
@@ -4951,19 +4983,19 @@ function renderLives(){
   let html = `${showMode ? '' : `<div class="song-toolbar">
     <button class="btn btn-accent" id="btn-add-live">+ 新しいイベント</button>
   </div>`}
-  ${(lives.length>1 || showFilter) ? `<div class="stock-tools">
-    ${showFilter ? `<label class="sort-chip" title="アーティストで絞り込み">${FILTER_ICON_SVG}<select id="live-artist-filter" aria-label="アーティストで絞り込み">
+`;
+  // 絞り込み・並び替えは、表示切り替えの行の右に小さなアイコンで（セットリスト・曲マスタと同じ形）
+  const lvIcons = `${showFilter ? `<label class="icon-sel${liveArtistFilter!=='all' ? ' on' : ''}" title="アーティストで絞り込み">${FILTER_ICON_SVG}<select id="live-artist-filter" aria-label="アーティストで絞り込み">
       <option value="all" ${liveArtistFilter==='all'?'selected':''}>すべてのアーティスト</option>
       ${artists.map(a => `<option value="${esc(a.name)}" ${liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && normName(a.name)===normName(liveArtistFilter)?'selected':''}>${esc(a.name)}（${a.count}）</option>`).join('')}
       ${liveArtistFilter!=='all' && liveArtistFilter!=='__none__' && !artists.some(a => normName(a.name)===normName(liveArtistFilter)) ? `<option value="${esc(liveArtistFilter)}" selected>${esc(liveArtistFilter)}（0）</option>` : ''}
       ${noneCount ? `<option value="__none__" ${liveArtistFilter==='__none__'?'selected':''}>アーティスト未設定（${noneCount}）</option>` : ''}
-    </select></label>` : ''}
-    ${lives.length>1 ? `<label class="sort-chip" title="並び替え">${SORT_ICON_SVG}<select id="live-sort-quick" aria-label="並び替え">${liveSortOptionsHtml(liveSort)}</select></label>` : ''}
-  </div>` : ''}`;
+    </select></label>` : ''}${lives.length>1 ? `<label class="icon-sel${liveSort!==LIVE_SORT_DEFAULT ? ' on' : ''}" title="並び替え">${SORT_ICON_SVG}<select id="live-sort-quick" aria-label="並び替え">${liveSortOptionsHtml(liveSort)}</select></label>` : ''}`;
   const filtered0 = sortLives(lives, liveSort).filter(l => matchesLiveFilter(l));
   const pastCount = filtered0.filter(l => !l.pinned && liveDateStatus(l.date).kind==='past').length;
-  if(pastCount) html += `<label class="past-toggle"><input type="checkbox" ${hidePast?'checked':''} onchange="setHidePast(this.checked)"> 過去のイベントを隠す（${pastCount}件）</label>`;
-  if(lives.length) html += `<div class="list-opts lives-opts">${viewSegHtml(livesMode, 'setLivesMode')}${showModeBtnHtml()}</div>`;
+  // 「過去」チップ：点灯で過去のイベントも表示、消灯で隠す（セットリストの「曲以外」と同じ形）
+  const pastChip = pastCount ? `<button type="button" class="opt-chip others-chip${hidePast ? '' : ' on'}" onclick="setHidePast(${!hidePast})" aria-pressed="${!hidePast}" title="${hidePast ? '過去のイベントを表示' : '過去のイベントを隠す'}">過去 ${pastCount}</button>` : '';
+  if(lives.length) html += `<div class="list-opts lives-opts">${viewSegHtml(livesMode, 'setLivesMode')}${pastChip}<span class="opts-r">${lvIcons}${showModeBtnHtml()}</span></div>`;
   if(showMode && lives.length) html += showModeNoteHtml('イベントの作成・コピー・削除・イベント情報の編集').replace('class="lock-note"', 'class="lock-note lives-lock-note"');
   const sorted0 = hidePast ? filtered0.filter(l => l.pinned || liveDateStatus(l.date).kind!=='past') : filtered0;
   const sorted = [...sorted0.filter(l => l.pinned), ...sorted0.filter(l => !l.pinned)];
@@ -5051,7 +5083,11 @@ window.openLiveSetlist = id => {
     el.scrollIntoView({block:'start'});
   });
 };
+// イベント情報は入力するとすぐ保存（曲情報・構成表の編集と同じ）。打つたびに保存しすぎないよう少し待つ
+let liveFormTimer = null;
+window.liveFormAutoSave = () => { clearTimeout(liveFormTimer); liveFormTimer = setTimeout(() => { applyLiveForm(); }, 400); };
 window.toggleLiveInfo = () => {
+  clearTimeout(liveFormTimer);
   if(liveInfoOpen) applyLiveForm();
   liveInfoOpen = !liveInfoOpen;
   render();
@@ -5125,7 +5161,7 @@ function renderLiveEdit(){
       <div class="hint">🔒 本番モード中のため、イベント情報は編集できません。</div>
     </div>`;
   } else if(liveInfoOpen) html += `
-  <form class="fold-body is-form" id="live-form">
+  <form class="fold-body is-form" id="live-form" oninput="liveFormAutoSave()" onchange="liveFormAutoSave()">
     <div class="field"><label>イベント名</label><input id="live-venue" value="${esc(live.venue)}" placeholder="例: サンプル定期ライブ Vol.1"></div>
     <div class="field"><label>場所</label><input id="live-place" value="${esc(live.place||'')}" placeholder="例: ◯◯ライブハウス"></div>
     <div class="field"><label>アーティスト名</label><input id="live-artist" value="${esc(live.artist)}"></div>
@@ -5141,7 +5177,7 @@ function renderLiveEdit(){
     </div>
     ${(() => { const m = stageMinutes(live.startTime, live.endTime); return m!==null ? `<div class="hint" style="padding-top:0; margin-top:-6px;">ステージ合計（予定）: <strong class="mono">${fmtMinutes(m)}</strong></div>` : ''; })()}
     <div class="field"><label>イベントメモ</label><textarea rows="3" id="live-memo" placeholder="セットリスト全体の注意事項、持ち物、連絡事項など">${esc(live.memo||'')}</textarea></div>
-    <div class="form-actions"><button type="submit" class="btn btn-accent">保存</button></div>
+    <div class="live-form-foot"><span class="hint">入力するとすぐ保存されます。</span><button type="button" class="btn" onclick="toggleLiveInfo()">閉じる</button></div>
   </form>`;
   const lk = showMode;   // 🔒 本番モード：曲順を固定（追加・削除・並べ替えをしない）
   html += `</div></div>`;   // イベントカード / le-ev
