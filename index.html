@@ -1056,13 +1056,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.69.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.69.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.69.1': [
+    '曲情報の「原曲（オリジナルアーティスト）」を「オリジナルアーティスト」に。カバーなら原曲のアーティスト、クラシックなら作曲者（モーツァルトなど）を入れる欄です'
+  ],
   '1.69.0': [
     'セットリスト画面の上の部分をすっきり：絞り込み・並び替えは小さなアイコンに（使っているときはオレンジ）、本番モードは鍵のアイコンだけに',
     'イベントカードの「終了」などの表示は色の帯だけで、セットリストの曲数は「◯曲」だけに。「表示」の文字と曲以外の説明文もなくしました'
@@ -1887,16 +1890,16 @@ function origArtistList(list = songs){
 // 絞り込みの選択肢（曲マスタ・イベントのセットリストで共通）
 function songFilterSelectHtml(id, cur, list){
   const arts = origArtistList(list);
-  return `<label class="sort-chip" title="ジャンル・原曲アーティストで絞り込み">${FILTER_ICON_SVG}<select id="${id}" aria-label="ジャンル・原曲アーティストで絞り込み">
+  return `<label class="sort-chip" title="ジャンル・オリジナルアーティストで絞り込み">${FILTER_ICON_SVG}<select id="${id}" aria-label="ジャンル・オリジナルアーティストで絞り込み">
       <option value="all" ${cur==='all'?'selected':''}>すべての曲</option>
       <optgroup label="ジャンル">
         ${GENRE_OPTS.map(o=>`<option value="${o.value}" ${cur===o.value?'selected':''}>${esc(o.label)}</option>`).join('')}
         <option value="__none__" ${cur==='__none__'?'selected':''}>ジャンル未設定</option>
       </optgroup>
-      <optgroup label="原曲アーティスト">
+      <optgroup label="オリジナルアーティスト">
         ${arts.map(a=>{ const v = 'orig:'+a.name; return `<option value="${esc(v)}" ${normName(cur)===normName(v)?'selected':''}>${esc(a.name)}（${a.count}）</option>`; }).join('')}
         ${cur.startsWith('orig:') && !arts.some(a=>normName('orig:'+a.name)===normName(cur)) ? `<option value="${esc(cur)}" selected>${esc(cur.slice(5))}（0）</option>` : ''}
-        <option value="__noorig__" ${cur==='__noorig__'?'selected':''}>原曲なし</option>
+        <option value="__noorig__" ${cur==='__noorig__'?'selected':''}>オリジナルアーティストなし</option>
       </optgroup>
     </select></label>`;
 }
@@ -3225,7 +3228,7 @@ function stMasterOnlyHtml(s){
       <option value="#" ${s.acc==='#'?'selected':''}>♯で表記（C♯・F♯・A♯…）</option>
       <option value="b" ${s.acc==='b'?'selected':''}>♭で表記（D♭・G♭・B♭…）</option>
     </select></div>
-    <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="st-f-orig" value="${esc(s.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="st-orig-list"><datalist id="st-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
+    <div class="field"><label>オリジナルアーティスト</label><input id="st-f-orig" value="${esc(s.orig||'')}" placeholder="例：The Beatles／クラシックは作曲者" autocomplete="off" list="st-orig-list"><datalist id="st-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" id="st-f-url" value="${esc(s.url||'')}" placeholder="https://music.apple.com/..."></div>`;
 }
 function stInfoEditorHtml(s){
@@ -3511,7 +3514,7 @@ function stSplitMd(text){
   }
   return {info, struct, title};
 }
-const ST_INFO_KEYS = [['capo',/^(カポ|capo)$/i],['meter',/^(拍子|time\s*signature|meter)$/i],['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|artist/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
+const ST_INFO_KEYS = [['capo',/^(カポ|capo)$/i],['meter',/^(拍子|time\s*signature|meter)$/i],['name',/^(曲名|タイトル|title|song)$/i],['orig',/アーティスト|原曲|作曲|artist|composer/i],['key',/^(キー|調|key)$/i],['bpm',/bpm|テンポ|tempo/i],
   ['duration',/曲時間|演奏時間|長さ|duration|length/i],['genre',/ジャンル|genre/i],['rhythm',/リズム|rhythm/i],['start',/はじめかた|始め方/],['end',/おわりかた|終わり方/],
   ['url',/url|リファレンス/i],['notes',/^(メモ|備考|全体のメモ|notes?)$/i]];
 const ST_FLAT2SHARP = {Db:'C#', Eb:'D#', Gb:'F#', Ab:'G#', Bb:'A#', Cb:'B', Fb:'E', 'E#':'F', 'B#':'C'};
@@ -3578,7 +3581,7 @@ function stParseMd(text){
   return {secs: [...secs], info, capoFixed: hc};
 }
 // 曲の空いている項目にだけ曲情報を入れる（すでにある値は上書きしない）。入れた項目名を返す
-const ST_INFO_LABEL = {capo:'カポ', meter:'拍子', name:'曲名', orig:'原曲', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
+const ST_INFO_LABEL = {capo:'カポ', meter:'拍子', name:'曲名', orig:'オリジナルアーティスト', key:'キー', bpm:'BPM', duration:'曲時間', genre:'ジャンル', rhythm:'リズム', start:'はじめかた', end:'おわりかた', url:'URL'};
 function stFillEmptyInfo(s, info){
   const done = [];
   Object.keys(info.fields).forEach(f => {
@@ -3605,7 +3608,7 @@ window.stDoPaste = () => {
   else apply();
 };
 // ---- Markdownのテンプレ（書き出し・取り込み欄のお手本・AIに渡す用で同じ形） ----
-const ST_MD_INFO_ROWS = ['曲名','アーティスト','キー','BPM','拍子','カポ','曲時間','ジャンル','リズム','はじめかた','おわりかた','URL','メモ'];
+const ST_MD_INFO_ROWS = ['曲名','オリジナルアーティスト','キー','BPM','拍子','カポ','曲時間','ジャンル','リズム','はじめかた','おわりかた','URL','メモ'];
 const ST_MD_COLS = ['区間','小節数','回数','コード','歌','演奏','キメ','キメ小節'];
 const stMdCell = v => { const t = String(v ?? '').trim(); return t ? t.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') : '—'; };
 function stMdTables(infoMap, secs){
@@ -3624,6 +3627,7 @@ function stMdTemplate(){
     '> コードは小節ごとに「A → D → E → A」のようにつなぎ、行を分けるときは <br>。前と同じなら「同上」。',
     '> 歌は歌の入りやメロの目印、演奏は弾き方のメモ、キメはキメ・ブレイクの内容、キメ小節はキメのある小節の番号（例：8）。',
     '> カポを使う曲で押さえ方の表記で書くときは、コードの見出しを「コード（Capo3・G表記）」にしてください。',
+    '> オリジナルアーティストは、カバーなら原曲のアーティスト、クラシックなら作曲者（例：モーツァルト）。',
     ''
   ];
   return L.concat(stMdTables(ST_MD_INFO_ROWS.map(k => [k, k==='拍子' ? '4/4' : '']),
@@ -3632,7 +3636,7 @@ function stMdTemplate(){
 function stToMarkdown(s, e){
   const val = f => stShow(e ? effVal(e, s, f) : songVal(s, f));
   const g = GENRE_OPTS.find(o => o.value===s.genre);
-  const infoMap = [['曲名', s.name], ['アーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['拍子', METERS.includes(s.meter) ? s.meter : ''],
+  const infoMap = [['曲名', s.name], ['オリジナルアーティスト', s.orig], ['キー', val('key')], ['BPM', val('bpm')], ['拍子', METERS.includes(s.meter) ? s.meter : ''],
     ['カポ', songCapo(s) ? String(songCapo(s)) : ''], ['曲時間', val('duration')], ['ジャンル', g ? g.label : stShow(s.genre)], ['リズム', stShow(s.rhythm)],
     ['はじめかた', val('start')], ['おわりかた', val('end')], ['URL', s.url], ['メモ', e ? effVal(e, s, 'notes') : s.notes]].filter(([, v]) => String(v || '').trim());
   return [`# ${s.name || '無題の曲'}`, ''].concat(stMdTables(infoMap, (s.struct && s.struct.sections) || [])).join('\n') + '\n';
@@ -4280,7 +4284,7 @@ function songFormHtml(f, ctx='stock'){
     </div>
     ${startEndHtml('song-start', 'はじめかた', f.start, SE_START_OPTS)}
     ${startEndHtml('song-end', 'おわりかた', f.end, SE_END_OPTS)}
-    <div class="field"><label>原曲（オリジナルアーティスト）</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
+    <div class="field"><label>オリジナルアーティスト</label><input id="song-orig" value="${esc(f.orig||'')}" placeholder="例：The Beatles／クラシックは作曲者" autocomplete="off" list="song-orig-list"><datalist id="song-orig-list">${origSuggestList().map(a => `<option value="${esc(a)}"></option>`).join('')}</datalist></div>
     <div class="field"><label>リファレンスURL</label><input type="url" placeholder="https://music.apple.com/..." value="${esc(f.url)}" id="song-url">${safeUrl(f.url) ? `<a class="ref-link" href="${esc(safeUrl(f.url))}" target="_blank" rel="noopener">リファレンスを開く ↗</a>` : ''}</div>
     <div class="field"><label>メモ（進行・歌詞など）</label><textarea rows="3" id="song-notes" placeholder="歌詞、コード進行、構成メモなど">${esc(f.notes)}</textarea></div>
     ${!f.id ? (isLive ? posSegHtml('register', registerAddPos, 'セットリストに入れる位置') : stockPosSegHtml()) : ''}
@@ -4392,7 +4396,7 @@ window.openBulkText = () => {
     </div>
     <div class="bulk-excel">
       <div class="bulk-sub">CSVで入力する</div>
-      <div class="hint">フォーマットに記入してCSVで保存し、読み込みます（Googleスプレッドシートなど）。曲名と原曲が同じ曲は飛ばします。</div>
+      <div class="hint">フォーマットに記入してCSVで保存し、読み込みます（Googleスプレッドシートなど）。曲名とオリジナルアーティストが同じ曲は飛ばします。</div>
       <div class="settings-btn-row">
         <button type="button" class="btn btn-with-icon" onclick="downloadSongTemplate()">フォーマット${EXPORT_ICON_SVG}</button>
         <button type="button" class="btn btn-with-icon" onclick="document.getElementById('bulk-csv-input').click()">CSVを読み込む${IMPORT_ICON_SVG}</button>
@@ -4401,13 +4405,13 @@ window.openBulkText = () => {
     </div>`);
 };
 // ---- Excel などで記入して一括登録するフォーマット ----
-const TPL_HEADERS = ['曲名','BPM','キー','曲時間','はじめかた','おわりかた','ジャンル','リズム','原曲','メモ','URL'];
+const TPL_HEADERS = ['曲名','BPM','キー','曲時間','はじめかた','おわりかた','ジャンル','リズム','オリジナルアーティスト','メモ','URL'];
 const TPL_EXAMPLE = ['例：Get Back','123','A','3:15','カウント','最後のコードを伸ばして止める','ロック','8ビート','The Beatles','ギターソロは2コーラス',''];
 // 見出しの言い方の違いを受け付ける（日本語・英語の両方）
 const TPL_ALIASES = {
   name:['曲名','タイトル','name','title'], bpm:['BPM','テンポ','bpm'], key:['キー','key'], duration:['曲時間','時間','長さ','duration'],
   start:['はじめかた','開始方法','start'], end:['おわりかた','終わり方','end'], genre:['ジャンル','genre'], rhythm:['リズム','リズムパターン','rhythm'],
-  orig:['原曲','原曲アーティスト','アーティスト','orig','artist'], notes:['メモ','notes','memo'], url:['URL','リファレンスURL','url']
+  orig:['オリジナルアーティスト','原曲','原曲アーティスト','アーティスト','作曲者','作曲','orig','artist','composer'], notes:['メモ','notes','memo'], url:['URL','リファレンスURL','url']
 };
 window.downloadSongTemplate = async () => {
   const dl = await getDownloads();
