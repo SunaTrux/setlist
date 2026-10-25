@@ -830,6 +830,10 @@ body.struct-open header{display:none;}
 /* 構成の編集 */
 .st-ed{border-left:4px solid var(--c); padding-left:10px;}
 .st-ed + .st-ed{margin-top:14px;}
+/* 曲の編集画面：前後の曲ボタンは画面の一番下に（テンポ窓は出さない） */
+body.st-editing .st-navgrp{bottom:calc(10px + var(--st-sb)) !important; right:12px !important; left:12px !important; width:auto !important; max-width:none !important;}
+body.st-editing main{padding-bottom:calc(76px + var(--st-sb)) !important;}
+body.st-editing::after{display:none;}
 /* 曲の編集画面の「曲情報／曲マスタ／このイベント用」のアコーディオン */
 .ed-acc > .ed-acc-sum{list-style:none; display:flex; align-items:center; cursor:pointer; padding:0;}
 .ed-acc > .ed-acc-sum::-webkit-details-marker{display:none;}
@@ -1114,13 +1118,16 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.75.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.76.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-25';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.76.0': [
+    '曲の編集画面でも、下の ＜ ＞ で前後の曲へ移れるように（編集画面のまま）。曲マスタ・このイベント用・セクションの開閉はそのまま引き継ぎます'
+  ],
   '1.75.1': [
     '「出演者」の呼び方を「プレイヤー」に統一'
   ],
@@ -2992,8 +2999,11 @@ window.structNav = d => {
   const np = (pos + d + seq.length) % seq.length;
   const wrapped = (pos + d) !== np;
   const k = seq[np];
+  // 編集画面のセクションの開閉は、何番目が開いていたかで次の曲にも引き継ぐ
+  const prevOpen = structEdit ? ((stSong() && stSong().struct && stSong().struct.sections) || []).map((x, i) => stEdOpen.has(x) ? i : -1).filter(i => i >= 0) : [];
   if(stFromStock()) structOpen.songId = k; else structOpen.idx = k;
   stOpenSec = null; stTrans = 0;
+  if(prevOpen.length){ const L = (stSong() && stSong().struct && stSong().struct.sections) || []; prevOpen.forEach(i => { if(L[i]) stEdOpen.add(L[i]); }); }
   // 編集中なら編集のまま次の曲へ（構成表を見ていたら構成表のまま）
   stSetBpm(stSongBpm());   // 曲が変わったらその曲のテンポに（鳴っていればそのまま新しいテンポで）
   render(); scrollToTop();
@@ -3073,7 +3083,8 @@ function renderStruct(){
     <div class="st-title-box">${(() => { const pe = stEntry(); return pe && pe.performer ? `<div class="st-perf">プレイヤー：${esc(pe.performer)}</div>` : ''; })()}<h2 class="st-title" title="${esc(s.name)}"><span class="st-no">${stCardNo(pos)}<small>/${stCardTotal(seq)}</small></span>${compact && showMode ? '<span class="st-lock-mini" aria-label="ロック中">🔒</span>' : ''}${esc(s.name)}</h2></div>
   </div>
   ${!structEdit && !stMin && ((s.struct && s.struct.sections) || []).length ? `<div class="st-meta">${chips.join('')}</div>` : ''}`;   // 編集画面・構成がないときは曲名の下のチップは出さない
-  if(structEdit){ document.body.classList.remove('st-viewing'); html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); return; }
+  document.body.classList.toggle('st-editing', !!structEdit);
+  if(structEdit){ document.body.classList.remove('st-viewing'); html += stEditorHtml(s); main.innerHTML = html; stMetroBar(false); stNextBtn(true); return; }   // 編集画面でも前後の曲へ移れる（テンポ窓は出さない）
   document.body.classList.add('st-viewing');
 
   const v = stView(s);
@@ -4069,7 +4080,7 @@ function stCleanupOutside(){
   if(stM.on) stMetroStop();
   const el = document.getElementById('st-mbar'); if(el) el.hidden = true;
   stNextBtn(false);
-  document.body.classList.remove('struct-open'); document.body.classList.remove('st-bar-folded'); document.body.classList.remove('st-viewing');
+  document.body.classList.remove('struct-open'); document.body.classList.remove('st-bar-folded'); document.body.classList.remove('st-viewing'); document.body.classList.remove('st-editing');
 }
 
 // ---- 構成表：画面の左右スワイプで曲を変える（左へ＝次の曲、右へ＝前の曲） ----
