@@ -307,6 +307,11 @@ select.mini-input{width:64px; padding:5px 2px;}
 .swipe-bg{position:absolute; top:0; right:0; bottom:0; width:88px; display:flex; background:var(--danger);}
 .swipe-del{flex:1; border:none; background:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
 .swipe-del.swipe-hide{background:#7a7268;}
+.tip-item{padding:10px 0; border-top:1px solid var(--border);}
+.tip-item:first-child{border-top:none; padding-top:0;}
+.tip-item:last-child{padding-bottom:0;}
+.tip-t{font-size:14px; font-weight:700; color:var(--text); line-height:1.5;}
+.tip-d{font-size:13px; color:var(--muted); line-height:1.7; margin-top:3px;}
 .live-card-wrap[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin), .setlist-item[data-swipe-w="176"] .swipe-bg:not(.swipe-bg-pin){width:176px;}
 .live-card-wrap[data-swipe-w="96"] .swipe-bg:not(.swipe-bg-pin){width:96px;}
 .swipe-full .swipe-del.swipe-hide{display:none;}   /* 最後まで引いているときは「削除」だけを大きく */
@@ -1137,7 +1142,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.79.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.80.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-27';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
@@ -1174,6 +1179,10 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.80.0': [
+    'タイトルの下のヒント文を「セットリストも構成表も、ステージでもう迷わない」の1つに',
+    '設定に「ヒント集」を追加。バックアップ・通しリハーサル・書き出し・本番モードなど、使い方のコツをやり方つきでまとめました'
+  ],
   '1.79.2': [
     '設定の「ご意見・不具合報告」を「作者に感想を送る」に。アプリのバージョンと使っている端末・ブラウザが自動で一緒に送られます（書かなくてOK）'
   ],
@@ -4245,15 +4254,16 @@ document.getElementById('tab-settings').onclick = () => { structOpen = null; str
 
 // ---- アプリのヒント文（タイトルの下の一文。設定 →「表示」で変更可。空なら初期の文） ----
 const DEFAULT_TAGLINES = [
-  'セットリストも構成表も、ステージでもう迷わない',
-  'セットリストは通しリハーサルにも使えるよ',
-  'セットリスト案を書き出してメンバーに送ろう',
-  'お気に入りのセットリストはバックアップしとこう',
-  'イベント中でもセットリストは変えられるよ',
-  '曲名をタップすると構成表が開くよ',
-  '♩BPMをタップするとテンポ窓つきで構成表へ',
-  '構成表のセクション名をタップするとその場で直せるよ',
-  '本番前は「本番モード」で誤操作を防ごう'
+  'セットリストも構成表も、ステージでもう迷わない'
+];
+// 設定の「ヒント集」：使い方のコツ（見出し ＋ やり方）
+const APP_TIPS = [
+  ['お気に入りのセットリストはバックアップをおすすめします', '設定 →「バックアップ・CSV」→ 全データの「バックアップ」で、曲マスタ・イベント一覧・設定を1つのファイルに保存できます。ブラウザのデータを消したときや機種を変えたときは、「復元」でそのファイルから戻せます。'],
+  ['セットリストは通しリハーサルにも使えるよ', 'イベントを開き、「セットリスト」（合計時間の行）を開いて「▶ タイマースタート」。全曲の長さから残り時間を数えるので、通しで押しているか・余っているかがひと目で分かります。閉じても残り時間は見えたままです。'],
+  ['セットリスト案を書き出してメンバーに送ろう', 'イベントを開き、下の「セットリストの操作」→「セットリストをテキストで書き出し」。番号・アーティスト名・プレイヤー・曲以外（MC・SEなど）を入れるかを選んでコピーし、LINEなどに貼り付けて送れます。'],
+  ['♩BPMをタップするとテンポ窓つきで構成表へ', 'セットリストや曲マスタの「♩120」のようなテンポの部分をタップすると、テンポ窓（メトロノーム）が開いた状態で構成表が開きます。'],
+  ['構成表のセクション名をタップするとその場で直せるよ', '構成表で「Aメロ」「サビ」などのセクション名をタップすると、そのセクションだけをその場で編集できます。'],
+  ['本番前は「本番モード」で誤操作を防ごう', '一覧の右上の🔓を押すと本番モード（🔒）に。削除や並べ替え、編集ができなくなり、ステージでのうっかり操作を防げます。もう一度押すと解除できます。']
 ];
 const TAGLINE_MAX = 60, TAGLINES_MAX = 20;
 const clipTag = t => Array.from(String(t).trim()).slice(0, TAGLINE_MAX).join('');
@@ -6363,6 +6373,7 @@ function renderSettings(){
   ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${grp('その他')}
+  ${acc('tips', 'ヒント集', `使い方のコツ ${APP_TIPS.length}件`, `<div class="tips-list">${APP_TIPS.map(([t, d]) => `<div class="tip-item"><div class="tip-t">${esc(t)}</div><div class="tip-d">${esc(d)}</div></div>`).join('')}</div>`)}
   ${acc('sample', 'サンプルデータ', 'バンド編成・ピアノ演奏会', `
     <div class="settings-btn-row">
       <button type="button" class="btn" onclick="loadSampleData('band')">バンド編成</button>
