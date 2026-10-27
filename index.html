@@ -307,6 +307,12 @@ select.mini-input{width:64px; padding:5px 2px;}
 .swipe-bg{position:absolute; top:0; right:0; bottom:0; width:88px; display:flex; background:var(--danger);}
 .swipe-del{flex:1; border:none; background:none; color:#fff; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit;}
 .swipe-del.swipe-hide{background:#7a7268;}
+.about-h{font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.04em; margin:16px 0 8px;}
+.about-h:first-child{margin-top:0;}
+.about-steps{margin:0; padding-left:1.4em;}
+.about-steps li{padding:6px 0;}
+.about-steps li::marker{color:var(--accent); font-weight:700;}
+.about-end{margin-top:14px; font-size:13px; color:var(--text); line-height:1.7;}
 .tip-item{padding:10px 0; border-top:1px solid var(--border);}
 .tip-item:first-child{border-top:none; padding-top:0;}
 .tip-item:last-child{padding-bottom:0;}
@@ -1142,7 +1148,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.80.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.81.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-27';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
@@ -1179,6 +1185,9 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.81.0': [
+    '設定に「このアプリについて」を追加。アプリの特徴と主な使い方をまとめました'
+  ],
   '1.80.0': [
     'タイトルの下のヒント文を「セットリストも構成表も、ステージでもう迷わない」の1つに',
     '設定に「ヒント集」を追加。バックアップ・通しリハーサル・書き出し・本番モードなど、使い方のコツをやり方つきでまとめました'
@@ -4256,6 +4265,19 @@ document.getElementById('tab-settings').onclick = () => { structOpen = null; str
 const DEFAULT_TAGLINES = [
   'セットリストも構成表も、ステージでもう迷わない'
 ];
+// 設定の「このアプリについて」：特徴と主な使い方
+const APP_FEATURES = [
+  ['セットリストと構成表を、ひとつに', '曲順も、曲の中身（セクション・コード・キメ）も、同じアプリでまとめて見られます。'],
+  ['合計時間がすぐ分かる', '曲を並べるだけで合計時間を計算。持ち時間に合わせて組み立てやすくなります。'],
+  ['テンポ窓つきの構成表', 'メトロノームを鳴らしながら、今のセクションを追いかけられます。練習にも本番にも。'],
+  ['登録なし・この端末だけ', 'ログインは不要。データはこの端末の中だけに保存されます。ホーム画面に追加すると、アプリのように使えます。']
+];
+const APP_STEPS = [
+  ['曲マスタに曲を登録', 'テンポ・キー・時間を入れておくと、どのイベントでも使い回せます。'],
+  ['イベントを作ってセットリストを組む', '曲マスタから曲を選んで並べ、MCやSEも入れられます。'],
+  ['構成表を書く', '曲名をタップして、セクションやコードを書き込みます。'],
+  ['リハーサルと本番で使う', 'リハではタイマーで通しの時間を確認、本番は本番モードで安心して。']
+];
 // 設定の「ヒント集」：使い方のコツ（見出し ＋ やり方）
 const APP_TIPS = [
   ['お気に入りのセットリストはバックアップをおすすめします', '設定 →「バックアップ・CSV」→ 全データの「バックアップ」で、曲マスタ・イベント一覧・設定を1つのファイルに保存できます。ブラウザのデータを消したときや機種を変えたときは、「復元」でそのファイルから戻せます。'],
@@ -6373,6 +6395,13 @@ function renderSettings(){
   ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${grp('その他')}
+  ${acc('about', 'このアプリについて', '特徴・主な使い方', `
+    <div class="about-h">特徴</div>
+    <div class="tips-list">${APP_FEATURES.map(([t, d]) => `<div class="tip-item"><div class="tip-t">${esc(t)}</div><div class="tip-d">${esc(d)}</div></div>`).join('')}</div>
+    <div class="about-h">主な使い方</div>
+    <ol class="about-steps">${APP_STEPS.map(([t, d]) => `<li><div class="tip-t">${esc(t)}</div><div class="tip-d">${esc(d)}</div></li>`).join('')}</ol>
+    <div class="about-end">いつもの練習とライブが、少しラクに、楽しくなりますように。</div>
+`)}
   ${acc('tips', 'ヒント集', `使い方のコツ ${APP_TIPS.length}件`, `<div class="tips-list">${APP_TIPS.map(([t, d]) => `<div class="tip-item"><div class="tip-t">${esc(t)}</div><div class="tip-d">${esc(d)}</div></div>`).join('')}</div>`)}
   ${acc('sample', 'サンプルデータ', 'バンド編成・ピアノ演奏会', `
     <div class="settings-btn-row">
