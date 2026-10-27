@@ -1137,13 +1137,46 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.79.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.79.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-27';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
-const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // ご意見・不具合報告フォーム（Tally）
+const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
+const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
+// 感想フォームに自動で渡す端末情報（例：iPhone iOS 18.1 / Safari 18.1 / ホーム画面のアプリ / 画面 390×844）
+function feedbackDeviceInfo(){
+  const ua = navigator.userAgent || '';
+  let m, dev, os = '';
+  if(/iPhone/.test(ua)) dev = 'iPhone';
+  else if(/iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) dev = 'iPad';
+  else if(/Android/.test(ua)) dev = 'Android';
+  else if(/Macintosh/.test(ua)) dev = 'Mac';
+  else if(/Windows/.test(ua)) dev = 'Windows';
+  else if(/Linux/.test(ua)) dev = 'Linux';
+  else dev = 'その他';
+  if((m = /OS (\d+)[_.](\d+)(?:[_.](\d+))? like Mac OS X/.exec(ua))) os = (dev==='iPad' ? 'iPadOS ' : 'iOS ') + m[1] + '.' + m[2] + (m[3] ? '.' + m[3] : '');
+  else if((m = /Android (\d+(?:\.\d+)*)/.exec(ua))) os = 'Android ' + m[1];
+  else if((m = /Mac OS X (\d+)[_.](\d+)/.exec(ua))) os = 'macOS ' + m[1] + '.' + m[2];
+  else if(/Windows NT 10/.test(ua)) os = 'Windows 10/11';
+  let br = 'ブラウザ不明';
+  if((m = /EdgA?\/(\d+)/.exec(ua))) br = 'Edge ' + m[1];
+  else if((m = /(?:CriOS|Chrome)\/(\d+)/.exec(ua))) br = ((navigator.brave && navigator.brave.isBrave) ? 'Brave ' : 'Chrome ') + m[1];
+  else if((m = /(?:FxiOS|Firefox)\/(\d+)/.exec(ua))) br = 'Firefox ' + m[1];
+  else if((m = /Version\/(\d+(?:\.\d+)?).*Safari\//.exec(ua))) br = 'Safari ' + m[1];
+  else if(/Safari\//.test(ua)) br = 'Safari';
+  const parts = [(os && os.indexOf(dev)===0) ? os : (dev + (os ? ' ' + os : '')), br];
+  try{ if(isStandaloneApp()) parts.push('ホーム画面のアプリ'); }catch(e){}
+  try{ parts.push('画面 ' + Math.round(window.innerWidth) + '×' + Math.round(window.innerHeight)); }catch(e){}
+  return parts.join(' / ');
+}
+function feedbackUrl(){
+  return FEEDBACK_URL + '?app=' + encodeURIComponent(FEEDBACK_APP_NAME) + '&version=' + encodeURIComponent(APP_VERSION) + '&device=' + encodeURIComponent(feedbackDeviceInfo());
+}
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.79.2': [
+    '設定の「ご意見・不具合報告」を「作者に感想を送る」に。アプリのバージョンと使っている端末・ブラウザが自動で一緒に送られます（書かなくてOK）'
+  ],
   '1.79.0': [
     '設定に「このアプリを友達に勧める」を追加。アプリのURLと説明を、LINEなどでそのまま送れます（文章は送る前に書きかえOK）'
   ],
@@ -6346,9 +6379,10 @@ function renderSettings(){
     </div>
     ${shareDraft!==null && shareDraft!==defaultShareText() ? `<button type="button" class="btn btn-block" style="margin:8px 0 0; font-size:13px" onclick="resetShare()">最初の文章に戻す</button>` : ''}
 `)}
-  ${acc('feedback', 'ご意見・不具合報告', 'フォームを開く', `
-    <div class="hint" style="margin-top:0">使ってみた感想や「ここが使いにくい」「動かない」などは、下のフォームから気軽にどうぞ。不具合の場合は、どの画面で何をしたかと、使っている端末・ブラウザを書いてもらえると助かります（今のバージョン：${APP_VERSION}）。</div>
-    <a class="btn btn-block feedback-btn" href="${FEEDBACK_URL}?app=${encodeURIComponent('プレイヤーズセットリスト')}&version=${encodeURIComponent(APP_VERSION)}" target="_blank" rel="noopener">ご意見・不具合報告フォームを開く</a>
+  ${acc('feedback', '作者に感想を送る', '感想・使いにくいところ・不具合など', `
+    <div class="hint" style="margin-top:0">使ってみた感想や「ここが使いにくい」「動かない」などは、下のフォームから気軽にどうぞ。不具合の場合は、どの画面で何をしたかを書いてもらえると助かります。</div>
+    <div class="hint" style="margin-top:0">アプリのバージョンと使っている端末・ブラウザは、自動で一緒に送られます（${esc('v' + APP_VERSION + ' / ' + feedbackDeviceInfo())}）。名前や登録したデータは送られません。</div>
+    <a class="btn btn-block feedback-btn" href="${esc(feedbackUrl())}" target="_blank" rel="noopener">感想を送る</a>
 `)}
   ${acc('reset', 'データ初期化', '全データを削除', `
     <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
