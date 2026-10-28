@@ -313,6 +313,11 @@ select.mini-input{width:64px; padding:5px 2px;}
 .about-steps li{padding:6px 0;}
 .about-steps li::marker{color:var(--accent); font-weight:700;}
 .about-end{margin-top:14px; font-size:13px; color:var(--text); line-height:1.7;}
+.data-usage{font-size:13px; margin:6px 0 10px; line-height:1.6;}
+.usage-bar{display:block; height:6px; border-radius:3px; background:var(--surface2); border:1px solid var(--border); margin-top:4px; overflow:hidden;}
+.usage-bar > span{display:block; height:100%; background:var(--accent);}
+.usage-bar > span.warn{background:var(--danger);}
+.data-usage .data-place-warn{display:block; margin-top:4px;}
 .tip-item{padding:10px 0; border-top:1px solid var(--border);}
 .tip-item:first-child{border-top:none; padding-top:0;}
 .tip-item:last-child{padding-bottom:0;}
@@ -1073,8 +1078,43 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 <script>
 const store = {
   get(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } },
-  set(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+  set(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ storeFailed(e); return false; } }
 };
+// 保存に失敗したとき（容量オーバーなど）は、気づけるように知らせる（続けて何度も出さない）
+let storeFailAt = 0;
+function storeFailed(e){
+  const now = Date.now(); if(now - storeFailAt < 15000) return; storeFailAt = now;
+  const quota = e && (e.name==='QuotaExceededError' || e.code===22 || e.code===1014 || /quota/i.test(e.message||''));
+  const msg = quota
+    ? '保存できませんでした（保存容量がいっぱいです）。\n今の変更は、アプリを閉じると消えてしまいます。\n設定 →「バックアップ・CSV」でバックアップを取ってから、使っていないイベントや曲を削除してください。'
+    : '保存できませんでした。\n今の変更は、アプリを閉じると消えてしまうことがあります。\n設定 →「バックアップ・CSV」でバックアップを取っておくと安心です。';
+  setTimeout(() => { try{ alertBox(msg); }catch(_){ try{ showToast(msg.split('\n')[0]); }catch(__){} } }, 0);
+}
+// 保存容量の使用量（この端末の、このアプリの分。ブラウザの上限はおよそ5MB）
+function storageUsage(){
+  let n = 0;
+  try{ for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.indexOf('setlist_')===0) n += k.length + (localStorage.getItem(k) || '').length; } }catch(e){}
+  return n;   // ブラウザの上限は、おおむね「文字数で約500万」なので、文字数をそのまま目安にする
+}
+// 文字数の上限：入力欄にフォーカスしたときに付ける（短い欄 60・候補など 30・数字 10・長い文 2000。貼り付け用の欄は上限なし）
+const TEXT_MAX = {name: 60, short: 30, num: 10, long: 2000, url: 2000, search: 100};
+function textMaxFor(el){
+  if(el.readOnly || el.hasAttribute('maxlength')) return 0;
+  if(el.matches('#st-paste, #song-md-paste, #bulk-text, #tagline-input')) return 0;   // 取り込み用の貼り付け欄・ヒント文（別に上限あり）
+  if(el.tagName==='TEXTAREA') return TEXT_MAX.long;
+  const t = (el.getAttribute('type') || 'text').toLowerCase();
+  if(!['text', 'search', 'url', ''].includes(t)) return 0;
+  if(t==='url') return TEXT_MAX.url;
+  if(t==='search') return TEXT_MAX.search;
+  if(el.getAttribute('inputmode')==='numeric' || el.classList.contains('ocr-dur')) return TEXT_MAX.num;
+  if(el.matches('[id^="se-add-"], #st-f-start, #st-f-end, #st-f-rhythm, #song-start, #song-end, #song-rhythm, [id$="-start"], [id$="-end"], [id$="-rhythm"]')) return TEXT_MAX.short;
+  return TEXT_MAX.name;
+}
+document.addEventListener('focusin', e => {
+  const el = e.target;
+  if(!el || !(el.tagName==='INPUT' || el.tagName==='TEXTAREA')) return;
+  const m = textMaxFor(el); if(m) el.setAttribute('maxlength', m);
+}, true);
 function applyTheme(val){
   if(val==='light') document.documentElement.setAttribute('data-theme','light');
   else if(val==='dark') document.documentElement.setAttribute('data-theme','dark');
@@ -1148,8 +1188,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.81.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-27';
+const APP_VERSION = '1.82.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-28';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1185,6 +1225,11 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.82.0': [
+    '保存容量がいっぱいなどで保存できなかったときは、お知らせを出すように（気づかないままデータが消えないように）',
+    '設定 →「バックアップ・CSV」に、今の保存容量の使用量を表示',
+    '入力欄に文字数の上限をつけました（曲名・イベント名など60文字、メモは2000文字）'
+  ],
   '1.81.0': [
     '設定に「このアプリについて」を追加。アプリの特徴と主な使い方をまとめました'
   ],
@@ -2770,6 +2815,14 @@ window.timerReset = () => {
 };
 
 // 公開ページのサンドボックスではネイティブの confirm()/alert() が動かないため、自前で用意する
+// お知らせだけのダイアログ（ボタンは「閉じる」だけ）
+function alertBox(message){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box"><div class="modal-message">${esc(message)}</div><div class="modal-actions"><button type="button" class="btn btn-accent" id="modal-ok">閉じる</button></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modal-ok').onclick = () => overlay.remove();
+}
 function confirmAction(message, onOk, okLabel){
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -6277,6 +6330,7 @@ function placeSlug(){
 function dataPlaceHtml(){
   return `<div class="data-place">
     <div class="data-place-now">今のデータの保存場所：<b>${esc(currentPlaceLabel())}</b></div>
+    <div class="data-usage">${(() => { const b = storageUsage(), lim = 5 * 1024 * 1024, pct = Math.min(100, Math.round(b / lim * 100)); return `保存容量：<b>${b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + 'KB' : (b / 1024 / 1024).toFixed(1) + 'MB'}</b> 使用中（目安の上限 約5MB の${pct < 1 ? '1%未満' : pct + '%'}）<span class="usage-bar"><span style="width:${Math.max(1, pct)}%"${pct >= 80 ? ' class="warn"' : ''}></span></span>${pct >= 80 ? '<span class="data-place-warn">残りが少なくなっています。バックアップを取ってから、使っていないイベントや曲を削除してください。</span>' : ''}`; })()}</div>
     <p>データはインターネット上ではなく、<b>開いている場所ごと</b>に保存されます。同じスマホでも、次の3つはそれぞれ別のデータで、自動ではつながりません。</p>
     <ul><li>Safari で開いたとき</li><li>Chrome など、別のブラウザで開いたとき</li><li>ホーム画面のアイコンから開いたとき</li></ul>
     <p><b>移すとき</b>：今の場所で「バックアップ」→ 移したい場所でアプリを開いて「復元」</p>
@@ -7237,12 +7291,17 @@ function handleBackupFile(file){
   reader.readAsText(file);
 }
 function applyBackup(obj){
+  const prev = {}; try{ backupKeys().forEach(k => { prev[k] = localStorage.getItem(k); }); }catch(e){}
   try{
     backupKeys().forEach(k => localStorage.removeItem(k));
     Object.keys(obj.data).forEach(k => { if(k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY) localStorage.setItem(k, JSON.stringify(obj.data[k])); });
     localStorage.setItem(SEEN_VERSION_KEY, JSON.stringify(APP_VERSION));
     sessionStorage.setItem('setlist_restored', '1');
-  }catch(e){ showToast('復元に失敗しました: ' + (e && e.message || '不明なエラー')); return; }
+  }catch(e){
+    // 途中で失敗したら、元のデータに戻す（消えたままにしない）
+    try{ backupKeys().forEach(k => localStorage.removeItem(k)); Object.keys(prev).forEach(k => { if(prev[k]!==null) localStorage.setItem(k, prev[k]); }); }catch(_){}
+    showToast('復元に失敗しました（データは元のままです）: ' + (e && e.message || '不明なエラー')); return;
+  }
   location.reload();
 }
 try{ if(sessionStorage.getItem('setlist_restored')){ sessionStorage.removeItem('setlist_restored'); setTimeout(() => showToast('バックアップから復元しました。'), 300); } }catch(e){}
