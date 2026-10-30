@@ -71,6 +71,8 @@ body{overflow-x:hidden;}
 
 header{position:sticky; top:0; padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
 h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
+header h1{display:flex; align-items:center; gap:8px;}
+header h1 .title-ic{width:22px; height:22px; flex-shrink:0;}   /* アプリアイコンと同じ「点＋線」の3行（1行目はアクセント色） */
 .tagline-row{display:flex; align-items:center; gap:4px; margin:-10px 10px 8px 16px;}
 .tagline{flex:1; min-width:0; margin:0; font-size:12px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere;}
 .tagline-next{flex:none; width:30px; height:30px; padding:0; border:none; border-radius:50%; background:none; color:var(--muted); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
@@ -1012,6 +1014,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 @media (orientation:landscape) and (max-height:500px){
   header{display:flex; align-items:center; padding-top:calc(6px + env(safe-area-inset-top,0px)); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px);}
   header h1{font-size:16px; margin:0 16px; white-space:nowrap;}
+  header h1 .title-ic{width:18px; height:18px;}
   header .tagline-row{display:none;}   /* 横向きは1行にまとめるのでヒント文は出さない */
   nav{flex:1; padding:0 12px 0 0; max-width:none;}
   nav button{padding:8px 0;}
@@ -1064,7 +1067,7 @@ body.st-bar-folded .st-navgrp{bottom:calc(12px + var(--st-sb));}
 <body>
 <div id="app">
   <header>
-    <h1>プレイヤーズセットリスト</h1>
+    <h1><svg class="title-ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-linecap="round"><circle cx="4" cy="6.5" r="1.9" style="fill:var(--accent)"/><path d="M9 6.5H21.5" style="stroke:var(--accent)" stroke-width="2.6"/><circle cx="4" cy="12.5" r="1.9" fill="currentColor"/><path d="M9 12.5H19" stroke="currentColor" stroke-width="2.6"/><circle cx="4" cy="18.5" r="1.9" style="fill:var(--muted)"/><path d="M9 18.5H16" style="stroke:var(--muted)" stroke-width="2.6"/></svg>プレイヤーズセットリスト</h1>
     <div class="tagline-row"><p class="tagline" id="app-tagline"></p><button type="button" class="tagline-next" id="tagline-next" onclick="nextTagline()" aria-label="次のヒントに切り替え" title="次のヒント"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button></div>
     <nav>
       <button id="tab-lives" class="active"><svg class="tab-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>イベント</span></button>
@@ -1188,8 +1191,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.82.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-28';
+const APP_VERSION = '1.82.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-10-30';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1225,6 +1228,9 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.82.1': [
+    'アプリのタイトルの先頭に、アイコンをつけました'
+  ],
   '1.82.0': [
     '保存容量がいっぱいなどで保存できなかったときは、お知らせを出すように（気づかないままデータが消えないように）',
     '設定 →「バックアップ・CSV」に、今の保存容量の使用量を表示',
