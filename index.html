@@ -22,8 +22,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="セットリスト">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2">
-<link rel="icon" type="image/png" href="icons/icon-192.png?v=2">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=3">
+<link rel="icon" type="image/png" href="icons/icon-192.png?v=3">
 <style>
 :root{
   --bg:#EDE8DE; --surface:#F8F5EC; --surface2:#FFFFFF; --text:#211D16; --muted:#6B6355;
@@ -1191,7 +1191,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.82.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.83.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-10-30';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
@@ -1228,6 +1228,10 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.83.0': [
+    'アプリのアイコンを、ステージの床にテープで貼ったセットリストの形に（タイトルのアイコンとおそろい）',
+    'ホーム画面のアイコンは、いったんホーム画面から削除して追加し直すと新しくなります'
+  ],
   '1.82.2': [
     'タイトルのアイコンを、ステージの床にテープで貼ったセットリストの形に'
   ],
