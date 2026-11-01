@@ -432,6 +432,20 @@ select.mini-input{width:64px; padding:5px 2px;}
 .app-version a{color:var(--muted);}
 .newver-bar{display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius); padding:10px 10px 10px 14px; margin-bottom:12px; font-size:13px; font-weight:700;}
 .newver-bar span{flex:1;}
+/* ホーム画面に追加：ブラウザで開いたときの案内バーと手順 */
+.install-bar{display:flex; align-items:center; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:6px 6px 6px 8px; margin-bottom:12px;}
+.install-bar-main{flex:1; display:flex; align-items:center; gap:10px; background:none; border:none; padding:2px; color:var(--text); font-family:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer;}
+.install-bar-ic{width:36px; height:36px; border-radius:8px; flex-shrink:0;}
+.install-bar-close{width:36px; height:36px; border:none; background:none; color:var(--muted); font-size:22px; cursor:pointer; flex-shrink:0;}
+.install-bar-wrap{margin-bottom:12px;}
+.install-guide{background:var(--surface); border:1px solid var(--accent); border-radius:12px; padding:12px 14px; margin-top:10px; font-size:13px;}
+.install-bar-wrap .install-guide{margin-top:0;}
+.install-guide-t{font-weight:700; color:var(--accent); margin-bottom:6px;}
+.install-guide ol{margin:0 0 8px; padding-left:20px; line-height:1.7;}
+.install-guide-note{margin:0 0 10px; color:var(--muted); font-size:12px; line-height:1.6;}
+.install-guide-note.warn{color:var(--accent);}
+.install-guide .btn{font-size:13px; padding:6px 14px;}
+.install-ok{margin:0; font-size:13px; font-weight:700; color:var(--accent);}
 .newver-bar .btn{padding:7px 12px; font-size:12.5px; white-space:nowrap;}
 .feedback-btn{display:block; text-align:center; text-decoration:none; margin:10px 0 0;}
 .update-notice{position:relative; background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius); padding:12px 40px 12px 14px; margin-bottom:14px; font-size:13px; line-height:1.6;}
@@ -1191,8 +1205,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.83.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-10-30';
+const APP_VERSION = '1.84.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-11-01';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1228,6 +1242,10 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.84.0': [
+    'ブラウザで開いたとき、画面の上に「アプリとしてホーム画面に追加」の案内を出すようにしました（×で閉じると2週間は出ません）',
+    '設定の「その他」に「ホーム画面に追加」を追加。Androidなどはそのまま追加画面が開き、iPhoneは手順を表示します'
+  ],
   '1.83.0': [
     'アプリのアイコンを、ステージの床にテープで貼ったセットリストの形に（タイトルのアイコンとおそろい）',
     'ホーム画面のアイコンは、いったんホーム画面から削除して追加し直すと新しくなります'
@@ -1813,6 +1831,55 @@ if(IS_HOSTED && 'serviceWorker' in navigator){
   try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){}
 }
 let newVersion = null;
+// ---- ホーム画面に追加（ブラウザで開いたときの案内バーと、設定のボタン） ----
+// Android・PCのChrome系：ブラウザの「インストール」画面をそのまま出す（beforeinstallprompt）
+// iPhone・iPad：ブラウザからは追加できないので、共有ボタンからの手順を案内する
+const INSTALL_DISMISS_KEY = 'setlist_install_dismiss';
+const INSTALL_TEST = /[?&]installtest=1/.test(location.search);   // 確認用
+let deferredInstall = null, installGuide = null;   // installGuide：手順を開いている場所（'bar' / 'settings'）
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; try{ render(); }catch(_){} });
+window.addEventListener('appinstalled', () => { deferredInstall = null; installGuide = null; try{ render(); showToast('ホーム画面に追加しました'); }catch(_){} });
+function installPlatform(){
+  const ua = navigator.userAgent || '';
+  if(/Line\/|FBAN|FBAV|Instagram|Twitter|MicroMessenger/i.test(ua)) return 'inapp';
+  if(/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  if(/Android/.test(ua)) return 'android';
+  return 'pc';
+}
+function installBarVisible(){
+  if(!(IS_HOSTED || INSTALL_TEST) || isStandaloneApp()) return false;
+  try{ if(window.top!==window.self) return false; }catch(e){ return false; }   // 埋め込み表示では出さない
+  if(installPlatform()==='pc' && !deferredInstall) return false;   // PCは、ブラウザがインストールに対応しているときだけ
+  const t = parseInt(store.get(INSTALL_DISMISS_KEY, 0), 10) || 0;
+  return !t || (Date.now() - t) > 14 * 24 * 3600 * 1000;   // ×で閉じたら2週間は出さない
+}
+window.dismissInstallBar = () => { store.set(INSTALL_DISMISS_KEY, Date.now()); render(); showToast('設定 →「ホーム画面に追加」からいつでも追加できます'); };
+window.startInstall = where => {
+  if(deferredInstall){
+    const ev = deferredInstall; ev.prompt();
+    if(ev.userChoice && ev.userChoice.then) ev.userChoice.then(r => { if(r && r.outcome==='accepted') deferredInstall = null; render(); });
+    return;
+  }
+  installGuide = installGuide===where ? null : where; render();
+};
+window.closeInstallGuide = () => { installGuide = null; render(); };
+function installGuideHtml(){
+  const p = installPlatform();
+  const steps = p==='inapp' ? ['今はアプリの中のブラウザ（LINEなど）で開いています。ホーム画面に追加するには、SafariやChromeで開き直してください', '右上（または右下）のメニューから「ブラウザで開く」「Safariで開く」を選びます', '開いたら、もう一度この案内のボタンを押してください']
+    : p==='ios' ? ['画面下（または上）の共有ボタン <b>□↑</b> を押します（見当たらないときは「…」から）', 'メニューを下にスクロールして「<b>ホーム画面に追加</b>」を選びます', '右上の「追加」を押すと、ホーム画面に「セットリスト」のアイコンができます']
+    : p==='android' ? ['ブラウザ右上のメニュー <b>⋮</b> を押します', '「<b>ホーム画面に追加</b>」または「<b>アプリをインストール</b>」を選びます', '「追加」「インストール」を押すと、ホーム画面にアイコンができます']
+    : ['Chrome・Edge：アドレスバーの右端のインストールのアイコン、またはメニューの「アプリをインストール」', 'Mac の Safari：メニューの「ファイル」→「Dockに追加」', 'スマホのホーム画面に置きたいときは、スマホでこのページを開いてください'];
+  return `<div class="install-guide"><div class="install-guide-t">ホーム画面に追加する手順</div><ol>${steps.map(t => `<li>${t}</li>`).join('')}</ol>
+    <p class="install-guide-note">追加すると、アプリのように全画面で開けて、電波の弱い会場でも使えます。</p>
+    ${p==='ios' || p==='inapp' ? '<p class="install-guide-note warn">⚠ iPhone・iPadでは、ブラウザで使っていたデータはホーム画面のアプリに引き継がれません。登録済みのデータがあるときは、先に 設定 →「バックアップ・CSV」でバックアップし、ホーム画面のアプリで「復元」してください。</p>' : ''}
+    <button type="button" class="btn" onclick="closeInstallGuide()">閉じる</button></div>`;   // 手順は固定の文だけ（入力値は入らない）
+}
+function installBarHtml(){
+  if(structOpen) return '';   // 構成表の画面には出さない
+  if(installGuide==='bar') return `<div class="install-bar-wrap">${installGuideHtml()}</div>`;
+  if(!installBarVisible()) return '';
+  return `<div class="install-bar"><button type="button" class="install-bar-main" onclick="startInstall('bar')"><img src="icons/icon-192.png?v=3" alt="" class="install-bar-ic"><span>アプリとしてホーム画面に追加</span></button><button type="button" class="install-bar-close" onclick="dismissInstallBar()" aria-label="閉じる">×</button></div>`;
+}
 function cmpVersion(a, b){
   const x = String(a).split('.'), y = String(b).split('.');
   for(let i=0;i<3;i++){ const d = (parseInt(x[i],10)||0) - (parseInt(y[i],10)||0); if(d) return d; }
@@ -4346,6 +4413,7 @@ const APP_STEPS = [
 ];
 // 設定の「ヒント集」：使い方のコツ（見出し ＋ やり方）
 const APP_TIPS = [
+  ['アプリのように使いたい', '設定 →「ホーム画面に追加」から。iPhoneは共有ボタン →「ホーム画面に追加」です。iPhoneはブラウザのデータが引き継がれないので、先にバックアップを取り、ホーム画面のアプリで「復元」してください。'],
   ['お気に入りのセットリストはバックアップをおすすめします', '設定 →「バックアップ・CSV」→ 全データの「バックアップ」で、曲マスタ・イベント一覧・設定を1つのファイルに保存できます。ブラウザのデータを消したときや機種を変えたときは、「復元」でそのファイルから戻せます。'],
   ['セットリストは通しリハーサルにも使えるよ', 'イベントを開き、「セットリスト」（合計時間の行）を開いて「▶ タイマースタート」。全曲の長さから残り時間を数えるので、通しで押しているか・余っているかがひと目で分かります。閉じても残り時間は見えたままです。'],
   ['セットリスト案を書き出してメンバーに送ろう', 'イベントを開き、下の「セットリストの操作」→「セットリストをテキストで書き出し」。番号・アーティスト名・プレイヤー・曲以外（MC・SEなど）を入れるかを選んでコピーし、LINEなどに貼り付けて送れます。'],
@@ -4408,7 +4476,7 @@ function render(){
   else if(tab==='lives') renderLives();
   else if(tab==='songs') renderSongs();
   else renderSettings();
-  const upd = newVersionBarHtml() + updateNoticeHtml();
+  const upd = installBarHtml() + newVersionBarHtml() + updateNoticeHtml();
   if(upd) main.insertAdjacentHTML('afterbegin', upd);
   document.body.classList.toggle('cards-min', cardMode==='min');
   document.body.classList.toggle('cards-bk', cardMode==='bk');
@@ -6425,7 +6493,7 @@ function renderSettings(){
       <textarea id="tagline-input" rows="6" wrap="off" style="white-space:pre; overflow-x:auto;" placeholder="${esc(DEFAULT_TAGLINES[0])}" oninput="onTaglinesInput(this.value)" onblur="onTaglinesBlur(this)">${esc(taglineList().join('\n'))}</textarea>
       <div class="tagline-tools"><span class="hint" id="tagline-count">${esc(taglineCountText())}</span><button type="button" class="btn tagline-reset" id="tagline-reset" onclick="resetTagline()" ${isDefaultTaglines() ? 'disabled' : ''}>初期の文に戻す</button></div>
     </div>
-    <div class="hint" style="margin-top:12px;">${isStandaloneApp() ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：iPhone は Safari の共有ボタン →「ホーム画面に追加」、Android は Chrome のメニュー →「ホーム画面に追加」。<br>※ホーム画面のアプリは、ブラウザとは別にデータを持ちます。今のデータを使うときは「バックアップ・CSV」で移してください。'}</div>
+    <div class="hint" style="margin-top:12px;">${isStandaloneApp() ? 'ホーム画面のアプリとして全画面で開いています。' : '全画面で使うには：設定 →「ホーム画面に追加」から。<br>※ホーム画面のアプリは、ブラウザとは別にデータを持ちます。今のデータを使うときは「バックアップ・CSV」で移してください。'}</div>
 
 `)}
   ${acc('data', 'バックアップ・CSV', '全データ・曲マスタ・イベント一覧', `
@@ -6462,6 +6530,11 @@ function renderSettings(){
   ${acc('opt-end', 'おわりかたの候補', `${SE_END_OPTS.length}件`, `${seOptsEditorHtml('end', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${acc('opt-rhythm', 'リズムパターンの候補', `${RHYTHM_OPTS.length}件`, `${seOptsEditorHtml('rhythm', '')}<div class="hint">曲の登録・編集や構成表で選べる候補です。上にあるほど先に出ます。候補から消しても、曲に入っている内容はそのまま残ります（「（その他）」として表示）。</div>`)}
   ${grp('その他')}
+  ${acc('install', 'ホーム画面に追加', isStandaloneApp() ? '追加済み' : 'アプリのように使う', isStandaloneApp() ? '<p class="install-ok">✓ ホーム画面のアプリで開いています</p>' : `
+    <div class="hint" style="margin-top:0">ホーム画面に追加すると、アプリのように全画面で開けて、電波の弱い会場でも使えます。</div>
+    <button type="button" class="btn btn-block" style="margin-bottom:0" onclick="startInstall('settings')">ホーム画面に追加</button>
+    ${installGuide==='settings' ? installGuideHtml() : ''}
+`)}
   ${acc('about', 'このアプリについて', '特徴・主な使い方', `
     <div class="about-h">特徴</div>
     <div class="tips-list">${APP_FEATURES.map(([t, d]) => `<div class="tip-item"><div class="tip-t">${esc(t)}</div><div class="tip-d">${esc(d)}</div></div>`).join('')}</div>
