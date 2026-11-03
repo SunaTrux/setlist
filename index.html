@@ -69,9 +69,12 @@ body{overflow-x:hidden;}
 .stock-tools > *, .song-toolbar > *, .list-opts > *, .setlist-head > *{min-width:0;}
 .sort-chip select{max-width:100%;}
 
-header{position:sticky; top:0; padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
+header{position:sticky; top:var(--hdr-top, 0px); padding-top:calc(14px + env(safe-area-inset-top,0px)); background:var(--bg); z-index:10; border-bottom:1px solid var(--border);}
 h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
 header h1{display:flex; align-items:center; gap:8px;}
+/* 上にスクロールすると、タイトルとヒント文は流れて隠れ、タブだけが上に残る（--hdr-top は JS で計算）。
+   ホーム画面のアプリでは、時計などの裏（ノッチの部分）を背景色でふさいで、流れた文字が透けないようにする */
+body::before{content:''; position:fixed; top:0; left:0; right:0; height:env(safe-area-inset-top, 0px); background:var(--bg); z-index:11; pointer-events:none;}
 header h1 .title-ic{width:22px; height:22px; flex-shrink:0;}   /* ステージの床にテープで貼ったセットリスト（1曲目はアクセント色） */
 .tagline-row{display:flex; align-items:center; gap:4px; margin:-10px 10px 8px 16px;}
 .tagline{flex:1; min-width:0; margin:0; font-size:12px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere;}
@@ -1205,8 +1208,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.84.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-11-01';
+const APP_VERSION = '1.84.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-11-03';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1242,6 +1245,9 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.84.1': [
+    '上にスクロールすると、アプリのタイトルとヒント文は隠れ、タブだけが上に残るようにしました（画面を広く使えます）'
+  ],
   '1.84.0': [
     'ブラウザで開いたとき、画面の上に「アプリとしてホーム画面に追加」の案内を出すようにしました（×で閉じると2週間は出ません）',
     '設定の「その他」に「ホーム画面に追加」を追加。Androidなどはそのまま追加画面が開き、iPhoneは手順を表示します'
@@ -4463,8 +4469,24 @@ window.resetTagline = () => {
   onTaglinesInput(DEFAULT_TAGLINES.join('\n')); store.set('setlist_taglines', null);
   showToast('ヒント文を初期の文に戻しました');
 };
+// タブだけを上に固定するための、ヘッダーのずらし量（タイトル・ヒント文の高さ分）
+function updateHeaderStick(){
+  const hd = document.querySelector('header'), nav = hd && hd.querySelector('nav'); if(!hd || !nav) return;
+  const cs = getComputedStyle(hd);
+  let off = 0;
+  if(cs.display!=='flex'){   // スマホ横向き（タイトルとタブが1行）は、ヘッダーごと固定のまま
+    const safe = Math.max(0, (parseFloat(cs.paddingTop) || 0) - 14);   // 上の余白のうち、ノッチ（safe-area）の分
+    off = Math.max(0, nav.offsetTop - safe);
+  }
+  document.documentElement.style.setProperty('--hdr-top', -off + 'px');
+}
+// 上に残っている部分（タブ）の高さ：見出しへスクロールするときのずらし量に使う
+function headerStuckHeight(){ const hd = document.querySelector('header'); if(!hd) return 0; return hd.offsetHeight + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-top')) || 0); }
+window.addEventListener('resize', updateHeaderStick);
+window.addEventListener('orientationchange', () => setTimeout(updateHeaderStick, 300));
+try{ new ResizeObserver(updateHeaderStick).observe(document.querySelector('header')); }catch(e){}
 function render(){
-  applyTagline();
+  applyTagline(); updateHeaderStick();
   document.documentElement.classList.toggle('is-standalone', isStandaloneApp());
   showOthers = slShowOthers;
   document.body.dataset.view = structOpen ? 'struct' : tab==='lives' ? (liveEditId ? 'live' : 'lives') : tab;   // 画面ごとのレイアウト用
@@ -5541,8 +5563,8 @@ window.openLiveSetlist = id => {
   else if(!liveRegisterOpen){ liveRegisterOpen = true; render(); }
   const el = document.getElementById(hasSongs ? 'setlist-main' : 'setlist-section');
   if(el) requestAnimationFrame(() => {
-    // 上に固定のタイトル・タブがあるので、その高さ分ずらして見出しが隠れないようにする
-    const hd = document.querySelector('header'); el.style.scrollMarginTop = ((hd ? hd.offsetHeight : 0) + 8) + 'px';
+    // 上に固定のタブがあるので、その高さ分ずらして見出しが隠れないようにする
+    el.style.scrollMarginTop = (headerStuckHeight() + 8) + 'px';
     el.scrollIntoView({block:'start'});
   });
 };
