@@ -74,6 +74,7 @@ h1{font-size:20px; margin:0 16px 12px; letter-spacing:.02em;}
 header h1{display:flex; align-items:center; gap:8px;}
 /* 上にスクロールすると、タイトルとヒント文は流れて隠れ、タブだけが上に残る（--hdr-top は JS で計算）。
    ホーム画面のアプリでは、時計などの裏（ノッチの部分）を背景色でふさいで、流れた文字が透けないようにする */
+header h1, header .tagline-row{opacity:var(--hdr-fade, 1);}
 body::before{content:''; position:fixed; top:0; left:0; right:0; height:env(safe-area-inset-top, 0px); background:var(--bg); z-index:11; pointer-events:none;}
 header h1 .title-ic{width:22px; height:22px; flex-shrink:0;}   /* ステージの床にテープで貼ったセットリスト（1曲目はアクセント色） */
 .tagline-row{display:flex; align-items:center; gap:4px; margin:-10px 10px 8px 16px;}
@@ -1208,8 +1209,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.84.1';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-11-03';
+const APP_VERSION = '1.84.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-11-04';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1245,6 +1246,9 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.84.2': [
+    'スクロールの途中で、時計の下にヒント文が半透明の行のように残ることがあったのを直しました'
+  ],
   '1.84.1': [
     '上にスクロールすると、アプリのタイトルとヒント文は隠れ、タブだけが上に残るようにしました（画面を広く使えます）'
   ],
@@ -4485,8 +4489,28 @@ function headerStuckHeight(){ const hd = document.querySelector('header'); if(!h
 window.addEventListener('resize', updateHeaderStick);
 window.addEventListener('orientationchange', () => setTimeout(updateHeaderStick, 300));
 try{ new ResizeObserver(updateHeaderStick).observe(document.querySelector('header')); }catch(e){}
+// 途中まで流れたタイトル・ヒント文が、時計の下に半透明の行のように残らないように：
+// ・流れるにつれて薄くする
+// ・指を離して途中で止まったら、近いほう（全部見せる／タブだけ）にすっと寄せる（iPhoneの大きい見出しと同じ動き）
+let hdrTouching = false, hdrSnapT = 0;
+function headerHideAmount(){ return -(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-top')) || 0); }
+function fadeHeader(){
+  const off = headerHideAmount(), hd = document.querySelector('header'); if(!hd) return;
+  const o = off > 0 ? Math.max(0, Math.min(1, 1 - window.scrollY / (off * 0.7))) : 1;
+  hd.style.setProperty('--hdr-fade', String(Math.round(o * 100) / 100));
+}
+function snapHeader(){
+  if(hdrTouching || structOpen) return;
+  const off = headerHideAmount(), y = window.scrollY; if(off <= 0 || y <= 0 || y >= off) return;
+  const maxY = document.documentElement.scrollHeight - window.innerHeight;
+  window.scrollTo({top: (y > off / 2 && maxY >= off) ? off : 0, behavior: 'smooth'});
+}
+window.addEventListener('scroll', () => { fadeHeader(); clearTimeout(hdrSnapT); hdrSnapT = setTimeout(snapHeader, 160); }, {passive: true});
+window.addEventListener('touchstart', () => { hdrTouching = true; }, {passive: true});
+window.addEventListener('touchend', () => { hdrTouching = false; clearTimeout(hdrSnapT); hdrSnapT = setTimeout(snapHeader, 160); }, {passive: true});
+window.addEventListener('touchcancel', () => { hdrTouching = false; }, {passive: true});
 function render(){
-  applyTagline(); updateHeaderStick();
+  applyTagline(); updateHeaderStick(); fadeHeader();
   document.documentElement.classList.toggle('is-standalone', isStandaloneApp());
   showOthers = slShowOthers;
   document.body.dataset.view = structOpen ? 'struct' : tab==='lives' ? (liveEditId ? 'live' : 'lives') : tab;   // 画面ごとのレイアウト用
