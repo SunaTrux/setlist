@@ -13,6 +13,27 @@
 })();
 </script>
 <!-- アプリ側でライト／ダークを切り替えるので、ブラウザの強制ダーク（Brave のナイトモード等）をかけない -->
+<script>
+// 読み込めるものを制限する（CSP）：公開しているGitHub Pagesで開いたときだけ付ける
+// 外部につなぐのは、曲のネット検索（iTunes・Deezer）とジャケット画像だけ
+(function(){
+  if(location.protocol!=='https:' || !/github\.io$/.test(location.hostname)) return;
+  document.write('<meta http-equiv="Content-Security-Policy" content="' + [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://api.deezer.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://itunes.apple.com",
+    "font-src 'self' data:",
+    "media-src 'self' data: blob:",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'"
+  ].join('; ') + '">');
+})();
+</script>
 <meta name="color-scheme" content="light dark">
 <meta name="darkreader-lock">
 <title>プレイヤーズセットリスト</title>
@@ -47,7 +68,7 @@
 }
 *{box-sizing:border-box;}
 html,body{height:100%;}
-html{scroll-padding-top:env(safe-area-inset-top,0px);}
+html{scroll-padding-top:env(safe-area-inset-top,0px); -webkit-text-size-adjust:100%; text-size-adjust:100%;}   /* 横向きで文字が勝手に大きくならないように */
 /* 構成表の下のバーは、iPhoneのホームバー（画面下の横線）の余白を全部はとらず、少しだけ詰めて下に寄せる */
 :root{--st-sb:max(0px, calc(env(safe-area-inset-bottom,0px) - 24px));}
 html.is-standalone{--st-sb:0px;}   /* ホーム画面のアプリは、ホームバーの分の余白をとらない */
@@ -454,6 +475,7 @@ select.mini-input{width:64px; padding:5px 2px;}
 .qr-text{font-size:13px; line-height:1.7; min-width:0;}
 .qr-url{font-size:12px; color:var(--muted); margin-top:6px; overflow-wrap:anywhere;}
 .qr-tm{font-size:11px; color:var(--muted); margin-top:10px;}
+.undo-op{margin:0 0 14px;}
 .install-ok{margin:0; font-size:13px; font-weight:700; color:var(--accent);}
 .newver-bar .btn{padding:7px 12px; font-size:12.5px; white-space:nowrap;}
 .feedback-btn{display:block; text-align:center; text-decoration:none; margin:10px 0 0;}
@@ -1150,8 +1172,20 @@ applyTheme(store.get('setlist_theme','auto'));
 
 let hadSavedData = false;
 try{ hadSavedData = !!localStorage.getItem('setlist_songs') || !!localStorage.getItem('setlist_lives'); }catch(e){}
-let songs = store.get('setlist_songs', []);
-let lives = store.get('setlist_lives', []);
+// 起動時に読めなかった保存データ（壊れていた）は、消さずに別名（setlist_broken_〜）で残してから空で始める
+let brokenData = [];
+function loadList(key){
+  let raw = null; try{ raw = localStorage.getItem(key); }catch(e){ return []; }
+  if(!raw) return [];
+  try{ const v = JSON.parse(raw); if(Array.isArray(v)) return v; }catch(e){}
+  // 読めなかったデータと、つながっているもう一方（曲マスタ⇔イベント一覧）も、そのままの形で控えておく
+  const ts = Date.now();
+  ['setlist_songs', 'setlist_lives'].forEach(k => { try{ const r = localStorage.getItem(k); if(r) localStorage.setItem('setlist_broken_' + k.replace(/^setlist_/, '') + '_' + ts, r); }catch(e){} });
+  brokenData.push(key==='setlist_songs' ? '曲マスタ' : 'イベント一覧');
+  return [];
+}
+let songs = loadList('setlist_songs');
+let lives = loadList('setlist_lives');
 
 // migrate old format (songIds array) to setlist array with per-live bpm/key
 let migrated = false;
@@ -1214,7 +1248,7 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.85.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_VERSION = '1.86.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
 const APP_RELEASE_DATE = '2026-11-04';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
@@ -1251,6 +1285,11 @@ function feedbackUrl(){
 const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.86.0': [
+    '「全データを初期化」「復元」「CSV入力」のあとに、直前の状態へ1回だけ戻せるようにしました（設定 →「バックアップ・CSV」）',
+    '初期化の確認画面から、先にバックアップを保存できるように',
+    '保存データが読めなかったときは、消さずに控えを残すように'
+  ],
   '1.85.0': [
     'パソコンで開いたとき、設定の「その他」に「スマホで開く」を追加。QRコードをスマホのカメラで読み取ると、スマホでこのアプリが開きます'
   ],
@@ -1853,6 +1892,8 @@ let newVersion = null;
 // Android・PCのChrome系：ブラウザの「インストール」画面をそのまま出す（beforeinstallprompt）
 // iPhone・iPad：ブラウザからは追加できないので、共有ボタンからの手順を案内する
 const INSTALL_DISMISS_KEY = 'setlist_install_dismiss';
+// 起動回数（案内は2回目の起動から。最初は中身を見てもらう）
+const LAUNCH_COUNT = (() => { const n = (parseInt(store.get('setlist_launch_count', 0), 10) || 0) + 1; store.set('setlist_launch_count', n); return n; })();
 const INSTALL_TEST = /[?&]installtest=1/.test(location.search);   // 確認用
 let deferredInstall = null, installGuide = null;   // installGuide：手順を開いている場所（'bar' / 'settings'）
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; try{ render(); }catch(_){} });
@@ -1868,8 +1909,10 @@ function installBarVisible(){
   if(!(IS_HOSTED || INSTALL_TEST) || isStandaloneApp()) return false;
   try{ if(window.top!==window.self) return false; }catch(e){ return false; }   // 埋め込み表示では出さない
   if(installPlatform()==='pc' && !deferredInstall) return false;   // PCは、ブラウザがインストールに対応しているときだけ
+  if(LAUNCH_COUNT < 2 && !INSTALL_TEST) return false;   // 初回は出さない
+  if(updateNoticeHtml()) return false;   // アップデートのお知らせと同時には出さない
   const t = parseInt(store.get(INSTALL_DISMISS_KEY, 0), 10) || 0;
-  return !t || (Date.now() - t) > 14 * 24 * 3600 * 1000;   // ×で閉じたら2週間は出さない
+  return !t || (Date.now() - t) > 30 * 24 * 3600 * 1000;   // ×で閉じたら30日は出さない
 }
 window.dismissInstallBar = () => { store.set(INSTALL_DISMISS_KEY, Date.now()); render(); showToast('設定 →「ホーム画面に追加」からいつでも追加できます'); };
 window.startInstall = where => {
@@ -6631,6 +6674,7 @@ function renderSettings(){
 `)}
   ${acc('data', 'バックアップ・CSV', '全データ・曲マスタ・イベント一覧', `
     ${dataPlaceHtml()}
+    ${undoOpHtml()}
     <div class="field">
       <label>全データ</label>
       <div class="settings-btn-row">
@@ -6706,6 +6750,7 @@ function renderSettings(){
     <a class="btn btn-block feedback-btn" href="${esc(feedbackUrl())}" target="_blank" rel="noopener">感想を送る</a>
 `)}
   ${acc('reset', 'データ初期化', '全データを削除', `
+    ${undoOpHtml('reset')}
     <button type="button" class="btn-danger-block" onclick="resetAllData()">全データを初期化する</button>
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、「サンプルデータ」からお好きなものを読み込んでください。この操作は取り消せません。</div>
 `, 'set-acc-danger')}
@@ -6864,6 +6909,7 @@ window.exportSingleEvent = async () => {
 };
 // ---- CSV入力：ファイルの種類を見分けてから読み込む（曲とイベントの取り違えを防ぐ）----
 function readCsvFile(file, done){
+  if(tooBigFile(file)) return;
   const reader = new FileReader();
   reader.onload = () => {
     let rows;
@@ -6908,6 +6954,7 @@ window.handleLiveImport = (file) => readCsvFile(file, (rows, fname) => {
   showToast(kind==='empty' ? '読み込める行がありません。' : CSV_WRONG_FILE);
 });
 function importSongRows(rows){
+  snapBeforeOp('csv-songs');
   let count = 0;
   rows.forEach(row => {
     if(!String(row.name||'').trim()) return;
@@ -6934,11 +6981,12 @@ function importSongRows(rows){
     } else songs.push(item);
     count++;
   });
-  if(!count){ showToast('曲名のある行がありませんでした。'); return; }
+  if(!count){ clearUndoOp(); showToast('曲名のある行がありませんでした。'); return; }
   saveSongs(); render();
-  showToast(`${count}件の曲データを読み込みました。`);
+  showToast(`${count}件の曲データを読み込みました。「曲マスタのCSV取り込み前に戻す」（設定 →「バックアップ・CSV」）で元に戻せます。`);
 }
 function importLiveRows(rows){
+  snapBeforeOp('csv-lives');
   const order = [];
   const groups = {};
   let addedSongs = 0;
@@ -6983,9 +7031,9 @@ function importLiveRows(rows){
     count++;
   });
   if(addedSongs>0) saveSongs();
-  if(!count){ showToast('イベントとして読み込める行がありませんでした。'); return; }
+  if(!count){ if(!(addedSongs > 0)) clearUndoOp(); showToast('イベントとして読み込める行がありませんでした。'); return; }
   saveLives(); render();
-  showToast(`${count}件のイベントを読み込みました${addedSongs>0?`（曲を${addedSongs}件自動追加）`:''}。`);
+  showToast(`${count}件のイベントを読み込みました${addedSongs>0?`（曲を${addedSongs}件自動追加）`:''}。「イベント一覧のCSV取り込み前に戻す」（設定 →「バックアップ・CSV」）で元に戻せます。`);
 }
 
 // ---- 定番曲パック（曲マスタへの一括追加用）----
@@ -7459,12 +7507,45 @@ window.loadSampleData = (kind) => {
   }, '読み込む');
 };
 // ---- 全データのバックアップと復元 ----
+// ---- 大きな操作（初期化・復元・CSV取り込み）の前の状態を、直前1回分だけ控えておく ----
+const UNDO_OP_KEY = 'setlist_undo_op';
+const UNDO_OP_LABEL = {reset: ['初期化前', '初期化'], restore: ['復元前', '復元'], 'csv-songs': ['曲マスタのCSV取り込み前', '取り込み'], 'csv-lives': ['イベント一覧のCSV取り込み前', '取り込み']};
+function snapBeforeOp(kind){
+  const data = {}; backupKeys().forEach(k => { try{ data[k] = localStorage.getItem(k); }catch(e){} });
+  try{ localStorage.setItem(UNDO_OP_KEY, JSON.stringify({kind, at: Date.now(), data})); }catch(e){ try{ localStorage.removeItem(UNDO_OP_KEY); }catch(_){} }
+}
+function clearUndoOp(){ try{ localStorage.removeItem(UNDO_OP_KEY); }catch(e){} }
+function undoOp(){ const u = store.get(UNDO_OP_KEY, null); return u && UNDO_OP_LABEL[u.kind] && u.data && typeof u.data==='object' ? u : null; }
+function fmtWhen(t){ const d = new Date(t); return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+function undoOpHtml(onlyKind){
+  const u = undoOp(); if(!u || (onlyKind && u.kind!==onlyKind)) return '';
+  const [label, verb] = UNDO_OP_LABEL[u.kind];
+  return `<div class="undo-op"><button type="button" class="btn btn-block" style="margin-bottom:6px" onclick="undoBeforeOp()">↩ ${label}に戻す（${fmtWhen(u.at)}に${verb}）</button><div class="hint" style="padding:0;">戻せるのは直前の1回だけです。戻すと、そのあとの変更は消え、戻したことは取り消せません。</div></div>`;
+}
+window.undoBeforeOp = () => {
+  const u = undoOp(); if(!u) return;
+  const [label, verb] = UNDO_OP_LABEL[u.kind];
+  confirmAction(`${label}の状態に戻しますか？\n${fmtWhen(u.at)}に${verb}したあとの変更は、すべて消えます。\n戻したことは取り消せません。`, () => {
+    const prev = {}; try{ backupKeys().forEach(k => { prev[k] = localStorage.getItem(k); }); }catch(e){}
+    try{
+      backupKeys().forEach(k => localStorage.removeItem(k));
+      Object.keys(u.data).forEach(k => { if(k.indexOf('setlist_')===0 && u.data[k]!==null) localStorage.setItem(k, u.data[k]); });
+      localStorage.removeItem(UNDO_OP_KEY);
+      sessionStorage.setItem('setlist_undone', label);
+    }catch(e){
+      try{ backupKeys().forEach(k => localStorage.removeItem(k)); Object.keys(prev).forEach(k => { if(prev[k]!==null) localStorage.setItem(k, prev[k]); }); }catch(_){}
+      showToast('戻せませんでした（データは今のままです）: ' + (e && e.message || '不明なエラー')); return;
+    }
+    location.reload();
+  }, '戻す');
+};
+try{ const lb = sessionStorage.getItem('setlist_undone'); if(lb){ sessionStorage.removeItem('setlist_undone'); setTimeout(() => showToast(`${lb}の状態に戻しました。`), 300); } }catch(e){}
 function backupKeys(){
   const keys = [];
   try{
     for(let i=0;i<localStorage.length;i++){
       const k = localStorage.key(i);
-      if(k && k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY) keys.push(k);
+      if(k && k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY && k!==UNDO_OP_KEY && k.indexOf('setlist_broken_')!==0) keys.push(k);   // 「戻す」用の控えと、読めなかったデータの控えは入れない
     }
   }catch(e){}
   return keys.sort();
@@ -7502,7 +7583,10 @@ function parseBackup(text){
   if(!Array.isArray(d.setlist_songs) || !Array.isArray(d.setlist_lives)) return {error:'バックアップの中身が壊れているようです（曲マスタまたはイベント一覧がありません）。'};
   return {obj, songs: d.setlist_songs.length, lives: d.setlist_lives.length};
 }
+const IMPORT_MAX_BYTES = 5 * 1024 * 1024;   // 取り込めるファイルは5MBまで
+function tooBigFile(file){ if(file && file.size > IMPORT_MAX_BYTES){ showToast('ファイルが大きすぎます（5MBまで）。このアプリで書き出したファイルか確認してください。'); return true; } return false; }
 function handleBackupFile(file){
+  if(tooBigFile(file)) return;
   if(/\.csv$/i.test(file.name||'')){ showToast('CSVは「曲マスタ」「イベント一覧」のCSV入力から読み込んでください。'); return; }
   const reader = new FileReader();
   reader.onload = () => {
@@ -7519,6 +7603,7 @@ function handleBackupFile(file){
 }
 function applyBackup(obj){
   const prev = {}; try{ backupKeys().forEach(k => { prev[k] = localStorage.getItem(k); }); }catch(e){}
+  snapBeforeOp('restore');
   try{
     backupKeys().forEach(k => localStorage.removeItem(k));
     Object.keys(obj.data).forEach(k => { if(k.indexOf('setlist_')===0 && k!==SEEN_VERSION_KEY) localStorage.setItem(k, JSON.stringify(obj.data[k])); });
@@ -7527,22 +7612,41 @@ function applyBackup(obj){
   }catch(e){
     // 途中で失敗したら、元のデータに戻す（消えたままにしない）
     try{ backupKeys().forEach(k => localStorage.removeItem(k)); Object.keys(prev).forEach(k => { if(prev[k]!==null) localStorage.setItem(k, prev[k]); }); }catch(_){}
+    clearUndoOp();
     showToast('復元に失敗しました（データは元のままです）: ' + (e && e.message || '不明なエラー')); return;
   }
   location.reload();
 }
-try{ if(sessionStorage.getItem('setlist_restored')){ sessionStorage.removeItem('setlist_restored'); setTimeout(() => showToast('バックアップから復元しました。'), 300); } }catch(e){}
+try{ if(sessionStorage.getItem('setlist_restored')){ sessionStorage.removeItem('setlist_restored'); setTimeout(() => showToast('バックアップから復元しました。設定 →「バックアップ・CSV」の「復元前に戻す」で元に戻せます。'), 300); } }catch(e){}
 
+if(brokenData.length) setTimeout(() => alertBox(`保存されていた${brokenData.join('・')}のデータを読み込めませんでした。\n元のデータは消さずに、この端末の中に控えとして残してあります。\nバックアップがあれば、設定 →「バックアップ・CSV」の「復元」で戻せます。困ったときは、設定 →「作者に感想を送る」から知らせてください。`), 400);
 window.resetAllData = () => {
-  confirmAction('曲マスタとイベント一覧のすべてのデータを削除します。よろしいですか？\nこの操作は取り消せません。', () => {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box">
+    <div class="modal-message">${esc(`すべてのデータを初期化しますか？\n消えるもの：曲マスタ（${songs.length}曲）・イベント一覧（${lives.length}件）\n残るもの：テーマなどの設定\n\n初期化したあと、「初期化前に戻す」で直前の状態に1回だけ戻せます。心配なときは、先にバックアップを保存しておくと安心です。`)}</div>
+    <button type="button" class="btn btn-block" id="reset-backup" style="margin-bottom:10px">先にバックアップを保存する</button>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="modal-cancel">キャンセル</button>
+      <button type="button" class="btn btn-danger-fill" id="modal-ok">初期化する</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector('#modal-cancel').onclick = close;
+  overlay.addEventListener('click', e => { if(e.target===overlay) close(); });
+  overlay.querySelector('#reset-backup').onclick = () => { exportBackup(); };
+  overlay.querySelector('#modal-ok').onclick = () => {
+    close();
+    snapBeforeOp('reset');
     songs = []; lives = [];
     saveSongs(); saveLives();
     stopMetro(); resetTimerState();
     liveEditId = null; songForm = null; songExpandedId = null; entryExpandedIdx = null;
     tab = 'songs';
     render();
-    showToast('全データを初期化しました。');
-  }, '初期化する');
+    showToast('初期化しました。設定 →「データ初期化」の「初期化前に戻す」で元に戻せます。');
+  };
 };
 
 render();
