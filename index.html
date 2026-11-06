@@ -447,6 +447,17 @@ select.mini-input{width:64px; padding:5px 2px;}
 .bulk-excel .settings-btn-row .btn{padding:9px 8px; font-size:13px; white-space:nowrap;}
 .bulk-sub{font-size:14px; font-weight:700; margin-bottom:4px;}
 .update-box{padding:14px; margin-top:16px;}
+.hist-box{max-width:520px; max-height:calc(100vh - 48px); max-height:calc(100dvh - 48px); display:flex; flex-direction:column;}
+.hist-head{display:flex; align-items:center; justify-content:space-between; font-size:16px; margin-bottom:8px;}
+.hist-x{width:36px; height:36px; border:none; background:none; color:var(--muted); font-size:22px; cursor:pointer;}
+.hist-body{overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1; min-height:0; margin:0 -4px; padding:0 4px;}
+.hist-item{padding:10px 0; border-top:1px solid var(--border);}
+.hist-item:first-child{border-top:none; padding-top:2px;}
+.hist-v{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:14px;}
+.hist-v span{font-size:12px; color:var(--muted);}
+.hist-v .hist-now{color:var(--accent); font-weight:700;}
+.hist-item ul{margin:4px 0 0; padding-left:1.2em; font-size:13px; line-height:1.7;}
+.update-hist-link{background:none; border:none; padding:0; color:inherit; font:inherit; text-decoration:underline; cursor:pointer;}
 .update-title{font-size:15px; font-weight:700;}
 .update-btn:disabled{opacity:.6; cursor:default;}
 .update-msg{font-size:12.5px; margin:10px 2px 0; color:var(--muted);}
@@ -1248,8 +1259,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.86.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-11-04';
+const APP_VERSION = '1.87.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-11-07';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1282,9 +1293,38 @@ function feedbackDeviceInfo(){
 function feedbackUrl(){
   return FEEDBACK_URL + '?app=' + encodeURIComponent(FEEDBACK_APP_NAME) + '&version=' + encodeURIComponent(APP_VERSION) + '&device=' + encodeURIComponent(feedbackDeviceInfo());
 }
-const CHANGELOG_URL = 'https://github.com/sunatrux/setlist/blob/main/CHANGELOG.md';
+// 各バージョンの公開日（更新履歴の画面に出す。CHANGELOG.md と同じ日付。更新のたびに1行足す）
+const RELEASE_DATES = {"1.87.0":"2026-11-07","1.86.0":"2026-11-04","1.85.0":"2026-11-04","1.84.2":"2026-11-04","1.84.1":"2026-11-03","1.84.0":"2026-11-01","1.83.0":"2026-10-30","1.82.2":"2026-10-30","1.82.1":"2026-10-30","1.82.0":"2026-10-28","1.81.0":"2026-10-27","1.80.0":"2026-10-27","1.79.2":"2026-10-27","1.79.1":"2026-10-27","1.79.0":"2026-10-25","1.78.2":"2026-10-25","1.78.1":"2026-10-25","1.78.0":"2026-10-25","1.77.2":"2026-10-25","1.77.1":"2026-10-25","1.77.0":"2026-10-25","1.76.1":"2026-10-25","1.76.0":"2026-10-25","1.75.1":"2026-10-25","1.75.0":"2026-10-25","1.74.3":"2026-10-25","1.74.2":"2026-10-25","1.74.1":"2026-10-25","1.74.0":"2026-10-25","1.73.2":"2026-10-25","1.73.1":"2026-10-25","1.73.0":"2026-10-25","1.72.1":"2026-10-25","1.72.0":"2026-10-25","1.71.0":"2026-10-25","1.70.2":"2026-10-25","1.70.1":"2026-10-25","1.70.0":"2026-10-25","1.69.3":"2026-10-25","1.69.2":"2026-10-25","1.69.1":"2026-10-25","1.69.0":"2026-10-25","1.68.0":"2026-10-25","1.67.5":"2026-10-25","1.67.4":"2026-10-25","1.67.3":"2026-10-25","1.67.2":"2026-10-25","1.67.1":"2026-10-25","1.67.0":"2026-10-25","1.66.0":"2026-10-25","1.65.1":"2026-10-25","1.65.0":"2026-10-25","1.64.0":"2026-10-24","1.63.0":"2026-10-24","1.62.1":"2026-10-24","1.62.0":"2026-10-24","1.61.1":"2026-10-24","1.61.0":"2026-10-24","1.60.1":"2026-10-24","1.60.0":"2026-10-24","1.59.2":"2026-10-24","1.59.1":"2026-10-24","1.59.0":"2026-10-24","1.58.0":"2026-10-24","1.57.4":"2026-10-24","1.57.3":"2026-10-24","1.57.2":"2026-10-23","1.57.1":"2026-10-23","1.57.0":"2026-10-23","1.56.1":"2026-10-23","1.56.0":"2026-10-23","1.55.1":"2026-10-23","1.55.0":"2026-10-23","1.54.1":"2026-10-23","1.54.0":"2026-10-23","1.53.0":"2026-10-23","1.52.0":"2026-10-22","1.51.0":"2026-10-22","1.50.2":"2026-10-22","1.50.1":"2026-10-22","1.50.0":"2026-10-22","1.49.1":"2026-10-22","1.49.0":"2026-10-20","1.48.0":"2026-10-18","1.47.0":"2026-10-18","1.46.2":"2026-10-18","1.46.1":"2026-10-18","1.46.0":"2026-10-18","1.45.0":"2026-10-18","1.44.1":"2026-10-17","1.44.0":"2026-10-17","1.43.0":"2026-10-17","1.42.1":"2026-10-17","1.42.0":"2026-10-17","1.41.0":"2026-10-17","1.40.1":"2026-10-17","1.40.0":"2026-10-17","1.39.1":"2026-10-17","1.39.0":"2026-10-17","1.38.0":"2026-10-17","1.37.4":"2026-10-17","1.37.3":"2026-10-17","1.37.2":"2026-10-17","1.37.1":"2026-10-17","1.37.0":"2026-10-17","1.36.0":"2026-10-17","1.35.2":"2026-10-17","1.35.1":"2026-10-17","1.35.0":"2026-10-17","1.34.0":"2026-10-17","1.33.1":"2026-10-17","1.33.0":"2026-10-17","1.32.0":"2026-10-17","1.31.0":"2026-10-17","1.30.0":"2026-10-17","1.29.0":"2026-10-17","1.28.0":"2026-10-17","1.27.0":"2026-10-17","1.26.2":"2026-10-17","1.26.1":"2026-10-17","1.26.0":"2026-10-17","1.25.1":"2026-10-17","1.25.0":"2026-10-17","1.24.0":"2026-10-17","1.23.5":"2026-10-17","1.23.4":"2026-10-16","1.23.3":"2026-10-16","1.23.2":"2026-10-16","1.23.1":"2026-10-16","1.23.0":"2026-10-16","1.22.1":"2026-10-16","1.22.0":"2026-10-16","1.21.1":"2026-10-16","1.21.0":"2026-10-16","1.20.0":"2026-10-16","1.19.0":"2026-10-16","1.18.0":"2026-10-16","1.17.0":"2026-10-16","1.16.0":"2026-10-15","1.15.0":"2026-10-15","1.14.0":"2026-10-15","1.13.0":"2026-10-14","1.12.0":"2026-10-14","1.11.0":"2026-10-14","1.10.1":"2026-10-14","1.10.0":"2026-10-14","1.9.4":"2026-10-14","1.9.3":"2026-10-14","1.9.2":"2026-10-14","1.9.1":"2026-10-14","1.9.0":"2026-10-13","1.8.0":"2026-10-13","1.7.1":"2026-10-13","1.7.0":"2026-10-13","1.6.3":"2026-10-13","1.6.2":"2026-10-13","1.6.1":"2026-10-13","1.6.0":"2026-10-13","1.5.0":"2026-10-13","1.4.0":"2026-10-13","1.3.5":"2026-10-13","1.3.4":"2026-10-13","1.3.3":"2026-10-13","1.3.2":"2026-10-13","1.3.1":"2026-10-13","1.3.0":"2026-10-13","1.2.0":"2026-10-13","1.1.0":"2026-10-12","1.0.0":"2026-10-12"};
+// ---- 更新履歴（アプリの中で見る。GitHubは開かない） ----
+const HIST_PAGE = 20;
+let histShown = HIST_PAGE;
+function histVersions(){ return Object.keys(RELEASE_NOTES).sort((a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); return (y[0] - x[0]) || (y[1] - x[1]) || (y[2] - x[2]); }); }
+function histListHtml(){
+  const vs = histVersions();
+  return vs.slice(0, histShown).map(v => `<div class="hist-item${v===APP_VERSION ? ' now' : ''}"><div class="hist-v"><b>v${esc(v)}</b>${RELEASE_DATES[v] ? `<span>${esc(RELEASE_DATES[v].replace(/-/g, '/'))}</span>` : ''}${v===APP_VERSION ? '<span class="hist-now">今のバージョン</span>' : ''}</div><ul>${RELEASE_NOTES[v].map(n => `<li>${esc(n)}</li>`).join('')}</ul></div>`).join('')
+    + (vs.length > histShown ? `<button type="button" class="btn btn-block" id="hist-more" style="margin-top:4px">もっと見る（残り${vs.length - histShown}件）</button>` : '');
+}
+window.openHistory = () => {
+  histShown = HIST_PAGE;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box hist-box" role="dialog" aria-modal="true" aria-label="更新履歴"><div class="hist-head"><b>更新履歴</b><button type="button" class="hist-x" aria-label="閉じる">×</button></div><div class="hist-body"></div><button type="button" class="btn btn-block" id="hist-close" style="margin-top:12px">閉じる</button></div>`;
+  document.body.appendChild(overlay);
+  const body = overlay.querySelector('.hist-body');
+  const paint = () => { body.innerHTML = histListHtml(); const m = body.querySelector('#hist-more'); if(m) m.onclick = () => { histShown += HIST_PAGE; paint(); }; };
+  paint();
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if(e.key==='Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.querySelector('.hist-x').onclick = close;
+  overlay.querySelector('#hist-close').onclick = close;
+  overlay.addEventListener('click', e => { if(e.target===overlay) close(); });
+};
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.87.0': [
+    '更新履歴を、アプリの中で見られるように。設定の「アプリの更新」の「📝 更新履歴を見る」から開けます'
+  ],
   '1.86.0': [
     '「全データを初期化」「復元」「CSV入力」のあとに、直前の状態へ1回だけ戻せるようにしました（設定 →「バックアップ・CSV」）',
     '初期化の確認画面から、先にバックアップを保存できるように',
@@ -2072,6 +2112,7 @@ function updateBoxHtml(){
         ${uc.state==='latest' ? `<div class="update-msg ok">✓ 最新版です（v${esc(APP_VERSION)}）</div>` : ''}
         ${uc.state==='error' ? `<div class="update-msg ng">確認できませんでした。ネットにつながっているか確かめて、もう一度お試しください。</div>` : ''}
         ${uc.state==='unsupported' ? `<div class="update-msg">この画面（プレビューなど）では確認できません。公開版のアプリで確認してください。</div>` : ''}`}
+    <button type="button" class="btn btn-block" style="margin:10px 0 0" onclick="openHistory()">📝 更新履歴を見る</button>
   </div>`;
 }
 // アプリが裏に回ったら（画面オフ・別のアプリへ切り替え）メトロノームを止める。戻ったときにひと言知らせる
@@ -2100,7 +2141,7 @@ function updateNoticeHtml(){
     <button type="button" class="update-close" onclick="markVersionSeen()" aria-label="閉じる">×</button>
     <div class="update-title">v${esc(APP_VERSION)} にアップデートしました</div>
     <ul>${notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>
-    <a href="${CHANGELOG_URL}" target="_blank" rel="noopener">すべての更新履歴を見る</a>
+    <button type="button" class="update-hist-link" onclick="openHistory()">すべての更新履歴を見る</button>
   </div>`;
 }
 const OV_FIELDS = ['bpm','key','duration','start','end','notes'];  // イベント側で上書きできる項目
@@ -6755,7 +6796,7 @@ function renderSettings(){
     <div class="hint">曲マスタとイベント一覧をすべて削除します（サンプルデータも消えます）。必要があれば、「サンプルデータ」からお好きなものを読み込んでください。この操作は取り消せません。</div>
 `, 'set-acc-danger')}
   ${updateBoxHtml()}
-  <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）<br><a href="${CHANGELOG_URL}" target="_blank" rel="noopener">更新履歴</a></div>`;
+  <div class="app-version">バージョン ${APP_VERSION}（${APP_RELEASE_DATE}）</div>`;
   if(split && !navItems.some(n => n.id===setSplitSel)){ setSplitSel = 'display'; }
   main.innerHTML = split ? `<div class="set-split">
     <nav class="set-nav" aria-label="設定の項目">${navItems.map(n => n.group ? `<div class="set-nav-group">${n.group}</div>` : `<button type="button" class="${n.cls}${n.id===setSplitSel ? ' on' : ''}" data-sec="${n.id}" onclick="selectSetSec('${n.id}')" aria-current="${n.id===setSplitSel}"><span class="t">${n.title}</span><span class="s">${n.sub}</span></button>`).join('')}</nav>
