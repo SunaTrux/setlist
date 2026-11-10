@@ -487,6 +487,20 @@ select.mini-input{width:64px; padding:5px 2px;}
 .qr-url{font-size:12px; color:var(--muted); margin-top:6px; overflow-wrap:anywhere;}
 .qr-tm{font-size:11px; color:var(--muted); margin-top:10px;}
 .undo-op{margin:0 0 14px;}
+.link-box{max-width:440px; max-height:calc(100vh - 48px); max-height:calc(100dvh - 48px); overflow-y:auto;}
+.link-opt{display:flex; align-items:center; gap:8px; font-size:14px; padding:6px 0;}
+.link-opt input{width:18px; height:18px; accent-color:var(--accent);}
+.link-see{font-size:12px; color:var(--muted); line-height:1.7; margin-top:8px; padding:8px 10px; border:1px solid var(--border); border-radius:8px;}
+.link-len{font-size:12px; color:var(--muted); margin-top:6px;}
+.link-warn{font-size:13px; color:var(--danger); line-height:1.7;}
+.lk-ev{display:flex; flex-direction:column; gap:2px; font-size:14px;}
+.lk-ev span{font-size:12px; color:var(--muted);}
+.lk-sum{font-size:13px; font-weight:700; color:var(--accent); margin:8px 0 4px;}
+.lk-list{list-style:none; margin:0; padding:8px 10px; font-size:13px; line-height:1.8; max-height:34vh; overflow-y:auto; border:1px solid var(--border); border-radius:8px;}
+.lk-list .lk-other{color:var(--muted); padding-left:1.6em;}
+.lk-sub{color:var(--muted); font-size:12px;}
+.lk-plan{font-size:13px; line-height:1.7; margin-top:8px;}
+.lk-prev{font-size:13px; line-height:1.7; margin-top:8px; font-weight:700;}
 .install-ok{margin:0; font-size:13px; font-weight:700; color:var(--accent);}
 .newver-bar .btn{padding:7px 12px; font-size:12.5px; white-space:nowrap;}
 .feedback-btn{display:block; text-align:center; text-decoration:none; margin:10px 0 0;}
@@ -1259,8 +1273,8 @@ if(songsMigrated) saveSongs();
 let livesMigrated = false;
 lives.forEach((l,i) => { if(l.updatedAt===undefined){ l.updatedAt = i; livesMigrated = true; } });
 if(livesMigrated) saveLives();
-const APP_VERSION = '1.87.2';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
-const APP_RELEASE_DATE = '2026-11-08';
+const APP_VERSION = '1.88.0';        // セマンティックバージョン（メジャー.マイナー.パッチ）。更新のたびに上げる。CHANGELOG.md と合わせる
+const APP_RELEASE_DATE = '2026-11-10';
 const SCHEMA_VERSION = 1;  // 保存データの形式番号。データ構造を変えるときに上げ、起動時に古い形式を変換する
 const FEEDBACK_URL = 'https://tally.so/r/9qL0A4';  // 感想フォーム（Tally。バンドマン持ち物リストと共通で、?app= でアプリを自動で選ぶ）
 const FEEDBACK_APP_NAME = 'プレイヤーズセットリスト';
@@ -1294,7 +1308,7 @@ function feedbackUrl(){
   return FEEDBACK_URL + '?app=' + encodeURIComponent(FEEDBACK_APP_NAME) + '&version=' + encodeURIComponent(APP_VERSION) + '&device=' + encodeURIComponent(feedbackDeviceInfo());
 }
 // 各バージョンの公開日（更新履歴の画面に出す。CHANGELOG.md と同じ日付。更新のたびに1行足す）
-const RELEASE_DATES = {"1.87.2":"2026-11-08","1.87.1":"2026-11-07","1.87.0":"2026-11-07","1.86.0":"2026-11-04","1.85.0":"2026-11-04","1.84.2":"2026-11-04","1.84.1":"2026-11-03","1.84.0":"2026-11-01","1.83.0":"2026-10-30","1.82.2":"2026-10-30","1.82.1":"2026-10-30","1.82.0":"2026-10-28","1.81.0":"2026-10-27","1.80.0":"2026-10-27","1.79.2":"2026-10-27","1.79.1":"2026-10-27","1.79.0":"2026-10-25","1.78.2":"2026-10-25","1.78.1":"2026-10-25","1.78.0":"2026-10-25","1.77.2":"2026-10-25","1.77.1":"2026-10-25","1.77.0":"2026-10-25","1.76.1":"2026-10-25","1.76.0":"2026-10-25","1.75.1":"2026-10-25","1.75.0":"2026-10-25","1.74.3":"2026-10-25","1.74.2":"2026-10-25","1.74.1":"2026-10-25","1.74.0":"2026-10-25","1.73.2":"2026-10-25","1.73.1":"2026-10-25","1.73.0":"2026-10-25","1.72.1":"2026-10-25","1.72.0":"2026-10-25","1.71.0":"2026-10-25","1.70.2":"2026-10-25","1.70.1":"2026-10-25","1.70.0":"2026-10-25","1.69.3":"2026-10-25","1.69.2":"2026-10-25","1.69.1":"2026-10-25","1.69.0":"2026-10-25","1.68.0":"2026-10-25","1.67.5":"2026-10-25","1.67.4":"2026-10-25","1.67.3":"2026-10-25","1.67.2":"2026-10-25","1.67.1":"2026-10-25","1.67.0":"2026-10-25","1.66.0":"2026-10-25","1.65.1":"2026-10-25","1.65.0":"2026-10-25","1.64.0":"2026-10-24","1.63.0":"2026-10-24","1.62.1":"2026-10-24","1.62.0":"2026-10-24","1.61.1":"2026-10-24","1.61.0":"2026-10-24","1.60.1":"2026-10-24","1.60.0":"2026-10-24","1.59.2":"2026-10-24","1.59.1":"2026-10-24","1.59.0":"2026-10-24","1.58.0":"2026-10-24","1.57.4":"2026-10-24","1.57.3":"2026-10-24","1.57.2":"2026-10-23","1.57.1":"2026-10-23","1.57.0":"2026-10-23","1.56.1":"2026-10-23","1.56.0":"2026-10-23","1.55.1":"2026-10-23","1.55.0":"2026-10-23","1.54.1":"2026-10-23","1.54.0":"2026-10-23","1.53.0":"2026-10-23","1.52.0":"2026-10-22","1.51.0":"2026-10-22","1.50.2":"2026-10-22","1.50.1":"2026-10-22","1.50.0":"2026-10-22","1.49.1":"2026-10-22","1.49.0":"2026-10-20","1.48.0":"2026-10-18","1.47.0":"2026-10-18","1.46.2":"2026-10-18","1.46.1":"2026-10-18","1.46.0":"2026-10-18","1.45.0":"2026-10-18","1.44.1":"2026-10-17","1.44.0":"2026-10-17","1.43.0":"2026-10-17","1.42.1":"2026-10-17","1.42.0":"2026-10-17","1.41.0":"2026-10-17","1.40.1":"2026-10-17","1.40.0":"2026-10-17","1.39.1":"2026-10-17","1.39.0":"2026-10-17","1.38.0":"2026-10-17","1.37.4":"2026-10-17","1.37.3":"2026-10-17","1.37.2":"2026-10-17","1.37.1":"2026-10-17","1.37.0":"2026-10-17","1.36.0":"2026-10-17","1.35.2":"2026-10-17","1.35.1":"2026-10-17","1.35.0":"2026-10-17","1.34.0":"2026-10-17","1.33.1":"2026-10-17","1.33.0":"2026-10-17","1.32.0":"2026-10-17","1.31.0":"2026-10-17","1.30.0":"2026-10-17","1.29.0":"2026-10-17","1.28.0":"2026-10-17","1.27.0":"2026-10-17","1.26.2":"2026-10-17","1.26.1":"2026-10-17","1.26.0":"2026-10-17","1.25.1":"2026-10-17","1.25.0":"2026-10-17","1.24.0":"2026-10-17","1.23.5":"2026-10-17","1.23.4":"2026-10-16","1.23.3":"2026-10-16","1.23.2":"2026-10-16","1.23.1":"2026-10-16","1.23.0":"2026-10-16","1.22.1":"2026-10-16","1.22.0":"2026-10-16","1.21.1":"2026-10-16","1.21.0":"2026-10-16","1.20.0":"2026-10-16","1.19.0":"2026-10-16","1.18.0":"2026-10-16","1.17.0":"2026-10-16","1.16.0":"2026-10-15","1.15.0":"2026-10-15","1.14.0":"2026-10-15","1.13.0":"2026-10-14","1.12.0":"2026-10-14","1.11.0":"2026-10-14","1.10.1":"2026-10-14","1.10.0":"2026-10-14","1.9.4":"2026-10-14","1.9.3":"2026-10-14","1.9.2":"2026-10-14","1.9.1":"2026-10-14","1.9.0":"2026-10-13","1.8.0":"2026-10-13","1.7.1":"2026-10-13","1.7.0":"2026-10-13","1.6.3":"2026-10-13","1.6.2":"2026-10-13","1.6.1":"2026-10-13","1.6.0":"2026-10-13","1.5.0":"2026-10-13","1.4.0":"2026-10-13","1.3.5":"2026-10-13","1.3.4":"2026-10-13","1.3.3":"2026-10-13","1.3.2":"2026-10-13","1.3.1":"2026-10-13","1.3.0":"2026-10-13","1.2.0":"2026-10-13","1.1.0":"2026-10-12","1.0.0":"2026-10-12"};
+const RELEASE_DATES = {"1.88.0":"2026-11-10","1.87.2":"2026-11-08","1.87.1":"2026-11-07","1.87.0":"2026-11-07","1.86.0":"2026-11-04","1.85.0":"2026-11-04","1.84.2":"2026-11-04","1.84.1":"2026-11-03","1.84.0":"2026-11-01","1.83.0":"2026-10-30","1.82.2":"2026-10-30","1.82.1":"2026-10-30","1.82.0":"2026-10-28","1.81.0":"2026-10-27","1.80.0":"2026-10-27","1.79.2":"2026-10-27","1.79.1":"2026-10-27","1.79.0":"2026-10-25","1.78.2":"2026-10-25","1.78.1":"2026-10-25","1.78.0":"2026-10-25","1.77.2":"2026-10-25","1.77.1":"2026-10-25","1.77.0":"2026-10-25","1.76.1":"2026-10-25","1.76.0":"2026-10-25","1.75.1":"2026-10-25","1.75.0":"2026-10-25","1.74.3":"2026-10-25","1.74.2":"2026-10-25","1.74.1":"2026-10-25","1.74.0":"2026-10-25","1.73.2":"2026-10-25","1.73.1":"2026-10-25","1.73.0":"2026-10-25","1.72.1":"2026-10-25","1.72.0":"2026-10-25","1.71.0":"2026-10-25","1.70.2":"2026-10-25","1.70.1":"2026-10-25","1.70.0":"2026-10-25","1.69.3":"2026-10-25","1.69.2":"2026-10-25","1.69.1":"2026-10-25","1.69.0":"2026-10-25","1.68.0":"2026-10-25","1.67.5":"2026-10-25","1.67.4":"2026-10-25","1.67.3":"2026-10-25","1.67.2":"2026-10-25","1.67.1":"2026-10-25","1.67.0":"2026-10-25","1.66.0":"2026-10-25","1.65.1":"2026-10-25","1.65.0":"2026-10-25","1.64.0":"2026-10-24","1.63.0":"2026-10-24","1.62.1":"2026-10-24","1.62.0":"2026-10-24","1.61.1":"2026-10-24","1.61.0":"2026-10-24","1.60.1":"2026-10-24","1.60.0":"2026-10-24","1.59.2":"2026-10-24","1.59.1":"2026-10-24","1.59.0":"2026-10-24","1.58.0":"2026-10-24","1.57.4":"2026-10-24","1.57.3":"2026-10-24","1.57.2":"2026-10-23","1.57.1":"2026-10-23","1.57.0":"2026-10-23","1.56.1":"2026-10-23","1.56.0":"2026-10-23","1.55.1":"2026-10-23","1.55.0":"2026-10-23","1.54.1":"2026-10-23","1.54.0":"2026-10-23","1.53.0":"2026-10-23","1.52.0":"2026-10-22","1.51.0":"2026-10-22","1.50.2":"2026-10-22","1.50.1":"2026-10-22","1.50.0":"2026-10-22","1.49.1":"2026-10-22","1.49.0":"2026-10-20","1.48.0":"2026-10-18","1.47.0":"2026-10-18","1.46.2":"2026-10-18","1.46.1":"2026-10-18","1.46.0":"2026-10-18","1.45.0":"2026-10-18","1.44.1":"2026-10-17","1.44.0":"2026-10-17","1.43.0":"2026-10-17","1.42.1":"2026-10-17","1.42.0":"2026-10-17","1.41.0":"2026-10-17","1.40.1":"2026-10-17","1.40.0":"2026-10-17","1.39.1":"2026-10-17","1.39.0":"2026-10-17","1.38.0":"2026-10-17","1.37.4":"2026-10-17","1.37.3":"2026-10-17","1.37.2":"2026-10-17","1.37.1":"2026-10-17","1.37.0":"2026-10-17","1.36.0":"2026-10-17","1.35.2":"2026-10-17","1.35.1":"2026-10-17","1.35.0":"2026-10-17","1.34.0":"2026-10-17","1.33.1":"2026-10-17","1.33.0":"2026-10-17","1.32.0":"2026-10-17","1.31.0":"2026-10-17","1.30.0":"2026-10-17","1.29.0":"2026-10-17","1.28.0":"2026-10-17","1.27.0":"2026-10-17","1.26.2":"2026-10-17","1.26.1":"2026-10-17","1.26.0":"2026-10-17","1.25.1":"2026-10-17","1.25.0":"2026-10-17","1.24.0":"2026-10-17","1.23.5":"2026-10-17","1.23.4":"2026-10-16","1.23.3":"2026-10-16","1.23.2":"2026-10-16","1.23.1":"2026-10-16","1.23.0":"2026-10-16","1.22.1":"2026-10-16","1.22.0":"2026-10-16","1.21.1":"2026-10-16","1.21.0":"2026-10-16","1.20.0":"2026-10-16","1.19.0":"2026-10-16","1.18.0":"2026-10-16","1.17.0":"2026-10-16","1.16.0":"2026-10-15","1.15.0":"2026-10-15","1.14.0":"2026-10-15","1.13.0":"2026-10-14","1.12.0":"2026-10-14","1.11.0":"2026-10-14","1.10.1":"2026-10-14","1.10.0":"2026-10-14","1.9.4":"2026-10-14","1.9.3":"2026-10-14","1.9.2":"2026-10-14","1.9.1":"2026-10-14","1.9.0":"2026-10-13","1.8.0":"2026-10-13","1.7.1":"2026-10-13","1.7.0":"2026-10-13","1.6.3":"2026-10-13","1.6.2":"2026-10-13","1.6.1":"2026-10-13","1.6.0":"2026-10-13","1.5.0":"2026-10-13","1.4.0":"2026-10-13","1.3.5":"2026-10-13","1.3.4":"2026-10-13","1.3.3":"2026-10-13","1.3.2":"2026-10-13","1.3.1":"2026-10-13","1.3.0":"2026-10-13","1.2.0":"2026-10-13","1.1.0":"2026-10-12","1.0.0":"2026-10-12"};
 // ---- 更新履歴（アプリの中で見る。GitHubは開かない） ----
 const HIST_PAGE = 20;
 let histShown = HIST_PAGE;
@@ -1322,6 +1336,10 @@ window.openHistory = () => {
 };
 // アップデート後に一度だけ出すお知らせ（最新版の分だけ書けばOK。無い版はお知らせを出さない）
 const RELEASE_NOTES = {
+  '1.88.0': [
+    'セットリストを「リンクで送る」を追加。受け取った人がリンクを開くと、このアプリでセットリストを取り込めます（アプリを使ったことがない人でもOK・30曲まで）',
+    '同じ曲がすでにあるときは、空いている項目と構成表だけを足します（自分で入れた内容は変わりません）'
+  ],
   '1.87.2': [
     'パソコンで開いたときは、「ホーム画面に追加」の案内を出さないようにしました（スマホ向けのアプリのため）'
   ],
@@ -2214,13 +2232,16 @@ function buildSampleData(){
   return {songs: band.songs.concat(piano.songs), lives: band.lives.concat(piano.lives)};
 }
 
-// seed sample data on first run
-if(songs.length===0 && lives.length===0){
+// seed sample data on first run（セットリストのリンクで初めて開いたときは、届いたものだけにするため入れない。「やめる」を押したら入れる）
+function seedSampleIfEmpty(){
+  if(songs.length || lives.length) return false;
   store.set('setlist_songs_ordered', true);
   const sample = buildBandSample();
   songs = sample.songs; saveSongs();
   lives = sample.lives; saveLives();
+  return true;
 }
+if(!/^#sl=/.test(location.hash || '')) seedSampleIfEmpty();
 
 // 曲マスタは配列の並びがそのまま番号順。番号を導入する前のデータは、それまでの表示順で番号を振る
 if(!store.get('setlist_songs_ordered', false)){
@@ -2650,6 +2671,7 @@ window.onTap = (inputId) => {
 // metronome
 const EXPORT_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>`;
 const IMPORT_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M8 11H6.5A1.5 1.5 0 0 0 5 12.5v7A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-7a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>`;
+const LINK_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>`;
 const TEXT_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14"/><path d="M5 12h14"/><path d="M5 18h9"/></svg>`;
 const COPY_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>`;
 const METRO_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8l-2.2-16.2a1 1 0 0 0-1.98 0L7.8 21z"/><line x1="12" y1="19" x2="16.3" y2="6.3"/><circle cx="15.2" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg>`;
@@ -4600,6 +4622,7 @@ const APP_STEPS = [
 ];
 // 設定の「ヒント集」：使い方のコツ（見出し ＋ やり方）
 const APP_TIPS = [
+  ['セットリストをリンクで送ろう', 'イベントを開き、「セットリストの操作」→「リンクで送る」。受け取った人がリンクを開くと、このアプリでセットリストをそのまま取り込めます。アプリを使ったことがない人でも大丈夫です（30曲まで）。'],
   ['アプリのように使いたい', '設定 →「ホーム画面に追加」から。iPhoneは共有ボタン →「ホーム画面に追加」です。iPhoneはブラウザのデータが引き継がれないので、先にバックアップを取り、ホーム画面のアプリで「復元」してください。'],
   ['お気に入りのセットリストはバックアップをおすすめします', '設定 →「バックアップ・CSV」→ 全データの「バックアップ」で、曲マスタ・イベント一覧・設定を1つのファイルに保存できます。ブラウザのデータを消したときや機種を変えたときは、「復元」でそのファイルから戻せます。'],
   ['セットリストは通しリハーサルにも使えるよ', 'イベントを開き、「セットリスト」（合計時間の行）を開いて「▶ タイマースタート」。全曲の長さから残り時間を数えるので、通しで押しているか・余っているかがひと目で分かります。閉じても残り時間は見えたままです。'],
@@ -6036,6 +6059,7 @@ function renderLiveEdit(){
       ${showMode || !hasSl ? '' : '<div class="hint touch-only" style="margin:0 0 10px; padding:0;">曲や曲以外の項目は、左にスワイプすると非表示・削除ができます。最後まで引くとすぐ削除（「元に戻す」で戻せます）。非表示にした項目は合計時間に入りません。</div>'}
       ${canImport ? `<button type="button" class="btn btn-block btn-with-icon" onclick="importSetlistFromEvent()">他のイベントからセットリストを読み込む${IMPORT_ICON_SVG}</button>` : ''}
       ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="copySetlistText(false)">セットリストをテキストで書き出し${TEXT_ICON_SVG}</button>` : ''}
+      ${hasSl ? `<button type="button" class="btn btn-block btn-with-icon" onclick="openLinkShare()">リンクで送る（アプリで開ける）${LINK_ICON_SVG}</button>` : ''}
       ${hasSl && !showMode ? `<button type="button" class="btn-danger-block" onclick="clearSetlist()">セットリストを全て削除</button>` : ''}`);
     if(!showMode) createHtml += accItem('イベントの操作', '', !!actOpen.ev, "toggleActGroup('ev')", `
       <button type="button" class="btn btn-block btn-with-icon" onclick="copyLive()">このイベントをコピーして新規で開く${COPY_ICON_SVG}</button>
@@ -6568,6 +6592,258 @@ function openTextExport(title, build, withEvent){
     }
   });
   document.body.appendChild(overlay);
+}
+// ==== リンクで送る：セットリストをリンクに詰めて送り、受け取った人のアプリでそのまま開けるようにする ====
+// ・データはリンクの「#」より後ろ（サーバーには送られない）。圧縮して、文字だけのリンクにする
+// ・開いただけでは取り込まない。確認画面で「取り込む」を押したときだけ追加する（今のデータは消えない）
+// ・中身は決まった項目・長さ・件数だけを受け付ける（定型10）
+const LINK_MAX_SONGS = 30, LINK_MAX_OTHERS = 30, LINK_MAX_SECS = 60, LINK_MAX_CHARS = 60000, LINK_MAX_JSON = 400000;
+const LINK_SONG_FIELDS = ['name', 'orig', 'bpm', 'key', 'duration', 'start', 'end', 'rhythm', 'genre', 'url'];
+const LINK_SEC_FIELDS = ['name', 'chord', 'vocal', 'play', 'kime', 'kimeBar'];
+let linkOpt = {struct: true, notes: false};
+const b64u = bytes => { let s = ''; for(let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = str => { const s = atob(str.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(s.length); for(let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; };
+async function streamBytes(stream, limit){
+  const reader = stream.getReader(), chunks = []; let n = 0;
+  for(;;){ const {done, value} = await reader.read(); if(done) break; n += value.length; if(limit && n > limit){ try{ reader.cancel(); }catch(e){} throw new Error('too big'); } chunks.push(value); }
+  const out = new Uint8Array(n); let o = 0; chunks.forEach(c => { out.set(c, o); o += c.length; }); return out;
+}
+async function packLink(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if(typeof CompressionStream==='function'){
+    try{ const z = await streamBytes(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))); return 'z' + b64u(z); }catch(e){}
+  }
+  return 'j' + b64u(raw);
+}
+async function unpackLink(str){
+  if(typeof str!=='string' || str.length < 2 || str.length > LINK_MAX_CHARS || !/^[zj][A-Za-z0-9_-]+$/.test(str)) throw new Error('bad');
+  let bytes = unb64u(str.slice(1));
+  if(str[0]==='z'){
+    if(typeof DecompressionStream!=='function') throw new Error('nodecomp');
+    bytes = await streamBytes(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')), LINK_MAX_JSON);
+  }
+  if(bytes.length > LINK_MAX_JSON) throw new Error('too big');
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+// 送る中身を作る（非表示の項目は入れない）
+function buildLinkPayload(live, opt){
+  const sIdx = new Map(), ss = [], es = [];
+  live.setlist.forEach(e => {
+    if(e.hidden) return;
+    if(e.type==='other'){
+      const o = {t: 1, l: e.label || '', d: e.duration || ''};
+      if(e.numbered) o.nb = 1;
+      if(opt.notes && e.notes) o.m = e.notes;
+      es.push(o); return;
+    }
+    const s = songs.find(x => x.id===e.songId); if(!s) return;
+    if(!sIdx.has(s.id)){
+      const o = {};
+      LINK_SONG_FIELDS.forEach(f => { if(s[f]) o[f] = String(s[f]); });
+      if(opt.notes && s.notes) o.notes = String(s.notes);
+      if(opt.struct && s.struct && Array.isArray(s.struct.sections) && s.struct.sections.length){
+        o.st = s.struct.sections.map(x => { const c = {}; LINK_SEC_FIELDS.forEach(f => { if(x[f]) c[f] = String(x[f]); }); if(x.bars) c.bars = Number(x.bars) || 0; if(x.times && x.times!==1) c.times = Number(x.times) || 1; return c; });
+      }
+      sIdx.set(s.id, ss.length); ss.push(o);
+    }
+    const o = {t: 0, i: sIdx.get(s.id)};
+    const ov = {}; OV_FIELDS.forEach(f => { if(f==='notes' && !opt.notes) return; if(isOv(e, s, f)) ov[f] = String(e[f]); });
+    if(Object.keys(ov).length) o.ov = ov;
+    if(e.performer) o.p = e.performer;
+    es.push(o);
+  });
+  const ev = {id: live.id};
+  ['date', 'venue', 'place', 'artist', 'startTime', 'endTime'].forEach(f => { if(live[f]) ev[f] = String(live[f]); });
+  return {app: 'players-setlist', v: 1, ev, s: ss, e: es};
+}
+function linkSongCount(live){ return live.setlist.filter(e => e.type!=='other' && !e.hidden).length; }
+// 受け取った中身を確かめて、決まった形に直す（おかしなものは捨てる・長すぎる文字は切る）
+function cleanLinkPayload(o){
+  const str = (v, max) => (typeof v==='string' || typeof v==='number') ? String(v).slice(0, max) : '';
+  if(!o || typeof o!=='object' || o.app!=='players-setlist' || o.v!==1 || !Array.isArray(o.s) || !Array.isArray(o.e)) throw new Error('bad');
+  if(o.s.length > LINK_MAX_SONGS || o.e.length > LINK_MAX_SONGS + LINK_MAX_OTHERS) throw new Error('many');
+  const ev0 = o.ev && typeof o.ev==='object' ? o.ev : {};
+  const ev = {
+    id: SAFE_ID.test(String(ev0.id || '')) ? String(ev0.id) : '',
+    date: /^\d{4}-\d{2}-\d{2}$/.test(String(ev0.date || '')) ? String(ev0.date) : '',
+    venue: str(ev0.venue, 100), place: str(ev0.place, 100), artist: str(ev0.artist, 100),
+    startTime: /^\d{1,2}:\d{2}$/.test(String(ev0.startTime || '')) ? String(ev0.startTime) : '',
+    endTime: /^\d{1,2}:\d{2}$/.test(String(ev0.endTime || '')) ? String(ev0.endTime) : ''
+  };
+  const ss = o.s.map(x => {
+    if(!x || typeof x!=='object') return null;
+    const s = {};
+    LINK_SONG_FIELDS.forEach(f => { const v = str(x[f], f==='url' ? 2000 : 100); if(v) s[f] = v; });
+    if(s.url) s.url = safeUrl(s.url); if(!s.url) delete s.url;
+    if(x.notes) s.notes = str(x.notes, 2000);
+    if(!s.name) return null;
+    if(Array.isArray(x.st)) s.st = x.st.slice(0, LINK_MAX_SECS).filter(c => c && typeof c==='object').map(c => {
+      const sec = {name: str(c.name, 60) || '?', bars: Math.max(0, Math.min(999, parseInt(c.bars, 10) || 0)), times: Math.max(1, Math.min(99, parseInt(c.times, 10) || 1))};
+      ['chord', 'vocal', 'play', 'kime'].forEach(f => { sec[f] = str(c[f], 2000); });
+      sec.kimeBar = str(c.kimeBar, 30);
+      return sec;
+    });
+    return s;
+  });
+  let nSong = 0, nOther = 0;
+  const es = o.e.map(x => {
+    if(!x || typeof x!=='object') return null;
+    if(x.t===1){
+      if(++nOther > LINK_MAX_OTHERS) return null;
+      const e = {type: 'other', label: str(x.l, 60), duration: /^\d{1,3}:\d{2}$/.test(String(x.d || '')) ? String(x.d) : '', notes: str(x.m, 2000), numbered: !!x.nb};
+      return e;
+    }
+    const i = parseInt(x.i, 10);
+    if(!(i >= 0 && i < ss.length) || !ss[i]) return null;
+    if(++nSong > LINK_MAX_SONGS) return null;
+    const e = {i};
+    if(x.ov && typeof x.ov==='object'){ const ov = {}; OV_FIELDS.forEach(f => { if(x.ov[f]!==undefined) ov[f] = str(x.ov[f], f==='notes' ? 2000 : 30); }); if(Object.keys(ov).length) e.ov = ov; }
+    if(x.p) e.performer = str(x.p, 60);
+    return e;
+  }).filter(Boolean);
+  if(!es.length) throw new Error('empty');
+  return {ev, ss, es};
+}
+const sameSection = (a, b) => JSON.stringify((a || []).map(x => [x.name, x.bars, x.times || 1, x.chord || '', x.vocal || '', x.play || '', x.kime || '', x.kimeBar || ''])) === JSON.stringify((b || []).map(x => [x.name, x.bars, x.times || 1, x.chord || '', x.vocal || '', x.play || '', x.kime || '', x.kimeBar || '']));
+function findSameSong(x){ return songs.find(s => normName(s.name)===normName(x.name) && normName(s.orig)===normName(x.orig)); }
+// 取り込むとどうなるか（新しい曲・すでにある曲・構成表の追加・構成表が違う曲）
+function linkPlan(d){
+  const plan = {newSongs: 0, same: 0, addStruct: 0, diffStruct: 0, fill: 0};
+  d.ss.forEach(x => {
+    if(!x) return;
+    const s = findSameSong(x);
+    if(!s){ plan.newSongs++; return; }
+    plan.same++;
+    const has = s.struct && Array.isArray(s.struct.sections) && s.struct.sections.length;
+    if(x.st && x.st.length){ if(!has) plan.addStruct++; else if(!sameSection(s.struct.sections, x.st)) plan.diffStruct++; }
+  });
+  plan.prev = lives.find(l => d.ev.id && (l.shareSrc===d.ev.id || l.id===d.ev.id));
+  return plan;
+}
+function applyLinkImport(d, opt){
+  snapBeforeOp('link');
+  const idMap = d.ss.map(x => {
+    if(!x) return null;
+    let s = findSameSong(x);
+    if(!s){
+      s = {id: uid(), name: x.name, updatedAt: Date.now()};
+      LINK_SONG_FIELDS.forEach(f => { if(x[f]) s[f] = x[f]; });
+      if(x.notes) s.notes = x.notes;
+      if(x.st && x.st.length) s.struct = {sections: x.st};
+      songs.push(s); return s.id;
+    }
+    // すでにある曲：空いている項目だけ埋める（自分で入れた値は変えない）。構成表はないときだけ足す（違うときは選んだ場合だけ置き換え）
+    let ch = false;
+    LINK_SONG_FIELDS.forEach(f => { if(x[f] && !s[f]){ s[f] = x[f]; ch = true; } });
+    if(x.notes && !s.notes){ s.notes = x.notes; ch = true; }
+    const has = s.struct && Array.isArray(s.struct.sections) && s.struct.sections.length;
+    if(x.st && x.st.length && (!has || (opt.replaceStruct && !sameSection(s.struct.sections, x.st)))){ s.struct = Object.assign({}, s.struct || {}, {sections: x.st}); ch = true; }
+    if(ch) s.updatedAt = Date.now();
+    return s.id;
+  });
+  const setlist = d.es.map(x => {
+    if(x.type==='other') return {type: 'other', id: uid(), label: x.label, duration: x.duration, notes: x.notes, numbered: x.numbered};
+    const e = {type: 'song', songId: idMap[x.i]};
+    if(x.ov) Object.assign(e, x.ov);
+    if(x.performer) e.performer = x.performer;
+    return e;
+  }).filter(e => e.type==='other' || e.songId);
+  let live = opt.update && linkPlan(d).prev;
+  if(!live){ live = {id: uid(), setlist: []}; lives.push(live); }
+  ['date', 'venue', 'place', 'artist', 'startTime', 'endTime'].forEach(f => { live[f] = d.ev[f] || ''; });
+  if(d.ev.id && live.id!==d.ev.id) live.shareSrc = d.ev.id;
+  live.setlist = setlist; live.updatedAt = Date.now();
+  saveSongs(); saveLives();
+  return live;
+}
+// ---- 送る側 ----
+window.openLinkShare = () => {
+  const live = lives.find(l => l.id===liveEditId); if(!live) return;
+  const n = linkSongCount(live);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const paint = async () => {
+    const over = n > LINK_MAX_SONGS;
+    let url = '';
+    if(!over){ try{ url = SHARE_URL + '#sl=' + await packLink(buildLinkPayload(live, linkOpt)); }catch(e){ url = ''; } }
+    overlay.innerHTML = `<div class="modal-box link-box" role="dialog" aria-modal="true" aria-label="リンクで送る">
+      <div class="hist-head"><b>リンクで送る</b><button type="button" class="hist-x" aria-label="閉じる">×</button></div>
+      <div class="hint" style="padding:0 0 10px;">このセットリストが入ったリンクを作ります。受け取った人がリンクを開くと、このアプリが開き、確認のあとセットリストを取り込めます（アプリを使ったことがない人でもOK）。</div>
+      ${over ? `<div class="link-warn">リンクで送れるのは${LINK_MAX_SONGS}曲までです（今は${n}曲）。曲を減らすか、テキストで書き出してください。</div>` : `
+      <label class="link-opt"><input type="checkbox" id="lk-struct" ${linkOpt.struct ? 'checked' : ''}> 構成表も入れる</label>
+      <label class="link-opt"><input type="checkbox" id="lk-notes" ${linkOpt.notes ? 'checked' : ''}> メモも入れる</label>
+      <div class="link-see"><b>相手に見える内容</b>：イベント名・日付・時間・場所・アーティスト、${n}曲の曲名・アーティスト・BPM・キー・時間・はじめかた／おわりかた・リズム・プレイヤー、曲以外の項目${linkOpt.struct ? '・構成表' : ''}${linkOpt.notes ? '・メモ' : ''}（非表示にした項目は入りません）</div>
+      <div class="link-len">リンクの長さ：${url.length.toLocaleString()}文字</div>
+      <div class="settings-btn-row" style="margin-top:12px">
+        <button type="button" class="btn btn-accent" id="lk-send" ${url ? '' : 'disabled'}>送る</button>
+        <button type="button" class="btn" id="lk-copy" ${url ? '' : 'disabled'}>リンクをコピー</button>
+      </div>`}
+    </div>`;
+    overlay.querySelector('.hist-x').onclick = close;
+    const st = overlay.querySelector('#lk-struct'), nt = overlay.querySelector('#lk-notes');
+    if(st) st.onchange = () => { linkOpt.struct = st.checked; paint(); };
+    if(nt) nt.onchange = () => { linkOpt.notes = nt.checked; paint(); };
+    const title = `セットリスト「${live.venue || 'イベント'}」`;
+    const sb = overlay.querySelector('#lk-send');
+    if(sb) sb.onclick = () => {
+      if(navigator.share) navigator.share({title, text: title + '\n', url}).catch(err => { if(!err || err.name!=='AbortError') copyShareText(url, 'リンクをコピーしました。LINEなどに貼り付けて送ってください。'); });
+      else copyShareText(url, 'リンクをコピーしました。LINEなどに貼り付けて送ってください。');
+    };
+    const cb = overlay.querySelector('#lk-copy');
+    if(cb) cb.onclick = () => copyShareText(url, 'リンクをコピーしました。');
+  };
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if(e.key==='Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  overlay.addEventListener('click', e => { if(e.target===overlay) close(); });
+  document.body.appendChild(overlay);
+  paint();
+};
+// ---- 受け取る側：#sl= のリンクで開いたとき ----
+async function checkIncomingLink(){
+  const m = /^#sl=([A-Za-z0-9_-]+)$/.exec(location.hash || '');
+  if(!/^#sl=/.test(location.hash || '')) return;
+  try{ history.replaceState(null, '', location.pathname + location.search); }catch(e){}   // 何度も取り込まないように、アドレスから消す
+  let d;
+  try{
+    if(!m) throw new Error('bad');
+    d = cleanLinkPayload(await unpackLink(m[1]));
+  }catch(e){
+    if(seedSampleIfEmpty()) render();
+    alertBox(e && e.message==='nodecomp' ? 'このブラウザでは、このリンクを開けませんでした。\nSafariやChromeを新しくするか、別のブラウザで開いてください。' : 'セットリストのリンクを読み込めませんでした。\nリンクが途中で切れていないか、送った人に確かめてください。');
+    return;
+  }
+  const plan = linkPlan(d);
+  const tot = d.es.reduce((t, x) => {
+    if(x.type==='other') return t + parseDur(x.duration);
+    const s = d.ss[x.i]; return t + parseDur((x.ov && x.ov.duration) || (s && s.duration) || '');
+  }, 0);
+  let no = 0;
+  const list = d.es.map(x => x.type==='other' ? `<li class="lk-other">${esc(x.label || '曲以外')}</li>` : `<li><span class="mono">${++no}.</span> ${esc(d.ss[x.i].name)}${d.ss[x.i].orig ? `<span class="lk-sub"> / ${esc(d.ss[x.i].orig)}</span>` : ''}</li>`).join('');
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal-box link-box" role="dialog" aria-modal="true" aria-label="セットリストが届きました">
+    <div class="hist-head"><b>📥 セットリストが届きました</b></div>
+    <div class="lk-ev"><b>${esc(d.ev.venue || 'イベント名なし')}</b>${d.ev.date ? `<span class="mono">${esc(d.ev.date)}${d.ev.startTime ? ' ' + esc(d.ev.startTime) + (d.ev.endTime ? '〜' + esc(d.ev.endTime) : '') : ''}</span>` : ''}${d.ev.place ? `<span>${esc(d.ev.place)}</span>` : ''}${d.ev.artist ? `<span>${esc(d.ev.artist)}</span>` : ''}</div>
+    <div class="lk-sum">${no}曲・合計 ${fmtDur(tot)}</div>
+    <ol class="lk-list">${list}</ol>
+    <div class="lk-plan">${plan.newSongs ? `新しい曲 ${plan.newSongs}曲を曲マスタに追加します。` : ''}${plan.same ? `すでにある曲 ${plan.same}曲は、空いている項目だけ埋めます${plan.addStruct ? `（構成表がない ${plan.addStruct}曲には構成表を追加）` : ''}。` : ''}</div>
+    ${plan.diffStruct ? `<label class="link-opt"><input type="checkbox" id="lk-rep"> 構成表が違う ${plan.diffStruct}曲は、届いた構成表に置き換える</label>` : ''}
+    ${plan.prev ? `<div class="lk-prev">前に取り込んだ（または同じ）イベント「${esc(plan.prev.venue || 'イベント名なし')}」があります。</div>
+      <label class="link-opt"><input type="radio" name="lk-mode" value="update" checked> そのイベントを、届いた内容に更新する</label>
+      <label class="link-opt"><input type="radio" name="lk-mode" value="new"> 新しいイベントとして追加する</label>` : ''}
+    <div class="hint" style="padding:6px 0 0;">今のデータは消えません。取り込んだあとも「リンクの取り込み前に戻す」（設定 →「バックアップ・CSV」）で元に戻せます。</div>
+    <div class="modal-actions" style="margin-top:12px"><button type="button" class="btn" id="modal-cancel">やめる</button><button type="button" class="btn btn-accent" id="modal-ok">取り込む</button></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modal-cancel').onclick = () => { overlay.remove(); if(seedSampleIfEmpty()) render(); };
+  overlay.querySelector('#modal-ok').onclick = () => {
+    const rep = overlay.querySelector('#lk-rep'), mode = overlay.querySelector('input[name="lk-mode"]:checked');
+    overlay.remove();
+    const live = applyLinkImport(d, {replaceStruct: !!(rep && rep.checked), update: !mode || mode.value==='update'});
+    tab = 'lives'; openLive(live.id);
+    showToast('セットリストを取り込みました。');
+  };
 }
 window.copySetlistText = (withEventInfo) => {
   const live = lives.find(l=>l.id===liveEditId);
@@ -7556,7 +7832,7 @@ window.loadSampleData = (kind) => {
 // ---- 全データのバックアップと復元 ----
 // ---- 大きな操作（初期化・復元・CSV取り込み）の前の状態を、直前1回分だけ控えておく ----
 const UNDO_OP_KEY = 'setlist_undo_op';
-const UNDO_OP_LABEL = {reset: ['初期化前', '初期化'], restore: ['復元前', '復元'], 'csv-songs': ['曲マスタのCSV取り込み前', '取り込み'], 'csv-lives': ['イベント一覧のCSV取り込み前', '取り込み']};
+const UNDO_OP_LABEL = {link: ['リンクの取り込み前', '取り込み'], reset: ['初期化前', '初期化'], restore: ['復元前', '復元'], 'csv-songs': ['曲マスタのCSV取り込み前', '取り込み'], 'csv-lives': ['イベント一覧のCSV取り込み前', '取り込み']};
 function snapBeforeOp(kind){
   const data = {}; backupKeys().forEach(k => { try{ data[k] = localStorage.getItem(k); }catch(e){} });
   try{ localStorage.setItem(UNDO_OP_KEY, JSON.stringify({kind, at: Date.now(), data})); }catch(e){ try{ localStorage.removeItem(UNDO_OP_KEY); }catch(_){} }
@@ -7697,6 +7973,7 @@ window.resetAllData = () => {
 };
 
 render();
+checkIncomingLink();
 </script>
 </body>
 </html>
